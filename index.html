@@ -69,6 +69,28 @@ canvas{display:block;width:100%;height:100%}
 .pill{background:var(--card);border-radius:999px;padding:8px 16px;font-size:14px}
 .pill.on{background:var(--acc);color:#fff}
 .dev p{margin:8px 0 0;font-size:13px;line-height:1.5}
+.shopbtn{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;background:var(--card);border-radius:14px;padding:14px 16px;font-size:16px;font-weight:600}
+.shopbtn small{display:block;color:var(--sub);font-weight:400;font-size:13px;margin-top:2px;text-align:left}
+.shopbtn b,.bal{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+[hidden]{display:none!important}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(10,8,20,.45);display:flex;align-items:flex-end;justify-content:center}
+.sh-in{background:var(--bg);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;border-radius:20px 20px 0 0;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+.sh-top{display:flex;align-items:center;gap:12px}
+.sh-top>b{font-size:20px;flex:1}
+.sh-note{margin:0;color:var(--sub);font-size:13px;line-height:1.5}
+#pv{width:100%;aspect-ratio:2/1;border-radius:14px;display:block;background:#8fd3ff}
+.tabs2{display:flex;gap:4px;background:var(--card);border-radius:999px;padding:3px}
+.tabs2 button{flex:1;background:none;border-radius:999px;padding:8px 0;font-size:15px}
+.tabs2 button.on{background:var(--bg);color:var(--acc);font-weight:600}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.items button{background:var(--card);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:14px;border:2px solid transparent}
+.items button.sel{border-color:var(--acc)}
+.items i{width:22px;height:22px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25)}
+.items em{font-style:normal;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.items em.own{color:var(--go)}
+.act{background:var(--acc);color:#fff;border-radius:14px;padding:14px;font-size:17px;font-weight:600}
+.act:disabled{background:var(--card);color:var(--sub)}
 @media (max-width:520px){.cir{width:84px;height:84px;font-size:17px}.grid{gap:4px}}
 </style>
 </head>
@@ -96,6 +118,7 @@ canvas{display:block;width:100%;height:100%}
       <div class="ticks"><span>0分</span><span>2分</span><span>4分</span><span>6分</span><span>8分</span><span>10分</span></div>
       <div class="meta"><span>ステージ 1-1</span><b id="pt">0%</b></div>
     </div>
+    <button class="shopbtn" id="shopb"><span>ショップ<small>コインで見た目を変えられます</small></span><b><span class="coin"></span><span id="wl">0</span></b></button>
     <div class="map">
       <h3>全72ステージ <span>· 1ステージ10分 · 12時間でオールクリア</span></h3>
       <div class="grid" id="grid"></div>
@@ -114,11 +137,22 @@ canvas{display:block;width:100%;height:100%}
   </div>
 </div>
 
+<div class="sheet" id="shop" hidden>
+  <div class="sh-in" role="dialog" aria-label="ショップ">
+    <div class="sh-top"><b>ショップ</b><span class="bal"><span class="coin"></span><span id="sbal">0</span></span><button class="pill" id="shx">閉じる</button></div>
+    <p class="sh-note">変わるのは見た目だけで、速さやジャンプは変わりません。値段は仮です。</p>
+    <canvas id="pv"></canvas>
+    <div class="tabs2" id="stabs"></div>
+    <div class="items" id="sitems"></div>
+    <button class="act" id="sact">装備中</button>
+  </div>
+</div>
 <script>
 (() => {
 'use strict';
 const T = 16, VH = 192, STAGE = 600, HEAD = 27;
-const cv = document.getElementById('cv'), c = cv.getContext('2d');
+const cv = document.getElementById('cv'), mainCtx = cv.getContext('2d');
+let c = mainCtx;
 const $ = id => document.getElementById(id);
 
 /* ---------- seeded random ---------- */
@@ -324,11 +358,35 @@ for (let m = 1; m <= 9; m++) {
 /* ---------- study clock ---------- */
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
 const fresh = () => ({d: today(), acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), winAt: 0});
+const SHOP = {
+  color: {name: '色', items: [
+    ['orange','オレンジ',0,'#ff5a2e'], ['blue','ブルー',50,'#2f7dff'], ['green','グリーン',50,'#22b455'], ['yellow','イエロー',50,'#f2b705'],
+    ['pink','ピンク',80,'#ff5fa2'], ['purple','パープル',80,'#9b51e0'], ['black','ブラック',120,'#2a2a33'], ['white','ホワイト',120,'#ffffff'],
+    ['gold','ゴールド',400,'#e8b100'], ['rainbow','レインボー',800,'rainbow']]},
+  head: {name: '頭', items: [
+    ['none','なし',0], ['cap','キャップ',80], ['band','ハチマキ',80], ['glasses','メガネ',100], ['beanie','ニット帽',120],
+    ['cat','ネコ耳',150], ['horns','ツノ',150], ['halo','天使の輪',300], ['crown','王冠',400]]},
+  back: {name: '背中', items: [
+    ['none','なし',0], ['scarf','マフラー',100], ['pack','リュック',100], ['cape','マント',250], ['wings','つばさ',500]]},
+  trail: {name: '軌跡', items: [
+    ['none','なし',0], ['spark','キラキラ',150], ['stars','星',200], ['ghost','残像',300], ['rainbow','虹',600]]}
+};
+const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','back:none','trail:none'], eq: {color: 'orange', head: 'none', back: 'none', trail: 'none'}});
+let bank;
+try { bank = JSON.parse(localStorage.getItem('quest-bank')); } catch (e) {}
+if (!bank || !bank.eq) bank = freshBank();
+const saveBank = () => { try { localStorage.setItem('quest-bank', JSON.stringify(bank)); } catch (e) {} };
+const item = (cat, id) => SHOP[cat].items.find(i => i[0] === id) || SHOP[cat].items[0];
+const lookOf = eq => ({color: item('color', eq.color)[3], head: eq.head, back: eq.back, trail: eq.trail});
+const LOOK = () => lookOf(bank.eq);
 let st;
 try { st = JSON.parse(localStorage.getItem('quest-day')); } catch (e) {}
-if (!st || st.d !== today()) st = fresh();
+// coins from a finished day move into the wallet
+const deposit = old => { if (old && old.acc) { bank.earned += coinsAt(Math.min(STAGE, old.acc/1000)); saveBank(); } };
+if (!st || st.d !== today()) { deposit(st); st = fresh(); }
 st.mult = st.mult || 1;
 const save = () => { try { localStorage.setItem('quest-day', JSON.stringify(st)); } catch (e) {} };
+const wallet = () => bank.earned + coinsAt(Math.min(STAGE, studyMs()/1000)) - bank.spent;
 const studyMs = () => st.acc + (st.run ? (Date.now() - st.t0)*st.mult : 0);
 const commit = () => { if (st.run) { const n = Date.now(); st.acc += (n - st.t0)*st.mult; st.t0 = n; } };
 
@@ -343,7 +401,8 @@ function toggle(){
 }
 $('go').onclick = toggle;
 document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { commit(); st.mult = +b.dataset.m; save(); ui(); });
-$('rs').onclick = () => { if (confirm('今日の記録とステージ1-1をリセットしますか？')) { st = fresh(); save(); ui(); } };
+$('rs').onclick = () => { if (confirm('今日の記録とステージ1-1をリセットしますか？（集めたコインは残ります）')) { commit(); deposit(st); st = fresh(); save(); ui(); } };
+window.__setEq = eq => { Object.assign(bank.eq, eq); };
 window.__quest = { L: () => L, set(sec){ st.acc = sec*1000; st.t0 = Date.now(); st.winAt = 0; save(); ui(); } };
 
 /* ---------- map grid ---------- */
@@ -364,6 +423,7 @@ function ui(){
   $('pt').textContent = Math.floor(p*100) + '%';
   $('hl').textContent = fmtShort(STAGE - s);
   $('hc').textContent = coinsAt(s);
+  $('wl').textContent = wallet();
   $('hint').classList.toggle('off', st.run || ms > 0);
   document.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === st.mult));
   cells.forEach((el, i) => {
@@ -718,17 +778,61 @@ function drawDust(cam, s, hero){
   }
 }
 
-const HC = '#ff5a2e';
-function stick(P, col){
-  // P: {hip:[x,y], neck:[x,y], head:[x,y], legs:[[knee,foot],[knee,foot]], arms:[[elbow,hand],[elbow,hand]]}
+/* ---------- looks (shop) ----------
+   Cosmetic only: nothing here touches the stage, path or timing. */
+const hsl2hex = (h, s, l) => { s /= 100; l /= 100; const k = n => (n + h/30) % 12, a = s*Math.min(l, 1 - l); const f = n => Math.round(255*(l - a*Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))).toString(16).padStart(2, '0'); return '#' + f(0) + f(8) + f(4); };
+const bodyColor = (look, t) => look.color === 'rainbow' ? hsl2hex((t*.08) % 360, 85, 58) : look.color;
+const shadeCache = {};
+function shade(col){ return shadeCache[col] || (shadeCache[col] = mix(col.slice(1), '3a1a40', .35)); }
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+function stick(P, look, o){
+  const col = bodyColor(look, o.t), t = o.t;
+  const moving = o.mode === 'run' || o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'wall';
+  const air = o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'wall';
+  const d = sub(P.neck, P.hip), len = Math.hypot(d[0], d[1]) || 1, u = [d[0]/len, d[1]/len], f = [-u[1], u[0]], bk = [-f[0], -f[1]];
+  const ang = Math.atan2(u[0], -u[1]);
   const line = pts => { c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]); c.stroke(); };
+  const ol = (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); };
   c.lineCap = 'round'; c.lineJoin = 'round';
+  // --- behind the body ---
+  if (look.back === 'cape') {
+    const sh = [P.neck[0] + bk[0]*.8, P.neck[1] + bk[1]*.8];
+    const blow = moving ? 1 : 0, w = Math.sin(t*.02)*1.5*blow;
+    const tip1 = [P.hip[0] + bk[0]*(4 + blow*7) + u[0]*(-2 + blow*3), P.hip[1] + bk[1]*(4 + blow*7) - u[1]*(2 - blow*3) + w];
+    const tip2 = [P.hip[0] + bk[0]*(1 + blow*3) - u[0]*2, P.hip[1] + bk[1]*(1 + blow*3) + 2 - w*.5];
+    c.fillStyle = '#c0263a';
+    c.beginPath(); c.moveTo(sh[0] + f[0]*1.2, sh[1] + f[1]*1.2);
+    c.quadraticCurveTo(sh[0] + bk[0]*5, sh[1] + bk[1]*5 + w, tip1[0], tip1[1]);
+    c.lineTo(tip2[0], tip2[1]); c.quadraticCurveTo(P.hip[0], P.hip[1] - 2, sh[0], sh[1]); c.closePath();
+    c.fill(); ol();
+  }
+  if (look.back === 'wings') {
+    const base = [P.neck[0]*.7 + P.hip[0]*.3 + bk[0]*1.2, P.neck[1]*.7 + P.hip[1]*.3 + bk[1]*1.2];
+    const flap = air ? Math.sin(t*.03)*.7 : Math.sin(t*.008)*.2;
+    for (const [s, a0] of [[.85, -.5], [1, -.15]]) {
+      c.save(); c.translate(base[0], base[1]); c.rotate(ang + a0 + flap*s);
+      c.fillStyle = s < 1 ? '#dfe6f5' : '#ffffff';
+      c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-4*s, -9*s, -10*s, -7*s); c.quadraticCurveTo(-8*s, -3*s, -9*s, -1*s); c.quadraticCurveTo(-5*s, 0, -6*s, 2*s); c.quadraticCurveTo(-3*s, 2*s, 0, 0); c.fill(); ol(.7);
+      c.restore();
+    }
+  }
+  if (look.back === 'pack') {
+    const m = [(P.neck[0] + P.hip[0])/2 + bk[0]*2.8, (P.neck[1] + P.hip[1])/2 + bk[1]*2.8];
+    c.save(); c.translate(m[0], m[1]); c.rotate(ang);
+    c.fillStyle = '#f08a24'; rr(-2.4, -3.6, 4.8, 7.2, 1.6); c.fill(); ol();
+    c.fillStyle = '#ffb25c'; c.fillRect(-1.6, -1, 3.2, 1);
+    c.restore();
+  }
+  if (look.back === 'scarf') {
+    const n = [P.neck[0] + u[0]*.5, P.neck[1] + u[1]*.5];
+    const w1 = moving ? Math.sin(t*.02)*1.6 : 0, w2 = moving ? Math.sin(t*.02 + 1.4)*2 : 0;
+    const tail = () => { c.beginPath(); c.moveTo(n[0], n[1]); if (moving) c.bezierCurveTo(n[0] - 4, n[1] + w1, n[0] - 7, n[1] - 2 + w2, n[0] - 11, n[1] + w2); else c.bezierCurveTo(n[0] - 2, n[1] + 1, n[0] - 3, n[1] + 4, n[0] - 3, n[1] + 6); };
+    c.strokeStyle = OL; c.lineWidth = 3.4; tail(); c.stroke(); c.strokeStyle = '#ffd23f'; c.lineWidth = 2; tail(); c.stroke();
+  }
+  // --- body ---
   for (const pass of [0, 1]) {
-    const w = pass ? 2.5 : 3.9;
-    c.strokeStyle = pass ? col : 'rgba(43,35,64,.85)';
-    // back limbs a bit darker
-    c.lineWidth = w;
-    if (pass) c.strokeStyle = shade(col);
+    c.lineWidth = pass ? 2.5 : 3.9;
+    c.strokeStyle = pass ? shade(col) : 'rgba(43,35,64,.85)';
     line([P.hip, P.legs[1][0], P.legs[1][1]]);
     line([P.neck, P.arms[1][0], P.arms[1][1]]);
     if (pass) c.strokeStyle = col;
@@ -738,13 +842,53 @@ function stick(P, col){
     c.fillStyle = pass ? col : 'rgba(43,35,64,.85)';
     c.beginPath(); c.arc(P.head[0], P.head[1], pass ? 4.6 : 5.3, 0, 7); c.fill();
   }
+  if (look.color === 'gold') { c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.arc(P.head[0] - 1.5, P.head[1] - 1.6, 1.2, 0, 7); c.fill(); }
+  if (look.back === 'scarf') { c.fillStyle = '#ffd23f'; c.beginPath(); c.ellipse(P.neck[0] + u[0]*.6, P.neck[1] + u[1]*.6, 2.6, 1.5, ang, 0, 7); c.fill(); ol(.6); }
+  // --- head ---
+  c.save(); c.translate(P.head[0], P.head[1]); c.rotate(ang);
+  switch (look.head) {
+    case 'cap':
+      c.fillStyle = '#2f6bff'; c.beginPath(); c.arc(0, -.6, 5, Math.PI, Math.PI*2); c.closePath(); c.fill(); ol();
+      c.beginPath(); rr(1, -1.6, 7.5, 1.6, .8); c.fill(); ol(.6);
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(0, -5.4, .9, 0, 7); c.fill(); break;
+    case 'band': {
+      const w = moving ? Math.sin(t*.025)*1.2 : 0;
+      c.strokeStyle = '#e8202a'; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(-4.4, -2.4); c.quadraticCurveTo(-8, -3 + w, -10, -1.5 + w*1.5); c.moveTo(-4.4, -2.2); c.quadraticCurveTo(-7.5, -.5 + w, -9.5, .8 + w); c.stroke();
+      c.fillStyle = '#e8202a'; c.save(); c.beginPath(); c.arc(0, 0, 5.4, 0, 7); c.clip(); c.fillRect(-6, -3.6, 12, 2.2); c.restore();
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(3.6, -2.5, .7, 0, 7); c.fill(); break; }
+    case 'beanie':
+      c.fillStyle = '#2bb3a3'; c.beginPath(); c.arc(0, -1, 5.3, Math.PI, Math.PI*2); c.closePath(); c.fill(); ol();
+      c.fillStyle = '#1f8f82'; rr(-5.6, -2.2, 11.2, 2.2, 1); c.fill(); ol(.6);
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(0, -6.8, 1.7, 0, 7); c.fill(); ol(.6); break;
+    case 'cat':
+      for (const e of [[[-4.6,-1.6],[-3.8,-7.6],[-.6,-4.6]], [[.8,-4.8],[3.6,-7.8],[4.8,-1.8]]]) {
+        c.fillStyle = col; c.beginPath(); c.moveTo(...e[0]); c.lineTo(...e[1]); c.lineTo(...e[2]); c.closePath(); c.fill(); ol(.6);
+        c.fillStyle = '#ffb3c7'; c.beginPath(); c.moveTo(e[0][0]*.6 + e[2][0]*.4, e[0][1]*.6 + e[2][1]*.4); c.lineTo(e[1][0]*.8 + (e[0][0] + e[2][0])*.1, e[1][1]*.8 + (e[0][1] + e[2][1])*.1); c.lineTo(e[0][0]*.4 + e[2][0]*.6, e[0][1]*.4 + e[2][1]*.6); c.fill();
+      } break;
+    case 'horns':
+      c.fillStyle = '#f3e6c8';
+      for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s*1.2 - .2, -4.3); c.quadraticCurveTo(s*2.5, -9, s*5.2 + .8, -8.6); c.quadraticCurveTo(s*3.2, -7, s*3.6 + .6, -3.4); c.closePath(); c.fill(); ol(.6); } break;
+    case 'glasses':
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.strokeStyle = '#1b1b24'; c.lineWidth = .8;
+      c.beginPath(); c.arc(1.6, -.4, 1.7, 0, 7); c.fill(); c.stroke();
+      c.beginPath(); c.arc(5.2, -.4, 1.5, 0, 7); c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(3.3, -.6); c.lineTo(3.7, -.6); c.moveTo(-.1, -.6); c.lineTo(-4, -1.2); c.stroke(); break;
+    case 'crown':
+      c.fillStyle = '#ffcc1f'; c.beginPath(); c.moveTo(-4, -3.4); c.lineTo(-4.4, -8.6); c.lineTo(-2, -6.2); c.lineTo(0, -9.6); c.lineTo(2, -6.2); c.lineTo(4.4, -8.6); c.lineTo(4, -3.4); c.closePath(); c.fill(); ol(.7);
+      c.fillStyle = '#e8202a'; c.beginPath(); c.arc(0, -5, 1, 0, 7); c.fill();
+      c.fillStyle = '#4aa3f5'; c.beginPath(); c.arc(-2.6, -4.6, .7, 0, 7); c.arc(2.6, -4.6, .7, 0, 7); c.fill(); break;
+    case 'halo': {
+      const b = Math.sin(t*.004)*.6;
+      c.strokeStyle = 'rgba(255,220,80,.45)'; c.lineWidth = 2.6; c.beginPath(); c.ellipse(0, -8.6 + b, 4.4, 1.4, 0, 0, 7); c.stroke();
+      c.strokeStyle = '#ffd23f'; c.lineWidth = 1.1; c.beginPath(); c.ellipse(0, -8.6 + b, 4.4, 1.4, 0, 0, 7); c.stroke(); break; }
+  }
+  c.restore();
 }
-const shadeCache = {};
-function shade(col){ return shadeCache[col] || (shadeCache[col] = mix(col.slice(1), '8a2a14', .35)); }
 const pt = (o, a, l) => [o[0] + Math.sin(a)*l, o[1] + Math.cos(a)*l];
 function pose(o){
   // angles: 0 = straight down, positive = forward (+x)
-  const t = o.t; let hipY = -11.6, lean = 0, L = [[0, .1], [0, .1]], A = [[.15, .5], [-.15, .5]], headOff = 0;
+  const t = o.t; let hipY = -11.6, lean = 0, L = [[0, .1], [0, .1]], A = [[.15, .5], [-.15, .5]];
   if (o.mode === 'run') {
     const p = o.ph; lean = .22;
     hipY = -10.4 - 1.3*Math.abs(Math.cos(p));
@@ -765,31 +909,50 @@ function pose(o){
   }
   const hip = [0, hipY];
   const neck = [hip[0] + Math.sin(lean)*8.4, hip[1] - Math.cos(lean)*8.4];
-  const head = [neck[0] + Math.sin(lean)*5.2, neck[1] - Math.cos(lean)*5.2 + headOff];
+  const head = [neck[0] + Math.sin(lean)*5.2, neck[1] - Math.cos(lean)*5.2];
   const legs = L.map(([a, k]) => { const kn = pt(hip, a, 6); return [kn, pt(kn, a - k, 6)]; });
   const arms = A.map(([a, k]) => { const el = pt(neck, a, 4.8); return [el, pt(el, a - k, 4.6)]; });
   return {hip, neck, head, legs, arms};
 }
-function drawHero(x, y, o){
-  if (o.mode === 'sleep') return drawSleep(x, y, o.t);
+function drawHero(x, y, o, look){
+  look = look || LOOK();
+  if (o.mode === 'sleep') return drawSleep(x, y, o.t, look);
   c.save(); c.translate(x, y);
   if (o.sq) c.scale(1 + o.sq*.18, 1 - o.sq*.18);
   if (o.face < 0) c.scale(-1, 1);
   if (o.flip) { c.translate(0, -13); c.rotate(o.flip); c.translate(0, 13); }
-  stick(pose(o), HC);
+  stick(pose(o), look, o);
   c.restore();
 }
-function drawSleep(x, y, t){
+function drawSleep(x, y, t, look){
   c.save(); c.translate(x, y);
   const br = Math.sin(t*.002)*.4;
   const hip = [-2, -2.5], neck = [1.5, -10.5 + br], head = [5, -14 + br];
   const legs = [[[3.5, -8], [8, -1]], [[3, -7.5], [7, -1]]];
   const arms = [[[4.5, -6], [6.5, -9]], [[4, -6], [6, -8.5]]];
-  stick({hip, neck, head, legs, arms}, HC);
+  stick({hip, neck, head, legs, arms}, look, {t, mode: 'sleep'});
   c.fillStyle = '#fff'; c.strokeStyle = OL; c.lineWidth = .6;
   for (let i = 0; i < 3; i++) { const k = ((t*.0006) + i/3) % 1; c.globalAlpha = Math.sin(k*Math.PI); c.font = `bold ${4 + k*4}px sans-serif`; c.strokeText('z', 8 + k*8, -20 - k*16); c.fillText('z', 8 + k*8, -20 - k*16); }
   c.globalAlpha = 1;
   c.restore();
+}
+/* trail: sample(k) returns {x, y, o} in screen units for k steps back in time */
+function drawTrail(kind, sample, look){
+  if (kind === 'stars') {
+    for (let k = 10; k >= 1; k--) { const p = sample(k, .045); const a = 1 - k/11; c.globalAlpha = a*.9; star(p.x - 2 + Math.sin(k*2.1)*2, p.y - 12 + Math.cos(k*1.7)*3, 1 + a*2.2, k % 2 ? '#fff6a8' : '#ffd23f'); }
+  } else if (kind === 'ghost') {
+    for (let k = 3; k >= 1; k--) { const p = sample(k, .06); c.globalAlpha = .16*(4 - k); drawHero(p.x, p.y, p.o, look); }
+  } else if (kind === 'rainbow') {
+    const cols = ['#ff4d4d','#ff9f1a','#ffe14d','#4dd26b','#4da6ff','#9d6bff'], pts = [];
+    for (let k = 0; k <= 16; k++) pts.push(sample(k, .022));
+    for (let i = 0; i < cols.length; i++) {
+      c.strokeStyle = cols[i]; c.lineWidth = 1.25; c.lineCap = 'butt';
+      for (let k = 0; k < 16; k++) { c.globalAlpha = .85*(1 - k/16); c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 15 + i*1.2); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 15 + i*1.2); c.stroke(); }
+    }
+  } else if (kind === 'spark') {
+    for (let k = 1; k <= 12; k++) { const p = sample(k, .03); const a = 1 - k/13; c.globalAlpha = a; c.fillStyle = k % 3 ? '#7fe7ff' : '#ffffff'; c.beginPath(); c.arc(p.x - 3 + Math.sin(k*7.3 + p.x)*3, p.y - 6 - Math.cos(k*3.1)*4 - k*.5, .6 + a*1.2, 0, 7); c.fill(); }
+  }
+  c.globalAlpha = 1;
 }
 
 function drawConfetti(winT){
@@ -808,11 +971,21 @@ function drawConfetti(winT){
   c.globalAlpha = 1;
 }
 
+function airPose(s){
+  const h = heroAt(s), o = {x: h.x, y: h.y, mode: h.air ? 'jump' : 'run', ph: h.x/6.5, vy: h.vy, t: now, flip: 0, face: 1};
+  if (h.air) {
+    const gk = h.g.k;
+    if (gk === 'dj' || (h.g.A >= 40 && gk !== 'air')) { const k = Math.max(0, Math.min(1, (h.u - .08)/.75)); o.flip = k*k*(3 - 2*k)*Math.PI*2; if (k > 0 && k < 1) o.mode = 'tuck'; }
+    else if (gk === 'air' && h.g.A < 10 && h.u > .75) o.mode = 'wall';
+    else if (gk === 'kick') { o.face = -1; if (h.u < .3) o.mode = 'wall'; }
+  }
+  return o;
+}
 let camS = null;
 function frame(){
   requestAnimationFrame(frame);
   now = performance.now();
-  if (st.d !== today() && !st.run) { st = fresh(); save(); ui(); }
+  if (st.d !== today() && !st.run) { deposit(st); st = fresh(); save(); ui(); }
   const ms = studyMs();
   let s = Math.min(STAGE, ms/1000);
   if (s >= STAGE && !st.winAt) { st.winAt = Date.now(); if (st.run) { st.acc = STAGE*1000; st.run = false; st.stopAt = Date.now(); } save(); ui(); }
@@ -853,11 +1026,66 @@ function frame(){
     else if (gk === 'air' && hero.g.A < 10 && hero.u > .75) mode = 'wall';
     else if (gk === 'kick') { face = -1; if (hero.u < .3) mode = 'wall'; }
   }
-  drawHero(hero.x - cam, Y(hy), {mode, ph: hero.x/6.5, vy: hero.vy, t: now, sq, flip, face});
+  const look = LOOK();
+  if (look.trail !== 'none' && st.run && winT < 0) drawTrail(look.trail, (k, dt) => { const ss = Math.max(0, s - k*dt), o = airPose(ss); return {x: o.x - cam, y: Y(o.y), o}; }, look);
+  drawHero(hero.x - cam, Y(hy), {mode, ph: hero.x/6.5, vy: hero.vy, t: now, sq, flip, face}, look);
   for (const d of L.decos) drawDeco(d, cam, false);
   drawConfetti(winT);
+  if (!$('shop').hidden) drawPreview();
   $('ban').classList.toggle('on', winT >= 0);
   if (winT >= 0) $('bans').textContent = `コイン ${coinsAt(STAGE)} / ${TOTAL_COINS} · つぎは 1-2（準備中）`;
+}
+
+/* ---------- shop ---------- */
+const pv = $('pv'), pctx = pv.getContext('2d');
+let shopCat = 'color', trial = null;
+const owned = (cat, id) => bank.owned.includes(cat + ':' + id);
+function shopRender(){
+  $('sbal').textContent = wallet();
+  $('stabs').innerHTML = Object.keys(SHOP).map(k => `<button data-cat="${k}" class="${k === shopCat ? 'on' : ''}">${SHOP[k].name}</button>`).join('');
+  $('sitems').innerHTML = SHOP[shopCat].items.map(([id, name, price, col]) => {
+    const tag = bank.eq[shopCat] === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : `<em>${price} コイン</em>`;
+    const sw = shopCat === 'color' ? `<i style="background:${col === 'rainbow' ? 'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)' : col}"></i>` : '';
+    return `<button data-id="${id}" class="${trial[shopCat] === id ? 'sel' : ''}">${sw}<span>${name}</span>${tag}</button>`;
+  }).join('');
+  const id = trial[shopCat], it = item(shopCat, id), a = $('sact');
+  if (bank.eq[shopCat] === id) { a.textContent = '装備中'; a.disabled = true; }
+  else if (owned(shopCat, id)) { a.textContent = '装備する'; a.disabled = false; }
+  else if (wallet() >= it[2]) { a.textContent = `${it[2]} コインで買って装備する`; a.disabled = false; }
+  else { a.textContent = `コインが足りません（あと ${it[2] - wallet()}）`; a.disabled = true; }
+}
+$('shopb').onclick = () => { trial = {...bank.eq}; $('shop').hidden = false; shopRender(); };
+$('shx').onclick = () => { $('shop').hidden = true; ui(); };
+$('shop').onclick = e => { if (e.target.id === 'shop') $('shx').onclick(); };
+$('stabs').onclick = e => { const b = e.target.closest('[data-cat]'); if (b) { shopCat = b.dataset.cat; shopRender(); } };
+$('sitems').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { trial[shopCat] = b.dataset.id; shopRender(); } };
+$('sact').onclick = () => {
+  const id = trial[shopCat], it = item(shopCat, id);
+  if (!owned(shopCat, id)) { if (wallet() < it[2]) return; bank.spent += it[2]; bank.owned.push(shopCat + ':' + id); }
+  bank.eq[shopCat] = id; saveBank(); shopRender(); ui();
+};
+function drawPreview(){
+  const r = pv.getBoundingClientRect(); if (!r.width) return;
+  const W = Math.round(r.width*dpr), H = Math.round(r.height*dpr);
+  if (pv.width !== W || pv.height !== H) { pv.width = W; pv.height = H; }
+  const sc = H/72, vw = W/sc, gy = 58, x0 = vw*.5, V = 75;
+  c = pctx; c.setTransform(sc, 0, 0, sc, 0, 0);
+  const g = c.createLinearGradient(0, 0, 0, 72); g.addColorStop(0, '#5cb8ff'); g.addColorStop(1, '#cdeeff');
+  c.fillStyle = g; c.fillRect(0, 0, vw, 72);
+  const sec = now/1000, off = (sec*V) % 16;
+  c.fillStyle = '#c98a4b'; c.fillRect(0, gy, vw, 20);
+  c.fillStyle = '#5ccf4f'; c.fillRect(0, gy, vw, 4);
+  c.fillStyle = '#a86b37'; for (let x = -off; x < vw; x += 16) { rr(x + 4, gy + 9, 3, 2, 1); c.fill(); }
+  const at = tt => {
+    const k = ((tt % 2.6) + 2.6) % 2.6;
+    if (k < 1.6) return {y: 0, mode: 'run', ph: tt*V/6.5, flip: 0, vy: 0};
+    const u = (k - 1.6)/1, y = 4*26*u*(1 - u), q = Math.max(0, Math.min(1, (u - .08)/.75));
+    return {y, mode: q > 0 && q < 1 ? 'tuck' : 'jump', ph: 0, flip: q*q*(3 - 2*q)*Math.PI*2, vy: 1 - 2*u};
+  };
+  const look = lookOf(trial || bank.eq), p0 = at(sec);
+  if (look.trail !== 'none') drawTrail(look.trail, (k, dt) => { const q = at(sec - k*dt); return {x: x0 - k*dt*V, y: gy - q.y, o: {...q, t: now, face: 1}}; }, look);
+  drawHero(x0, gy - p0.y, {...p0, t: now, face: 1}, look);
+  c = mainCtx;
 }
 
 let lastUi = 0;
