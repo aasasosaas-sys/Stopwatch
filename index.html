@@ -77,6 +77,8 @@ canvas{display:block;width:100%;height:100%}
 .w i{display:block;width:100%;aspect-ratio:1;border-radius:4px;background:var(--card);position:relative;overflow:hidden}
 .w i.cur{outline:2px solid var(--acc);outline-offset:1px}
 .w i u{position:absolute;left:0;bottom:0;right:0}
+.w i b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--sub);mix-blend-mode:multiply}
+@media (prefers-color-scheme:dark){.w i b{mix-blend-mode:normal}}
 .w em{font-style:normal;color:var(--sub);font-size:11px;margin-top:2px}
 .w s{display:block;width:100%;height:4px;border-radius:2px;margin-bottom:2px}
 .wname{color:var(--sub);font-size:13px;margin-top:10px}
@@ -133,6 +135,12 @@ canvas{display:block;width:100%;height:100%}
 .sum .nums b{display:block;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
 .sum .nums small{color:var(--sub);font-size:12px}
 .sum p{margin:0;color:var(--sub);font-size:14px;line-height:1.6}
+.lotg{display:grid;grid-template-columns:repeat(12,1fr);gap:4px}
+.lotg div{display:flex;flex-direction:column;gap:3px;align-items:center}
+.lotg s{display:block;width:100%;height:4px;border-radius:2px}
+.lotg i{font-style:normal;width:100%;aspect-ratio:1;border-radius:5px;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;font-variant-numeric:tabular-nums;transition:background .2s,color .2s}
+.lotg i.set{color:#fff}
+.lotg em{font-style:normal;color:var(--sub);font-size:10px}
 #sv{width:100%;aspect-ratio:3/1;border-radius:14px;display:block;background:#1d1b40}
 .sum .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 </style>
@@ -221,6 +229,15 @@ canvas{display:block;width:100%;height:100%}
     <div class="row2"><button class="act alt" id="bkclose">とじる</button><button class="act" id="bkact">コピー</button></div>
   </div>
 </div>
+<div class="sheet" id="lot" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="今日のステージ抽選">
+    <h2>今日のステージ抽選</h2>
+    <p id="lotp">全216ステージの中から、今日の72ステージを選んでいます…</p>
+    <div class="lotg" id="lotg"></div>
+    <p>各ワールドの1〜6面に、A・B・Cのどれが出るかを毎朝ランダムで決めます。</p>
+    <button class="act" id="lotok" disabled>OK</button>
+  </div>
+</div>
 <div class="sheet" id="addt" hidden>
   <div class="sh-in sum" role="dialog" aria-label="勉強した時間を入れる">
     <h2>勉強した時間を入れる</h2>
@@ -281,15 +298,16 @@ const THEMES = [
    decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', foes:['knight', 'ghost', 'bat'], sun:'moon', boost:{firebar:1.5, cannon:1.4}}
 ];
 const FLYERS = ['bird','bat','cloudy','ufo','ghost'];
+const VAR = 'ABC';
 const stageName = si => `${Math.floor(si/6) + 1}-${si % 6 + 1}`;
 
 /* ---------- stage generation ----------
    Each stage is a pure function of study seconds. The generator lays out the
    terrain and, alongside it, the exact path the hero takes, so the auto-play
    never fails and reloading always lands on the same spot. */
-function build(si){
+function build(si, v = 0){
   const w = Math.floor(si/6), sn = si % 6, TH = THEMES[w], D = si/(NST - 1);
-  const R = rng(9001 + si*7919), ri = (a,b) => a + Math.floor(R()*(b-a+1)), pick = a => a[Math.floor(R()*a.length)];
+  const R = rng(9001 + si*7919 + v*104729), ri = (a,b) => a + Math.floor(R()*(b-a+1)), pick = a => a[Math.floor(R()*a.length)];
   const GR = TH.grav || 1;
   const G = [], ICE = [], segs = [], coins = [], blocks = [], enemies = [], stumps = [], plats = [], decos = [];
   const spikes = [], springs = [], bridges = [], movers = [], ropes = [], cannons = [], bullets = [], lifts = [], bars = [], gates = [];
@@ -638,7 +656,8 @@ function build(si){
   let t = INTRO;
   for (const s of segs) { if (!s.fx) s.d = (s.x1 - s.x0)/V; s.t0 = t; t += s.d; }
 
-  const L = {si, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col};
+  decos.sort((a, b) => a.x - b.x); coins.sort((a, b) => a.x - b.x); bridges.sort((a, b) => a.x - b.x); blocks.sort((a, b) => a.x - b.x);
+  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col};
   const tAt = x => timeAtIn(L, x);
   for (const o of coins) o.t = tAt(o.x);
   for (const o of blocks) if (o.q) o.t = tAt(o.hx);
@@ -679,17 +698,23 @@ function heroAtIn(L, s){
 }
 const coinsAtIn = (L, s) => { let n = 0; for (const t of L.coinTimes) { if (t <= s) n++; else break; } return n; };
 
+/* each slot has three versions (A/B/C); the day's set is drawn every morning */
 const stageCache = new Map();
-function getStage(si){
-  if (!stageCache.has(si)) { if (stageCache.size > 6) stageCache.delete(stageCache.keys().next().value); stageCache.set(si, build(si)); }
-  return stageCache.get(si);
+function getStage(si, v = 0){
+  const key = si + ':' + v;
+  if (!stageCache.has(key)) { if (stageCache.size > 6) stageCache.delete(stageCache.keys().next().value); stageCache.set(key, build(si, v)); }
+  return stageCache.get(key);
 }
 const totals = {};
-function stageTotal(si){
-  if (totals[si] == null) { try { const m = JSON.parse(localStorage.getItem('quest-totals-v6') || '{}'); Object.assign(totals, m); } catch (e) {} }
-  if (totals[si] == null) { totals[si] = getStage(si).total; try { localStorage.setItem('quest-totals-v6', JSON.stringify(totals)); } catch (e) {} }
-  return totals[si];
+let totalsLoaded = false;
+function stageTotal(si, v = 0){
+  const key = si + ':' + v;
+  if (!totalsLoaded) { totalsLoaded = true; try { Object.assign(totals, JSON.parse(localStorage.getItem('quest-totals-v7') || '{}')); } catch (e) {} }
+  if (totals[key] == null) { totals[key] = getStage(si, v).total; try { localStorage.setItem('quest-totals-v7', JSON.stringify(totals)); } catch (e) {} }
+  return totals[key];
 }
+/* index of the first item with x >= x0 in an array sorted by x */
+function lowerX(arr, x0){ let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m].x < x0) lo = m + 1; else hi = m; } return lo; }
 
 function segIdxAtT(L, s){ const S = L.segs; let lo = 0, hi = S.length - 1; while (lo < hi) { const m = (lo+hi+1) >> 1; if (S[m].t0 <= s) lo = m; else hi = m - 1; } return lo; }
 /* latest moment at or before s where the hero stands on plain ground */
@@ -703,7 +728,7 @@ function safeS(L, s){
 /* ---------- drawing: world ---------- */
 let SC = 1, VW = 320, dpr = 1, now = 0, L = null;
 function resize(){
-  const r = cv.getBoundingClientRect(); dpr = Math.min(3, devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect(); dpr = Math.min(2, devicePixelRatio || 1);
   cv.width = Math.max(1, Math.round(r.width*dpr)); cv.height = Math.max(1, Math.round(r.height*dpr));
   SC = cv.height / VH; VW = cv.width / SC;
 }
@@ -999,8 +1024,8 @@ function drawPlats(TH, cam){
     c.fillStyle = '#ffb020'; rr(x, y, m.w, 6, 2); c.fill(); c.strokeStyle = OL; c.lineWidth = .9; c.stroke();
     c.fillStyle = '#c47a10'; for (let k2 = 0; k2 < 3; k2++) { c.beginPath(); c.moveTo(x + 6 + k2*14, y + 1.5); c.lineTo(x + 10 + k2*14, y + 3); c.lineTo(x + 6 + k2*14, y + 4.5); c.fill(); }
   }
-  for (const b of L.bridges) {
-    const x = b.x - cam; if (x > VW + 20 || x < -20) continue;
+  for (let i = lowerX(L.bridges, cam - 20), n = L.bridges.length; i < n; i++) {
+    const b = L.bridges[i], x = b.x - cam; if (x > VW + 20) break;
     const age = curS - b.t; let y = Y(b.y), a = 1, sh = 0;
     if (age > 0) { y += 90*age*age; a = Math.max(0, 1 - age*1.2); }
     else if (age > -.35) sh = Math.sin(now*.08)*.6;
@@ -1043,8 +1068,8 @@ function coin(x, y, sc){
   if (w > 2.5) { c.fillStyle = '#fff3b0'; c.fillRect(x - w*.35, y - 3*sc, Math.max(.8, w*.25), 6*sc); }
 }
 function drawCoins(cam){
-  for (const o of L.coins) {
-    const x = o.x - cam; if (x > VW + 10 || x < -30) continue;
+  for (let i = lowerX(L.coins, cam - 30), n = L.coins.length; i < n; i++) {
+    const o = L.coins[i], x = o.x - cam; if (x > VW + 10) break;
     const age = curS - o.t, y = Y(o.y);
     if (age < 0) coin(x, y, 1);
     else if (age < .35) { const k = age/.35; c.globalAlpha = 1 - k; for (let i = 0; i < 4; i++) { const a = i*Math.PI/2 + .6; star(x + Math.cos(a)*k*10, y + Math.sin(a)*k*10 - k*4, 2.2, '#fff6a8'); } c.globalAlpha = 1; }
@@ -2100,7 +2125,9 @@ function airPose(Lx, s){
    A day runs until "寝る" is pressed (or 4:00 the next morning).
    The next day starts from half the stage number reached (rounded down). */
 const dayKey = () => { const d = new Date(Date.now() - 4*3600e3); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
-const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null});
+const drawDay = () => Array.from({length: NST}, () => Math.floor(Math.random()*3));
+const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false});
+const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
 let bank, st;
 try { bank = JSON.parse(localStorage.getItem('quest-bank')); } catch (e) {}
@@ -2115,8 +2142,10 @@ bank.eq = Object.assign({color: 'orange'}, bank.eq);
 bank.base = bank.base || 0;
 const saveBank = () => { try { localStorage.setItem('quest-bank', JSON.stringify(bank)); } catch (e) {} onSaved(); };
 const LOOK = () => lookOf(bank.eq);
+const stageLabel = (o, si) => stageName(si) + ' ' + VAR[vIn(o, si)];
+const stg = si => getStage(si, vIn(st, si));
 try { st = JSON.parse(localStorage.getItem('quest-day')); } catch (e) {}
-if (st) { st.done = st.done || 0; st.doneCoins = st.doneCoins || 0; st.base = st.base || 0; }
+if (st) { st.done = st.done || 0; st.doneCoins = st.doneCoins || 0; st.base = st.base || 0; if (!st.draw) { st.draw = Array(NST).fill(0); st.drawSeen = true; } }
 const save = () => { try { localStorage.setItem('quest-day', JSON.stringify(st)); } catch (e) {} onSaved(); };
 const dayLen = o => (NST - o.base)*STAGE;
 const msOf = o => { let v = o.acc + (o.run ? (Date.now() - o.t0)*o.mult : 0); if (o.ff) v = Math.min(v, o.ff.target); return v; };
@@ -2125,21 +2154,21 @@ const commit = () => { if (st.run) { const n = Date.now(); st.acc = msOf(st); st
 function syncDone(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   if (o.done > cl) { o.done = 0; o.doneCoins = 0; }
-  while (o.done < cl) { o.doneCoins += stageTotal(o.base + o.done); o.done++; }
+  while (o.done < cl) { const si = o.base + o.done; o.doneCoins += stageTotal(si, vIn(o, si)); o.done++; }
   return Tt;
 }
 function dayCoins(o){
   const Tt = syncDone(o);
   if (Tt >= dayLen(o)) return o.doneCoins;
   const k = Math.floor(Tt/STAGE);
-  return o.doneCoins + coinsAtIn(getStage(o.base + k), Tt - k*STAGE);
+  return o.doneCoins + coinsAtIn(getStage(o.base + k, vIn(o, o.base + k)), Tt - k*STAGE);
 }
 const wallet = () => bank.earned + dayCoins(st) - bank.spent;
 function daySummary(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   const reachedNum = Math.min(NST, o.base + cl + 1);
   const next = Math.max(1, Math.floor(reachedNum/2)) - 1;
-  return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageName(o.base), reached: stageName(reachedNum - 1), all: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
+  return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
 }
 function finishDay(){
   if (st.run) { commit(); st.run = false; }
@@ -2150,14 +2179,14 @@ function finishDay(){
 }
 let pendingSummary = null;
 if (!st) st = fresh(bank.base);
-else if (st.d !== dayKey()) { if (st.acc || st.run) pendingSummary = finishDay(); else { st = fresh(st.base, st.night); save(); } }
+else if (st.d !== dayKey()) { if (st.acc || st.run) pendingSummary = finishDay(); else { st = fresh(st.base, null); save(); } }
 if (!st.ff) st.mult = 1;
 
 /* idle: 1 hour → everyone sleeps, 3 hours → tea party (time at the inn does not count) */
 const idleSec = () => (!st.run && !st.night) ? (Date.now() - st.stopAt)/1000 : 0;
 const restMode = () => { const i = idleSec(); return i >= 3*3600 ? 'tea' : i >= 3600 ? 'sleep' : null; };
 function trueT(){ return Math.min(dayLen(st), studyMs()/1000); }
-function safeTotal(Tt){ const k = Math.min(NST - 1 - st.base, Math.floor(Tt/STAGE)), s = Tt - k*STAGE; return k*STAGE + safeS(getStage(st.base + k), Math.min(STAGE, s)); }
+function safeTotal(Tt){ const k = Math.min(NST - 1 - st.base, Math.floor(Tt/STAGE)), s = Tt - k*STAGE; return k*STAGE + safeS(stg(st.base + k), Math.min(STAGE, s)); }
 /* after waking up the hero is shown a little behind and catches up at 1.25× */
 function dispT(Tt){
   const r = st.resume; if (!r) return Tt;
@@ -2189,11 +2218,11 @@ function toggle(){
   save(); ui();
 }
 $('go').onclick = toggle;
-window.__quest = { L: si => getStage(si ?? 0), set(sec){ st.acc = Math.max(0, sec - st.base*STAGE)*1000; st.t0 = Date.now(); st.allAt = 0; st.resume = null; save(); ui(); }, bank: () => bank, st: () => st, eq(e){ Object.assign(bank.eq, e); } };
+window.__quest = { L: (si, v) => getStage(si ?? 0, v ?? 0), set(sec){ st.acc = Math.max(0, sec - st.base*STAGE)*1000; st.t0 = Date.now(); st.allAt = 0; st.resume = null; save(); ui(); }, bank: () => bank, st: () => st, eq(e){ Object.assign(bank.eq, e); } };
 
 /* ---------- map ---------- */
 const grid = $('grid');
-grid.innerHTML = THEMES.map((th, w) => `<div class="w" title="${th.name}"><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-s="${w*6+i}"><u style="background:${th.key}"></u></i>`).join('')}<em>${w+1}</em></div>`).join('');
+grid.innerHTML = THEMES.map((th, w) => `<div class="w" title="${th.name}"><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-s="${w*6+i}"><u style="background:${th.key}"></u><b></b></i>`).join('')}<em>${w+1}</em></div>`).join('');
 const cells = [...grid.querySelectorAll('i')];
 
 const fmt = ms => { const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor(s/60)%60, x = s%60; return h + ':' + String(m).padStart(2,'0') + ':' + String(x).padStart(2,'0'); };
@@ -2205,20 +2234,20 @@ function stageOf(T){
   return {k, si: st.base + k, s: all ? STAGE : T - k*STAGE, all};
 }
 function ui(){
-  const ms = studyMs(), Tt = trueT(), {si, s, all} = stageOf(Tt), cleared = Math.floor(Tt/STAGE), Lx = getStage(si), TH = THEMES[Math.floor(si/6)];
+  const ms = studyMs(), Tt = trueT(), {si, s, all} = stageOf(Tt), cleared = Math.floor(Tt/STAGE), Lx = stg(si), TH = THEMES[Math.floor(si/6)];
   $('tt').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
   $('go').textContent = st.ff ? '早送り中' : st.run ? '停止' : all ? 'クリア' : '開始';
   $('go').className = 'cir' + (st.run && !st.ff ? ' stop' : '');
   $('go').disabled = !!st.ff || (!st.run && all);
   $('addb').disabled = !!st.ff || all;
   $('pb').style.width = (s/STAGE*100) + '%';
-  $('pn').textContent = `ステージ ${stageName(si)}　${TH.name}`;
+  $('pn').textContent = `ステージ ${stageLabel(st, si)}　${TH.name}`;
   $('pt').textContent = st.base ? `今日 ${cleared} ステージ（${stageName(st.base)}から）` : `今日 ${cleared} ステージ`;
   if (st.night) {
     const ph = nightPhase((Date.now() - st.night.at)/1000);
     $('hw').textContent = '旅館'; $('hn').textContent = ph.name; $('hc').textContent = '—'; $('hl').textContent = '--:--';
   } else {
-    $('hw').textContent = 'WORLD ' + stageName(si); $('hn').textContent = TH.name;
+    $('hw').textContent = 'WORLD ' + stageLabel(st, si); $('hn').textContent = TH.name;
     $('hl').textContent = fmtShort(STAGE - s); $('hc').textContent = coinsAtIn(Lx, s);
   }
   $('wl').textContent = num(wallet());
@@ -2230,6 +2259,7 @@ function ui(){
     el.classList.toggle('cur', i === si && !all);
     el.firstChild.style.height = (f*100) + '%';
     el.firstChild.style.opacity = i < st.base ? .4 : 1;
+    el.lastChild.textContent = VAR[vIn(st, i)];
   });
   $('wname').textContent = all ? 'オールクリア！ おつかれさまでした。' : `いまはワールド${Math.floor(si/6) + 1}「${TH.name}」。ワールドが進むほど仕掛けが増えます。` + (st.base ? `（うすい色は前の日までに進んだぶん）` : '');
 }
@@ -2350,7 +2380,7 @@ function welcome(seen){
   const thenT = Math.min(dayLen(st), (st.acc + (Math.max(seen, st.t0) - st.t0)*st.mult)/1000), nowT = trueT();
   const a = stageOf(thenT).si, b = stageOf(nowT).si, mins = Math.round((nowT - thenT)/60);
   if (mins < 1) return;
-  toast(`おかえり！ 閉じている間に ${mins >= 60 ? Math.floor(mins/60) + '時間' : ''}${mins % 60 ? mins % 60 + '分' : ''} 進みました` + (a !== b ? `（${stageName(a)} → ${stageName(b)}）` : ''));
+  toast(`おかえり！ 閉じている間に ${mins >= 60 ? Math.floor(mins/60) + '時間' : ''}${mins % 60 ? mins % 60 + '分' : ''} 進みました` + (a !== b ? `（${stageLabel(st, a)} → ${stageLabel(st, b)}）` : ''));
   markSeen();
 }
 setTimeout(() => welcome(seenBefore), 600);
@@ -2437,7 +2467,7 @@ function sfxFrame(si, s, live){
     sPrev = s; siPrev = si; return;
   }
   const ds = s - sPrev;
-  if (ds > 0 && ds < .5) { let n = 0; for (const [t, k] of sfxEvents(L)) { if (t > sPrev && t <= s) { sfx(k); if (++n > 4) break; } else if (t > s) break; } }
+  if (ds > 0 && ds < .5) { const ev = sfxEvents(L); let lo = 0, hi = ev.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ev[m][0] <= sPrev) lo = m + 1; else hi = m; } for (let i = lo, n = 0; i < ev.length && ev[i][0] <= s && n < 5; i++, n++) sfx(ev[i][1]); }
   sPrev = s;
 }
 /* music: a small chord loop per world (minor keys for the dark worlds), a lullaby at the inn */
@@ -2542,11 +2572,38 @@ $('aok').onclick = () => {
   save(); $('addt').hidden = true; ui();
 };
 
+/* ---------- the morning lottery ---------- */
+let lotTimer = null;
+function showLottery(){
+  st.drawSeen = true; save();
+  const g = $('lotg');
+  g.innerHTML = THEMES.map((th, w) => `<div><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-k="${w*6+i}">?</i>`).join('')}<em>${w+1}</em></div>`).join('');
+  const cellsL = [...g.querySelectorAll('i')], t0 = performance.now(), cols = ['#ff7a3d', '#3fbf72', '#4aa3f5'];
+  $('lotok').disabled = true; $('lotp').textContent = '全216ステージの中から、今日の72ステージを選んでいます…';
+  $('lot').hidden = false;
+  clearInterval(lotTimer);
+  lotTimer = setInterval(() => {
+    const e = (performance.now() - t0)/1000; let done = true;
+    cellsL.forEach(el => {
+      const k = +el.dataset.k, at = .5 + Math.floor(k/6)*.12 + (k % 6)*.03;
+      if (e < at) { done = false; el.textContent = VAR[Math.floor(Math.random()*3)]; el.className = ''; el.style.background = ''; }
+      else if (!el.classList.contains('set')) { const v = vIn(st, k); el.textContent = VAR[v]; el.className = 'set'; el.style.background = cols[v]; if (k % 6 === 5) sfx('coin'); }
+    });
+    if (done) { clearInterval(lotTimer); $('lotok').disabled = false; $('lotp').textContent = '今日のステージが決まりました！ この72ステージをクリアしていこう。'; sfx('clear'); }
+  }, 60);
+}
+$('lotok').onclick = () => { $('lot').hidden = true; clearInterval(lotTimer); ui(); };
+let lastDraw = 0;
+
 /* ---------- main loop ---------- */
 function frame(){
   requestAnimationFrame(frame);
   now = performance.now();
-  if (st.d !== dayKey() && !st.run) { if (st.acc) showSummary(finishDay(), 'auto'); else { st = fresh(st.base, st.night); save(); } ui(); }
+  if (st.d !== dayKey() && !st.run) { if (st.acc) showSummary(finishDay(), 'auto'); else { st = fresh(st.base, null); save(); } ui(); }
+  if (!st.night && !st.drawSeen && $('lot').hidden && $('sleep').hidden) showLottery();
+  const busy = st.run || !$('shop').hidden || !$('sleep').hidden || !$('lot').hidden || (st.resume && st.run);
+  if (!busy && now - lastDraw < 32) return;
+  lastDraw = now;
   if (st.ff && studyMs() >= st.ff.target) { st.acc = st.ff.target; st.run = false; st.mult = st.ff.prev; st.ff = null; st.stopAt = Date.now(); save(); ui(); }
   const look = LOOK();
   c.setTransform(SC, 0, 0, SC, 0, 0);
@@ -2565,7 +2622,7 @@ function frame(){
   const rest = restMode();
   let Td = rest ? safeTotal(Tt) : dispT(Tt);
   const {si, s, all} = stageOf(Td);
-  L = getStage(si); curS = s;
+  L = stg(si); curS = s;
   const TH = L.TH, END = INTRO + RUNT;
   const winT = s >= END ? s - END : -1;
   const hero = heroAtIn(L, s);
@@ -2578,7 +2635,8 @@ function frame(){
   drawSky(TH, s/STAGE);
   drawFar(TH, cam);
   drawHills(TH, cam);
-  for (const d of L.decos) drawDeco(d, cam, true);
+  const d0 = lowerX(L.decos, cam - 40), d1 = lowerX(L.decos, cam + VW + 40);
+  for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, true);
   drawGoal(cam, winT);
   drawSigns(cam);
   drawPitFill(TH, cam);
@@ -2611,7 +2669,7 @@ function frame(){
     }
     drawHero(hx, Y(hy), o, look);
   }
-  for (const d of L.decos) drawDeco(d, cam, false);
+  for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, false);
   sfxFrame(si, s, st.run && !rest && !cleaning && !stretching);
   bgmTick(st.run && !cleaning ? 'stage' : null, L.w);
   drawWeather(TH);
@@ -2619,11 +2677,11 @@ function frame(){
   // overlays
   const showTitle = !all && s < 2.8 && (st.run || Tt > 0) && !rest && !cleaning;
   $('ttl').classList.toggle('on', showTitle);
-  if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageName(si); $('ttln').textContent = TH.name + (L.hell ? '　─ 壁キック地獄 ─' : L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
+  if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageLabel(st, si); $('ttln').textContent = TH.name + (L.hell ? '　─ 壁キック地獄 ─' : L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
   $('ban').classList.toggle('on', winT >= 0);
   if (winT >= 0) {
     $('banb').textContent = all ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
-    $('bans').textContent = all ? `72ステージ制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageName(si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
+    $('bans').textContent = all ? `72ステージ制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageLabel(st, si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
   }
   if (!$('shop').hidden) drawPreview();
   if (!$('sleep').hidden) drawNight();
