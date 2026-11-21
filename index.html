@@ -176,39 +176,8 @@ canvas{display:block;width:100%;height:100%}
     <details class="dev" id="datasec">
       <summary>データの保存・引き継ぎ</summary>
       <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
-      <div class="row"><button class="pill" id="gbtn">Googleアカウントと連携</button><span id="gstat"></span></div>
-      <div id="gsetup" hidden>
-        <p>Google連携には、最初に一度だけ「クライアントID」の設定が必要です。</p>
-        <ol>
-          <li>Google Cloud Console でプロジェクトを作り、「Google Drive API」を有効にする</li>
-          <li>「OAuth クライアントID（ウェブアプリケーション）」を作る</li>
-          <li>「承認済みの JavaScript 生成元」にこのアプリのURL（例：https://○○.github.io）を入れる</li>
-          <li>できたクライアントIDを下に貼って「保存」</li>
-        </ol>
-        <div class="row"><input type="text" id="gcid" placeholder="xxxxxxxx.apps.googleusercontent.com" aria-label="クライアントID"><button class="pill" id="gcidok">保存</button></div>
-      </div>
       <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
       <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
-    </details>
-    <details class="dev">
-      <summary>確認用（早送り・ステージ移動・リセット）</summary>
-      <div class="row">
-        <span>速度</span>
-        <button class="pill" data-m="1">×1</button>
-        <button class="pill" data-m="10">×10</button>
-        <button class="pill" data-m="60">×60</button>
-        <button class="pill" data-m="300">×300</button>
-      </div>
-      <div class="row">
-        <span>放置を試す</span>
-        <button class="pill" data-idle="3600">1時間</button>
-        <button class="pill" data-idle="10800">3時間</button>
-      </div>
-      <div class="row">
-        <select id="jump" aria-label="ステージへ移動"></select>
-        <button class="pill" id="rs" style="margin-left:auto">リセット</button>
-      </div>
-      <p>早送りやステージ移動をすると勉強時間も進みます。評価用の機能です。リセットしても集めたコインは残ります。</p>
     </details>
   </div>
 </div>
@@ -250,14 +219,6 @@ canvas{display:block;width:100%;height:100%}
     <p id="bkp"></p>
     <textarea id="bktext" spellcheck="false" aria-label="バックアップコード"></textarea>
     <div class="row2"><button class="act alt" id="bkclose">とじる</button><button class="act" id="bkact">コピー</button></div>
-  </div>
-</div>
-<div class="sheet" id="gch" hidden>
-  <div class="sh-in sum" role="dialog" aria-label="どちらのデータを使うか">
-    <h2>どちらのデータを使いますか？</h2>
-    <p id="gchp"></p>
-    <button class="act" id="gchr">Googleのデータを使う</button>
-    <button class="act alt" id="gchl">この端末のデータを使う</button>
   </div>
 </div>
 <div class="sheet" id="addt" hidden>
@@ -2190,7 +2151,7 @@ function finishDay(){
 let pendingSummary = null;
 if (!st) st = fresh(bank.base);
 else if (st.d !== dayKey()) { if (st.acc || st.run) pendingSummary = finishDay(); else { st = fresh(st.base, st.night); save(); } }
-st.mult = st.mult || 1;
+if (!st.ff) st.mult = 1;
 
 /* idle: 1 hour → everyone sleeps, 3 hours → tea party (time at the inn does not count) */
 const idleSec = () => (!st.run && !st.night) ? (Date.now() - st.stopAt)/1000 : 0;
@@ -2228,12 +2189,6 @@ function toggle(){
   save(); ui();
 }
 $('go').onclick = toggle;
-document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { commit(); st.mult = +b.dataset.m; save(); ui(); });
-$('rs').onclick = () => { if (confirm('今日の記録をリセットして 1-1 からにしますか？（集めたコインは残ります）')) { commit(); bank.earned += dayCoins(st); bank.base = 0; saveBank(); st = fresh(0); save(); ui(); } };
-document.querySelectorAll('[data-idle]').forEach(b => b.onclick = () => { if (st.run && !st.ff) stop(); st.night = null; st.stopAt = Date.now() - (+b.dataset.idle)*1000 - 1000; save(); ui(); });
-const jumpSel = $('jump');
-jumpSel.innerHTML = '<option value="">ステージへ移動…</option>' + Array.from({length: NST}, (_, i) => `<option value="${i}">${stageName(i)} ${THEMES[Math.floor(i/6)].name}</option>`).join('');
-jumpSel.onchange = () => { if (jumpSel.value === '') return; commit(); bank.earned += dayCoins(st); saveBank(); const run = st.run; st = fresh(+jumpSel.value); if (run) { st.run = true; st.t0 = Date.now(); } save(); jumpSel.value = ''; ui(); };
 window.__quest = { L: si => getStage(si ?? 0), set(sec){ st.acc = Math.max(0, sec - st.base*STAGE)*1000; st.t0 = Date.now(); st.allAt = 0; st.resume = null; save(); ui(); }, bank: () => bank, st: () => st, eq(e){ Object.assign(bank.eq, e); } };
 
 /* ---------- map ---------- */
@@ -2270,7 +2225,6 @@ function ui(){
   const hint = $('hint');
   hint.textContent = st.night ? `おやすみ中…「開始」で ${stageName(st.base)} から新しい一日` : '「開始」を押して勉強スタート。キャラが自動で進みます';
   hint.classList.toggle('off', st.night ? nightPhase((Date.now() - st.night.at)/1000).i < 4 : (st.run || ms > 0));
-  document.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === st.mult && !st.ff));
   cells.forEach((el, i) => {
     const f = i < st.base ? 1 : i < si || (all && i === si) ? 1 : i === si ? s/STAGE : 0;
     el.classList.toggle('cur', i === si && !all);
@@ -2350,7 +2304,6 @@ function drawPreview(){
 /* ---------- keeping data safe: persistent storage, backup codes, Google Drive ---------- */
 function onSaved(){
   try { localStorage.setItem('quest-saved', String(Date.now())); } catch (e) {}
-  try { gQueue(); } catch (e) {}
 }
 const payload = () => ({v: 1, at: Date.now(), bank, st});
 const summarize = p => { const n = (p.bank.owned || []).filter(x => !x.endsWith(':none')).length; return `コイン ${num(p.bank.earned - p.bank.spent)}・アイテム ${n}個・${new Date(p.at).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}`; };
@@ -2384,75 +2337,6 @@ $('bkact').onclick = async () => {
   }
   try { applyPayload(dec($('bktext').value)); } catch (e) { $('bkp').textContent = 'コードが読み取れませんでした。最初から最後まで、まるごと貼り付けてください。'; }
 };
-
-// Google Drive (app data folder; only this app can see the file)
-let gcfg = {}; try { gcfg = JSON.parse(localStorage.getItem('quest-google') || '{}'); } catch (e) {}
-const saveG = () => { try { localStorage.setItem('quest-google', JSON.stringify(gcfg)); } catch (e) {} };
-let gTok = null, gFile = null, gTimer = null, gClient = null, gWait = null;
-const gOk = () => gTok && Date.now() < gTok.exp;
-function gStatus(msg){
-  $('gstat').textContent = msg || (!gcfg.on ? '' : gOk() ? `連携中${gcfg.last ? '・' + new Date(gcfg.last).toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) + 'に保存' : ''}` : '連携中（もう一度押すと保存を再開）');
-  $('gbtn').textContent = gcfg.on ? (gOk() ? 'Googleに今すぐ保存' : 'Googleと再接続') : 'Googleアカウントと連携';
-}
-function gScript(){
-  return new Promise((res, rej) => {
-    if (window.google && google.accounts && google.accounts.oauth2) return res();
-    const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
-  });
-}
-async function gToken(){
-  await gScript();
-  if (!gClient) gClient = google.accounts.oauth2.initTokenClient({client_id: gcfg.cid, scope: 'https://www.googleapis.com/auth/drive.appdata',
-    callback: r => { const w = gWait; gWait = null; if (!w) return; if (r.error) w.rej(r); else { gTok = {t: r.access_token, exp: Date.now() + (r.expires_in - 60)*1000}; w.res(); } },
-    error_callback: e => { const w = gWait; gWait = null; if (w) w.rej(e); }});
-  return new Promise((res, rej) => { gWait = {res, rej}; gClient.requestAccessToken({prompt: gcfg.on ? '' : 'consent'}); });
-}
-async function gFetch(url, opt = {}){
-  const r = await fetch(url, {...opt, headers: {...(opt.headers || {}), Authorization: 'Bearer ' + gTok.t}});
-  if (!r.ok) throw new Error('drive ' + r.status);
-  return r;
-}
-async function gFind(){
-  const r = await gFetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,modifiedTime)&q=' + encodeURIComponent("name='quest-save.json'"));
-  const j = await r.json(); return j.files && j.files[0];
-}
-async function gUpload(){
-  if (!gOk()) return gStatus();
-  commit();
-  const body = JSON.stringify(payload());
-  if (gFile) await gFetch(`https://www.googleapis.com/upload/drive/v3/files/${gFile}?uploadType=media`, {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body});
-  else {
-    const b = 'qb' + Math.random().toString(36).slice(2), meta = JSON.stringify({name: 'quest-save.json', parents: ['appDataFolder']});
-    const r = await gFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {method: 'POST', headers: {'Content-Type': 'multipart/related; boundary=' + b},
-      body: `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${b}--`});
-    gFile = (await r.json()).id;
-  }
-  gcfg.last = Date.now(); saveG(); gStatus();
-}
-function gQueue(){ if (!gcfg.on || !gOk() || gTimer) return; gTimer = setTimeout(() => { gTimer = null; gUpload().catch(() => gStatus('保存に失敗しました。あとでもう一度ためします')); }, 15000); }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && gcfg.on && gOk()) gUpload().catch(() => {}); });
-let gRemote = null;
-$('gbtn').onclick = async () => {
-  if (!gcfg.cid) { $('gsetup').hidden = false; return; }
-  try {
-    gStatus('接続中…');
-    if (!gOk()) await gToken();
-    if (gcfg.on) { await gUpload(); return; }
-    const f = await gFind();
-    if (f) {
-      gFile = f.id;
-      gRemote = await (await gFetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`)).json();
-      $('gchp').textContent = `Google：${summarize(gRemote)}\nこの端末：${summarize(payload())}`;
-      $('gch').hidden = false;
-    } else { gcfg.on = true; saveG(); await gUpload(); }
-  } catch (e) {
-    gStatus(location.protocol === 'file:' || !window.google ? 'このページではGoogleに接続できません（GitHub Pagesで公開したアプリで使えます）' : '連携できませんでした。クライアントIDとURLの設定を確認してください');
-  }
-};
-$('gchr').onclick = () => { gcfg.on = true; saveG(); $('gch').hidden = true; try { applyPayload(gRemote); } catch (e) { gStatus('Googleのデータが読み取れませんでした'); } };
-$('gchl').onclick = async () => { gcfg.on = true; saveG(); $('gch').hidden = true; try { await gUpload(); } catch (e) { gStatus('保存に失敗しました'); } };
-$('gcidok').onclick = () => { const v = $('gcid').value.trim(); if (!v) return; gcfg.cid = v; gClient = null; saveG(); $('gsetup').hidden = true; gStatus('クライアントIDを保存しました。もう一度「連携」を押してください'); };
-gStatus();
 
 // welcome back: progress made while the app was closed
 const markSeen = () => { try { localStorage.setItem('quest-seen', String(Date.now())); } catch (e) {} };
