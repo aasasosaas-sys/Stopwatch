@@ -132,7 +132,7 @@ const hash = n => { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Mat
 function build(seed){
   const R = rng(seed), ri = (a,b) => a + Math.floor(R()*(b-a+1)), pick = a => a[Math.floor(R()*a.length)];
   const G = [], segs = [], coins = [], blocks = [], enemies = [], stumps = [], plats = [], decos = [];
-  const TARGET = 1350;
+  const TARGET = 2700;
   let col = 0, h = 2, px = 2*T, hp = 2*T;
 
   const flat = (n, deco = true) => {
@@ -219,13 +219,47 @@ function build(seed){
       jump((c0+9)*T - 6, (c0+w)*T + 8, h*T, 18);
       col += w; flat(3);
     },
+    bigpit(){
+      flat(1);
+      const w = ri(6, 8), x0 = col*T - 3, x1 = (col+w)*T + 6, xa = x0 + (x1 - x0)*.42;
+      for (let i = 0; i < w; i++) G[col+i] = 0;
+      col += w;
+      const s1 = jump(x0, xa, hp + 40, 14, 'air');
+      arcCoins(s1, 2);
+      const s2 = jump(xa, x1, h*T, 26, 'dj');
+      arcCoins(s2, 3);
+      flat(ri(3,4));
+    },
+    ledge(){
+      if (h > 3) return flat(4);
+      flat(3);
+      const e = col*T;
+      jump(e - 40, e - 18, hp + 34, 12, 'air');
+      h += 3; jump(e - 18, e + 14, h*T, 18, 'dj');
+      const c0 = col; flat(ri(5,7));
+      for (let i = 0; i < 3; i++) coins.push({x:(c0+2+i)*T + 8, y: h*T + 12});
+      h -= 3; jump(col*T - 2, col*T + 30, h*T, 12, 'drop');
+      flat(3);
+    },
+    wallkick(){
+      if (h > 3) { h--; jump(col*T - 2, col*T + 14, h*T, 8); flat(3); }
+      flat(4);
+      const e = col*T, h0 = hp;
+      jump(e - 46, e - 6, h0 + 46, 8, 'air');
+      jump(e - 6, e - 28, h0 + 66, 6, 'kick');
+      h += 5; jump(e - 28, e + 14, h*T, 14, 'dj');
+      const c0 = col; flat(ri(5,6));
+      for (let i = 0; i < 3; i++) coins.push({x:(c0+1+i)*T + 8, y: h*T + 12});
+      h -= 5; jump(col*T - 2, col*T + 44, h*T, 16, 'drop');
+      flat(3);
+    },
     coins(){
       const c0 = col; flat(6);
       for (let i = 0; i < 4; i++) coins.push({x:(c0+1+i)*T + 8, y: h*T + 12});
     },
     rest(){ flat(ri(3,6)); }
   };
-  const W = [['pit',5],['enemy',4],['enemy2',1.5],['block',3.5],['stump',3],['stairs',1.2],['height',2],['plats',1.4],['coins',1.5],['rest',2]];
+  const W = [['pit',5],['enemy',4],['enemy2',1.5],['block',3.5],['stump',3],['stairs',1.2],['height',2],['plats',1.4],['coins',1.5],['rest',1.5],['bigpit',2.5],['ledge',1.6],['wallkick',1.6]];
   const total = W.reduce((a,b) => a + b[1], 0);
 
   flat(10);
@@ -236,7 +270,7 @@ function build(seed){
     let r = R()*total, k = 'rest';
     for (const [n,w] of W) { if ((r -= w) < 0) { k = n; break; } }
     if (k === last && k !== 'pit') continue;
-    if ((k === 'plats' || k === 'enemy2' || k === 'stairs') && d < .12) continue;
+    if (['plats','enemy2','stairs','bigpit','ledge','wallkick'].includes(k) && d < .06) continue;
     last = k; F[k](d);
   }
   while (h > 2) { h--; jump(col*T - 2, col*T + 14, h*T, 8); flat(3, false); }
@@ -249,7 +283,7 @@ function build(seed){
   /* timing: jumps take a physically plausible time, runs share the rest */
   let runLen = 0, jt = 0;
   for (const s of segs) {
-    if (s.j) { s.d = .26 + .072*Math.sqrt(s.A) + .0028*(s.x1 - s.x0); jt += s.d; }
+    if (s.j) { s.d = s.k === 'kick' ? .26 : s.k === 'air' ? .2 + .05*Math.sqrt(Math.abs(s.h1 - s.h0) + s.A) : .22 + .06*Math.sqrt(s.A) + .002*(s.x1 - s.x0); jt += s.d; }
     else runLen += s.x1 - s.x0;
   }
   const V = runLen / (STAGE - jt);
@@ -274,7 +308,8 @@ function heroAt(s){
 for (const o of L.coins) o.t = timeAt(o.x);
 for (const o of L.blocks) if (o.q) o.t = timeAt(o.hx);
 for (const o of L.enemies) o.t = timeAt(o.xm);
-const landings = segs.filter(s => s.j && s.k !== 'e').map(s => ({x: s.x1, y: s.h1, t: s.t0 + s.d}));
+const airFx = segs.filter(s => s.k === 'dj' || s.k === 'kick').map(s => ({x: s.x0, y: s.h0, t: s.t0, k: s.k}));
+const landings = segs.filter(s => s.j && !['e','air','kick'].includes(s.k)).map(s => ({x: s.x1, y: s.h1, t: s.t0 + s.d}));
 L.coins.sort((a,b) => a.t - b.t);
 const coinTimes = L.blocks.filter(b => b.q).map(b => b.t).concat(L.coins.map(o => o.t)).sort((a,b) => a - b);
 const TOTAL_COINS = coinTimes.length;
@@ -666,6 +701,12 @@ function drawDust(cam, s, hero){
     puff(x - 4 - k*8, y - 1 - k*2, 2.5*(1 - k) + 1, .8*(1 - k));
     puff(x + 4 + k*6, y - 1 - k*2, 2.2*(1 - k) + 1, .8*(1 - k));
   }
+  for (const g of airFx) {
+    const age = s - g.t; if (age < 0 || age > .35) continue;
+    const k = age/.35, x = g.x - cam, y = Y(g.y);
+    if (g.k === 'dj') { c.globalAlpha = .9*(1 - k); c.strokeStyle = '#fff'; c.lineWidth = 1.4; c.beginPath(); c.ellipse(x, y + 1, 4 + k*10, 1.5 + k*3, 0, 0, 7); c.stroke(); c.globalAlpha = 1; }
+    else { puff(x + 6 + k*4, y - 4 + k*6, 2.4*(1 - k) + .8, .85*(1 - k)); puff(x + 6 + k*2, y - 10 - k*4, 2*(1 - k) + .8, .85*(1 - k)); }
+  }
   // running dust
   if (!hero.air) {
     const step = 34, k0 = Math.floor(hero.x/step);
@@ -714,6 +755,8 @@ function pose(o){
     else { L = [[.55, .9], [-.15, .5]]; A = [[1.9, -.6], [-1.9, .6]]; hipY = -11.8; }
   } else if (o.mode === 'tuck') {
     lean = .2; L = [[1.9, 2.8], [1.7, 2.6]]; A = [[1.1, -1.2], [.9, -1.2]]; hipY = -10;
+  } else if (o.mode === 'wall') {
+    lean = -.35; L = [[1.9, 1.2], [1.6, 1.0]]; A = [[-2.4, .4], [-2.0, .3]]; hipY = -11;
   } else if (o.mode === 'win') {
     L = [[.15, .2], [-.15, .2]]; A = [[2.6, .3], [-2.6, -.3]]; hipY = -11.6;
   } else { // idle
@@ -731,6 +774,7 @@ function drawHero(x, y, o){
   if (o.mode === 'sleep') return drawSleep(x, y, o.t);
   c.save(); c.translate(x, y);
   if (o.sq) c.scale(1 + o.sq*.18, 1 - o.sq*.18);
+  if (o.face < 0) c.scale(-1, 1);
   if (o.flip) { c.translate(0, -13); c.rotate(o.flip); c.translate(0, 13); }
   stick(pose(o), HC);
   c.restore();
@@ -802,8 +846,14 @@ function frame(){
   if (st.run && !hero.air) { for (const l of landings) { const a = s - l.t; if (a >= 0 && a < .12) { sq = 1 - a/.12; break; } if (a < 0) break; } }
   if (mode !== 'win' && hero.air && hero.g.k === 'b' && Math.abs(hero.u - .5) < .06) sq = -.4;
   let flip = 0;
-  if (mode === 'jump' && hero.g.A >= 40) { const k = Math.max(0, Math.min(1, (hero.u - .12)/.7)); flip = k*k*(3 - 2*k)*Math.PI*2; if (k > 0 && k < 1) mode = 'tuck'; }
-  drawHero(hero.x - cam, Y(hy), {mode, ph: hero.x/6.5, vy: hero.vy, t: now, sq, flip});
+  let face = 1;
+  if (mode === 'jump') {
+    const gk = hero.g.k;
+    if (gk === 'dj' || (hero.g.A >= 40 && gk !== 'air')) { const k = Math.max(0, Math.min(1, (hero.u - .08)/.75)); flip = k*k*(3 - 2*k)*Math.PI*2; if (k > 0 && k < 1) mode = 'tuck'; }
+    else if (gk === 'air' && hero.g.A < 10 && hero.u > .75) mode = 'wall';
+    else if (gk === 'kick') { face = -1; if (hero.u < .3) mode = 'wall'; }
+  }
+  drawHero(hero.x - cam, Y(hy), {mode, ph: hero.x/6.5, vy: hero.vy, t: now, sq, flip, face});
   for (const d of L.decos) drawDeco(d, cam, false);
   drawConfetti(winT);
   $('ban').classList.toggle('on', winT >= 0);
