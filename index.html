@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>勉強クエスト</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#5cb8ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="勉強クエスト">
 <style>
 :root{
   --bg:#fff;--fg:#000;--sub:#8e8e93;--card:#f2f2f7;--line:#d1d1d6;
@@ -79,6 +87,10 @@ canvas{display:block;width:100%;height:100%}
 .pill{background:var(--card);border-radius:999px;padding:8px 16px;font-size:14px}
 .pill.on{background:var(--acc);color:#fff}
 .dev p{margin:8px 0 0;font-size:13px;line-height:1.5}
+.addb{margin-top:10px;font-size:13px;padding:7px 14px}
+.addb:disabled{opacity:.4}
+.hm{display:flex;gap:10px;justify-content:center;align-items:center;font-size:17px}
+.hm input{width:84px;background:var(--card);color:var(--fg);border:0;border-radius:12px;padding:12px;font-size:24px;text-align:center;font-variant-numeric:tabular-nums}
 @media (max-width:520px){.cir{width:84px;height:84px;font-size:17px}.grid{gap:4px}}
 
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(10,8,20,.45);display:flex;align-items:flex-end;justify-content:center}
@@ -133,6 +145,7 @@ canvas{display:block;width:100%;height:100%}
     <div>
       <div class="lbl">今日の勉強時間</div>
       <div class="tt" id="tt">0:00</div>
+      <button class="pill addb" id="addb">＋ 勉強した時間を入れる</button>
     </div>
     <button class="cir" id="go">開始</button>
     <div class="prog">
@@ -157,6 +170,11 @@ canvas{display:block;width:100%;height:100%}
         <button class="pill" data-m="10">×10</button>
         <button class="pill" data-m="60">×60</button>
         <button class="pill" data-m="300">×300</button>
+      </div>
+      <div class="row">
+        <span>放置を試す</span>
+        <button class="pill" data-idle="3600">1時間</button>
+        <button class="pill" data-idle="10800">3時間</button>
       </div>
       <div class="row">
         <select id="jump" aria-label="ステージへ移動"></select>
@@ -196,6 +214,15 @@ canvas{display:block;width:100%;height:100%}
     <button class="act" id="smclose" hidden>とじる</button>
   </div>
 </div>
+<div class="sheet" id="addt" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="勉強した時間を入れる">
+    <h2>勉強した時間を入れる</h2>
+    <p>アプリを開かずに勉強した時間を入れると、そのぶんキャラが早送りで進みます（×60以上、1分以内）。</p>
+    <div class="hm"><input id="ah" type="number" inputmode="numeric" min="0" max="12" placeholder="0" aria-label="時間">時間<input id="am" type="number" inputmode="numeric" min="0" max="59" placeholder="0" aria-label="分">分</div>
+    <p id="aprev"></p>
+    <div class="row2"><button class="act alt" id="aback">やめる</button><button class="act" id="aok">進める</button></div>
+  </div>
+</div>
 <script>
 (() => {
 'use strict';
@@ -211,41 +238,42 @@ const hash = n => { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Mat
 const THEMES = [
   {name:'はじまりの草原', key:'#5ccf4f', sky:['#5cb8ff','#cdeeff'], far:'mount', farCol:'#a9d8f2', cap:'#ffffff', hill:'#8fdc7a', hill2:'#7dcf6a', hillTop:'tree',
    g:{style:'grass', top:'#5ccf4f', lip:'#3f9e3c', hi:'#8ee676', dirt:'#c98a4b', dot:'#a86b37', edge:'#8a5629'}, pit:'none', weather:'petal',
-   decos:['f','f','f','g','g','b','b','r','t','t','fe'], enemy:['#9a78e0','#c9b6f5','#6f4fc0','#4b7bd8'], obst:'stump', sun:'sun'},
+   decos:['f','f','f','g','g','b','b','r','t','t','fe'], enemy:['#9a78e0','#c9b6f5','#6f4fc0','#4b7bd8'], obst:'stump', foes:['blob', 'bird'], sun:'sun'},
   {name:'ふかい森', key:'#2f8a35', sky:['#6fbf9a','#d8f3dc'], far:'trees', farCol:'#5e9e7a', hill:'#4f9a5b', hill2:'#3f8a4c', hillTop:'pine',
    g:{style:'grass', top:'#4cb84a', lip:'#2f8a35', hi:'#7ad66a', dirt:'#8b5a3c', dot:'#6e452d', edge:'#5a3622'}, pit:'none', weather:'leaf',
-   decos:['T','T','m','m','g','g','b','f'], enemy:['#6cbf5a','#b5e3a6','#3f8a35','#d94141'], obst:'stump', sun:'sun'},
+   decos:['T','T','m','m','g','g','b','f'], enemy:['#6cbf5a','#b5e3a6','#3f8a35','#d94141'], obst:'stump', foes:['shroom', 'blob', 'bird'], sun:'sun'},
   {name:'ひだまり砂漠', key:'#f3c76a', sky:['#ffae63','#ffe9b8'], far:'dunes', farCol:'#f0c27a', hill:'#ebb46a', hill2:'#dfa55c', hillTop:'cactus',
    g:{style:'sand', top:'#f6d68e', lip:'#dcb46a', hi:'#fff1c4', dirt:'#e4b870', dot:'#c9964e', edge:'#b07f3e'}, pit:'none', weather:'sand',
-   decos:['k','k','k','r','bone','g'], enemy:['#d98e4a','#f5d0a0','#a5602a','#3f9e3c'], obst:'sand', sun:'sun'},
+   decos:['k','k','k','r','bone','g'], enemy:['#d98e4a','#f5d0a0','#a5602a','#3f9e3c'], obst:'sand', foes:['beetle', 'blob'], sun:'sun'},
   {name:'みなみの海辺', key:'#2b9fd9', sky:['#47bdf5','#e3f8ff'], far:'sea', farCol:'#2b9fd9', hill:'#ffe9b0', hill2:'#f5dc9a', hillTop:'palm',
    g:{style:'sand', top:'#ffe7a3', lip:'#e8c77a', hi:'#fff6d6', dirt:'#e9cc8c', dot:'#d1ad66', edge:'#b8924d'}, pit:'water', weather:'none',
-   decos:['p','p','sh','sh','r','g'], enemy:['#ff6b5b','#ffc2b8','#c0392b','#2b7bd8'], obst:'stump', sun:'sun'},
+   decos:['p','p','sh','sh','r','g'], enemy:['#ff6b5b','#ffc2b8','#c0392b','#2b7bd8'], obst:'stump', foes:['crab', 'bird'], sun:'sun'},
   {name:'しろがね雪原', key:'#cfe3f5', sky:['#93bfe6','#eef6ff'], far:'mount', farCol:'#c3d8ee', cap:'#ffffff', hill:'#e8f1fa', hill2:'#dbe8f5', hillTop:'snowpine',
    g:{style:'snow', top:'#ffffff', lip:'#cfe3f5', hi:'#ffffff', dirt:'#8fa9c4', dot:'#7891ab', edge:'#6a819a'}, pit:'none', weather:'snow', ice:1,
-   decos:['st','st','sm','cr2','r'], enemy:['#7fb8ff','#d6ecff','#4a86d8','#e8202a'], obst:'ice', sun:'sun'},
+   decos:['st','st','sm','cr2','r'], enemy:['#7fb8ff','#d6ecff','#4a86d8','#e8202a'], obst:'ice', foes:['snowball', 'blob'], sun:'sun'},
   {name:'クリスタル洞窟', key:'#7d6bd8', sky:['#1d1b2e','#3a3352'], far:'cave', farCol:'#2a2640', hill:'#352f4d', hill2:'#2c2742', hillTop:'crystal',
    g:{style:'rock', top:'#6b6585', lip:'#4c4766', hi:'#8d87a8', dirt:'#4a4560', dot:'#3a3550', edge:'#2c2840'}, pit:'none', weather:'glint', dark:1,
-   decos:['cr','cr','sg','r','cr'], enemy:['#5fd4c4','#c2f5ee','#2f9e90','#9b51e0'], obst:'crystal', sun:'none'},
+   decos:['cr','cr','sg','r','cr'], enemy:['#5fd4c4','#c2f5ee','#2f9e90','#9b51e0'], obst:'crystal', foes:['bat', 'blob'], sun:'none'},
   {name:'ほのお火山', key:'#e8552a', sky:['#3b1d2a','#b3442e'], far:'volcano', farCol:'#5a2a2a', hill:'#6b3030', hill2:'#5a2626', hillTop:'deadtree',
    g:{style:'rock', top:'#4a3a3a', lip:'#2e2222', hi:'#6e5555', dirt:'#3a2c2c', dot:'#ff6a2a', edge:'#241a1a'}, pit:'lava', weather:'ember', dark:1,
-   decos:['dt','r','vent','r'], enemy:['#ff7a3d','#ffd0a0','#c2410c','#3a2c2c'], obst:'rock', sun:'none'},
+   decos:['dt','r','vent','r'], enemy:['#ff7a3d','#ffd0a0','#c2410c','#3a2c2c'], obst:'rock', foes:['magma', 'bat'], sun:'none'},
   {name:'天空の雲', key:'#ffb3d9', sky:['#7ec8ff','#fff3fb'], far:'cloudsea', farCol:'#ffffff', hill:'#ffffff', hill2:'#f4f8ff', hillTop:'none',
    g:{style:'cloud', top:'#ffffff', lip:'#dfe9f7', hi:'#ffffff', dirt:'#f2f6fd', dot:'#dbe6f5', edge:'#c9d7ec'}, pit:'void', weather:'none',
-   decos:['f','f','cf','cf','g'], enemy:['#ffb3d9','#fff0f8','#e0559a','#ffd23f'], obst:'column', sun:'sun', boost:{plats:3, ride:2.5, spring:2, swing:1.5, pit:1.3}},
+   decos:['f','f','cf','cf','g'], enemy:['#ffb3d9','#fff0f8','#e0559a','#ffd23f'], obst:'column', foes:['cloudy', 'bird'], sun:'sun', boost:{plats:3, ride:2.5, spring:2, swing:1.5, pit:1.3}},
   {name:'からくり工場', key:'#9aa7b5', sky:['#56677a','#aab7c4'], far:'factory', farCol:'#465566', hill:'#56667a', hill2:'#4c5b6e', hillTop:'tank',
    g:{style:'metal', top:'#9aa7b5', lip:'#6f7c8a', hi:'#c5d0db', dirt:'#5f6b78', dot:'#ffd23f', edge:'#3f4955'}, pit:'none', weather:'none', conveyor:1,
-   decos:['crate','pipe','gear','crate'], enemy:['#b0bec5','#eceff1','#78909c','#ff5252'], obst:'crate', sun:'none', boost:{cannon:1.6, lift:2, gate:1.6}},
+   decos:['crate','pipe','gear','crate'], enemy:['#b0bec5','#eceff1','#78909c','#ff5252'], obst:'crate', foes:['robot', 'ufo'], sun:'none', boost:{cannon:1.6, lift:2, gate:1.6}},
   {name:'わすれられた遺跡', key:'#c9a227', sky:['#e3a476','#f9e3c8'], far:'ruins', farCol:'#c99a72', hill:'#a8b56a', hill2:'#96a35c', hillTop:'column',
    g:{style:'brick', top:'#8fbf4f', lip:'#6a9a35', hi:'#b5dc7a', dirt:'#d9b382', dot:'#b8905e', edge:'#9a7448'}, pit:'none', weather:'leaf',
-   decos:['pl','pl','vase','g','b'], enemy:['#c9a227','#f5e3a0','#8a6d12','#2bb3a3'], obst:'column', sun:'sun', boost:{firebar:1.5, gate:1.5, swing:1.5}},
+   decos:['pl','pl','vase','g','b'], enemy:['#c9a227','#f5e3a0','#8a6d12','#2bb3a3'], obst:'column', foes:['mummy', 'bat'], sun:'sun', boost:{firebar:1.5, gate:1.5, swing:1.5}},
   {name:'月面基地', key:'#c9cbd6', sky:['#05061a','#1b1f45'], far:'space', farCol:'#2a2f5a', hill:'#4a4f6a', hill2:'#3e4360', hillTop:'none',
    g:{style:'moon', top:'#c9cbd6', lip:'#9a9db0', hi:'#e8e9f0', dirt:'#8a8da0', dot:'#6e7186', edge:'#5a5d70'}, pit:'void', weather:'star', dark:1, grav:1.35,
-   decos:['ant','crater','r','crater'], enemy:['#7dff8a','#d4ffd9','#3fbf4f','#c56bff'], obst:'metal', sun:'earth', boost:{bigpit:1.6, spring:1.6, plats:1.4}},
+   decos:['ant','crater','r','crater'], enemy:['#7dff8a','#d4ffd9','#3fbf4f','#c56bff'], obst:'metal', foes:['alien', 'ufo'], sun:'earth', boost:{bigpit:1.6, spring:1.6, plats:1.4}},
   {name:'魔王城', key:'#8e3fbf', sky:['#1a1030','#4a2a5a'], far:'castle', farCol:'#2a1a40', hill:'#33204a', hill2:'#2a1a3e', hillTop:'spire',
    g:{style:'brick', top:'#5a5470', lip:'#3e3a52', hi:'#7a7490', dirt:'#4a4560', dot:'#3a3550', edge:'#2a2638'}, pit:'lava', weather:'ember', dark:1,
-   decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', sun:'moon', boost:{firebar:1.5, cannon:1.4}}
+   decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', foes:['knight', 'ghost', 'bat'], sun:'moon', boost:{firebar:1.5, cannon:1.4}}
 ];
+const FLYERS = ['bird','bat','cloudy','ufo','ghost'];
 const stageName = si => `${Math.floor(si/6) + 1}-${si % 6 + 1}`;
 
 /* ---------- stage generation ----------
@@ -273,6 +301,12 @@ function build(si){
     const s = {j:1, x0, x1, h0:hp, h1, A, k, fx:1}; s.d = jdur(s); push(s); px = x1; hp = h1; return s;
   };
   const special = s => { runTo(s.x0); s.h0 = hp; s.fx = 1; push(s); px = s.x1; hp = s.h1; return s; };
+  // stomp an enemy: walkers are landed on at +9, flyers hover and are landed on at +26
+  const foe = (xm, xr) => {
+    const type = pick(TH.foes), fly = FLYERS.includes(type);
+    jump(xm - 34, xm, hp + (fly ? 26 : 9), fly ? 14 : 16, 'e'); jump(xm, xm + 46, h*T, fly ? 20 : 26);
+    enemies.push({xm, y: h*T, range: xr - xm, type, fly});
+  };
   const arcY = (s,u) => s.h0 + (s.h1 - s.h0)*u + 4*s.A*u*(1-u);
   const arcCoins = (s, n) => { for (let i = 1; i <= n; i++) { const u = i/(n+1); coins.push({x: s.x0 + (s.x1-s.x0)*u, y: arcY(s,u) + 12}); } };
   const lineCoins = (c0, n, y) => { for (let i = 0; i < n; i++) coins.push({x:(c0+i)*T + 8, y: y + 12}); };
@@ -290,16 +324,11 @@ function build(si){
     },
     enemy(){
       const c0 = col; flat(9);
-      const xm = (c0+3)*T + 8;
-      jump(xm - 34, xm, hp + 9, 16, 'e'); jump(xm, xm + 46, h*T, 26);
-      enemies.push({xm, y: h*T, range: (c0+8.5)*T - xm});
+      foe((c0+3)*T + 8, (c0+8.5)*T);
     },
     enemy2(){
       const c0 = col; flat(15);
-      const a = (c0+3)*T + 8, b = (c0+9)*T + 8;
-      jump(a - 34, a, hp + 9, 16, 'e'); jump(a, a + 46, h*T, 26);
-      jump(b - 34, b, hp + 9, 16, 'e'); jump(b, b + 46, h*T, 26);
-      enemies.push({xm: a, y: h*T, range: (c0+6.5)*T - a}); enemies.push({xm: b, y: h*T, range: (c0+14.5)*T - b});
+      foe((c0+3)*T + 8, (c0+6.5)*T); foe((c0+9)*T + 8, (c0+14.5)*T);
     },
     block(){
       const c0 = col; flat(7);
@@ -560,9 +589,18 @@ function getStage(si){
 }
 const totals = {};
 function stageTotal(si){
-  if (totals[si] == null) { try { const m = JSON.parse(localStorage.getItem('quest-totals-v3') || '{}'); Object.assign(totals, m); } catch (e) {} }
-  if (totals[si] == null) { totals[si] = getStage(si).total; try { localStorage.setItem('quest-totals-v3', JSON.stringify(totals)); } catch (e) {} }
+  if (totals[si] == null) { try { const m = JSON.parse(localStorage.getItem('quest-totals-v4') || '{}'); Object.assign(totals, m); } catch (e) {} }
+  if (totals[si] == null) { totals[si] = getStage(si).total; try { localStorage.setItem('quest-totals-v4', JSON.stringify(totals)); } catch (e) {} }
   return totals[si];
+}
+
+function segIdxAtT(L, s){ const S = L.segs; let lo = 0, hi = S.length - 1; while (lo < hi) { const m = (lo+hi+1) >> 1; if (S[m].t0 <= s) lo = m; else hi = m - 1; } return lo; }
+/* latest moment at or before s where the hero stands on plain ground */
+function safeS(L, s){
+  let i = segIdxAtT(L, s);
+  while (i > 0 && !(L.segs[i].j === 0 && L.segs[i].k !== 'ride')) i--;
+  const g = L.segs[i];
+  return Math.max(0, Math.min(s, g.t0 + g.d - .001));
 }
 
 /* ---------- drawing: world ---------- */
@@ -1013,22 +1051,140 @@ function drawEnemy(x, y, mode, ph, pal){
   c.fillStyle = '#f2f2f8'; rr(-6.5, -8.6, 13, 2.4, 1.2); c.fill(); c.stroke();
   c.restore();
 }
-function drawEnemies(TH, cam){
+/* enemies: one drawer per type; (x, y) is the ground point under the enemy */
+function zzz(x, y, t, s = 1){
+  const A0 = c.globalAlpha;
+  c.fillStyle = '#fff'; c.strokeStyle = OL; c.lineWidth = .5;
+  for (let i = 0; i < 2; i++) { const k = ((t*.0006) + i/2) % 1; c.globalAlpha = A0*Math.sin(k*Math.PI); c.font = `bold ${(3 + k*3)*s}px sans-serif`; c.strokeText('z', x + k*6*s, y - k*10*s); c.fillText('z', x + k*6*s, y - k*10*s); }
+  c.globalAlpha = A0;
+}
+function drawFoe(type, x, y, mode, ph, pal, t){
+  if (type === 'blob') { drawEnemy(x, y, mode === 'sleep' ? 'idle' : mode, ph, pal); if (mode === 'sleep') zzz(x + 5, y - 14, t); return; }
+  const fly = FLYERS.includes(type), shut = mode === 'sleep';
+  const bob = fly && mode !== 'flat' ? Math.sin(ph*.6)*1.5 : 0;
+  c.save(); c.translate(x, y - (fly ? 14 : 0) + bob);
+  let sx = 1, sy = 1;
+  if (mode === 'walk') { sy = 1 + Math.sin(ph)*.07; sx = 1 - Math.sin(ph)*.05; }
+  else if (mode === 'flat') { sy = .32; sx = 1.35; }
+  c.scale(sx, sy);
+  const ol = (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); };
+  const eyes = (ex, ey, gap = 3.4, r = .9, col = OL) => {
+    c.fillStyle = col; c.strokeStyle = col; c.lineWidth = .7;
+    if (shut || mode === 'flat') { c.beginPath(); c.arc(ex, ey, r, .2, Math.PI - .2); c.moveTo(ex + gap + r, ey); c.arc(ex + gap, ey, r, .2, Math.PI - .2); c.stroke(); }
+    else { circ(ex, ey, r); circ(ex + gap, ey, r); c.fillStyle = '#fff'; c.fillRect(ex - .3, ey - .6, .45, .45); c.fillRect(ex + gap - .3, ey - .6, .45, .45); }
+  };
+  const feet = (col, y0 = 0) => { const f = mode === 'walk' ? Math.sin(ph)*1.4 : 0; c.fillStyle = col; c.beginPath(); c.ellipse(-3.5 + f, y0, 2.2, 1.3, 0, 0, 7); c.ellipse(3.5 - f, y0, 2.2, 1.3, 0, 0, 7); c.fill(); };
+  const wingF = fly && mode !== 'flat' && !shut ? Math.sin(t*.03 + ph) : -.4;
+  switch (type) {
+    case 'shroom':
+      feet('#6e452d');
+      c.fillStyle = '#f6e7c8'; rr(-4, -8, 8, 8, 3); c.fill(); ol();
+      eyes(-2, -4.5, 3.4, .8);
+      c.fillStyle = '#e04848'; c.beginPath(); c.ellipse(0, -8, 8, 5.5, 0, Math.PI, 0); c.closePath(); c.fill(); ol();
+      c.fillStyle = '#fff'; circ(-3.5, -10.5, 1.3); circ(2, -12, 1.6); circ(5, -9, 1); break;
+    case 'beetle':
+      feet('#2a2a33');
+      c.fillStyle = '#3a8f6a'; c.beginPath(); c.ellipse(0, -5, 8, 5.5, 0, Math.PI, 0); c.closePath(); c.fill(); ol();
+      c.strokeStyle = '#1f5f45'; c.lineWidth = .7; c.beginPath(); c.moveTo(0, -10.5); c.lineTo(0, -1); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.ellipse(-3, -8, 2.5, 1, -.3, 0, 7); c.fill();
+      c.fillStyle = '#2a2a33'; c.beginPath(); c.ellipse(-7.5, -3, 2.8, 2.4, 0, 0, 7); c.fill();
+      c.fillStyle = '#fff'; circ(-8.6, -3.6, .8); c.strokeStyle = '#2a2a33'; c.lineWidth = .6; c.beginPath(); c.moveTo(-9, -5); c.lineTo(-11, -8); c.stroke(); break;
+    case 'crab': {
+      const cl = mode === 'walk' ? Math.sin(ph*1.4)*.3 : 0;
+      c.strokeStyle = '#c0392b'; c.lineWidth = 1; for (const s2 of [-1, 1]) for (let k = 0; k < 3; k++) { c.beginPath(); c.moveTo(s2*4, -3); c.lineTo(s2*(6 + k), 0); c.stroke(); }
+      c.fillStyle = '#ff6b5b'; c.beginPath(); c.ellipse(0, -4.5, 6.5, 4, 0, 0, 7); c.fill(); ol();
+      for (const s2 of [-1, 1]) { c.save(); c.translate(s2*6, -7); c.rotate(s2*(.4 + cl)); c.fillStyle = '#ff6b5b'; c.beginPath(); c.ellipse(0, -2.5, 2.2, 3, 0, 0, 7); c.fill(); ol(.6); c.fillStyle = '#ffc2b8'; c.beginPath(); c.moveTo(-.4, -5.5); c.lineTo(0, -2.5); c.lineTo(.8, -5.4); c.fill(); c.restore(); }
+      c.strokeStyle = OL; c.lineWidth = .6; c.beginPath(); c.moveTo(-1.6, -8); c.lineTo(-1.8, -10.5); c.moveTo(1.6, -8); c.lineTo(1.8, -10.5); c.stroke();
+      c.fillStyle = shut ? OL : '#fff'; circ(-1.8, -11, shut ? .5 : 1.1); circ(1.8, -11, shut ? .5 : 1.1); if (!shut) { c.fillStyle = OL; circ(-1.6, -11, .5); circ(2, -11, .5); } break; }
+    case 'snowball':
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(0, -4.5, 4.8, 0, 7); c.fill(); ol(.6); c.beginPath(); c.arc(0, -11.5, 3.6, 0, 7); c.fill(); ol(.6);
+      eyes(-1.2, -12.2, 2.6, .6); c.fillStyle = '#ff7a1a'; c.beginPath(); c.moveTo(1.6, -11.2); c.lineTo(5, -10.8); c.lineTo(1.6, -10.2); c.fill();
+      c.fillStyle = '#e8202a'; c.fillRect(-3.4, -8.4, 6.8, 1.4); c.fillRect(-3.4, -8.4, 1.4, 4);
+      c.fillStyle = '#2a2a33'; rr(-3, -16.5, 6, 2.6, .6); c.fill(); c.fillRect(-4, -14.2, 8, 1); break;
+    case 'bat':
+      for (const s2 of [-1, 1]) { c.save(); c.scale(s2, 1); c.rotate(wingF*.5); c.fillStyle = '#4a3466'; c.beginPath(); c.moveTo(2, -2); c.lineTo(10, -6); c.quadraticCurveTo(8, -3, 9, 0); c.quadraticCurveTo(6, -1, 5, 1.5); c.quadraticCurveTo(4, 0, 2, 1); c.fill(); ol(.5); c.restore(); }
+      c.fillStyle = '#5a3f7a'; circ(0, -1, 4); c.beginPath(); c.arc(0, -1, 4, 0, 7); ol(.6);
+      c.beginPath(); c.moveTo(-3, -3.6); c.lineTo(-2.4, -7); c.lineTo(-.8, -4.4); c.moveTo(.8, -4.4); c.lineTo(2.4, -7); c.lineTo(3, -3.6); c.fill();
+      eyes(-1.6, -1.6, 3.2, .7, '#ffd23f'); c.fillStyle = '#fff'; c.beginPath(); c.moveTo(-.8, 1); c.lineTo(-.4, 2.2); c.lineTo(0, 1); c.moveTo(.4, 1); c.lineTo(.8, 2.2); c.lineTo(1.2, 1); c.fill(); break;
+    case 'magma': {
+      feet('#241a1a');
+      c.fillStyle = '#3a2c2c'; c.beginPath(); c.moveTo(-7.5, 0); c.bezierCurveTo(-8, -11, 8, -11, 7.5, 0); c.closePath(); c.fill(); ol();
+      c.strokeStyle = '#ff7a1a'; c.lineWidth = .8; c.beginPath(); c.moveTo(-5, -2); c.lineTo(-3, -5); c.lineTo(-4, -7); c.moveTo(4, -1); c.lineTo(3, -4); c.lineTo(5, -6); c.stroke();
+      const fl = Math.sin(t*.02 + ph)*1; c.fillStyle = 'rgba(255,120,30,.9)'; c.beginPath(); c.moveTo(-3, -8); c.quadraticCurveTo(-2, -13 - fl, 0, -15 - fl); c.quadraticCurveTo(2, -12, 3, -8); c.fill(); c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(-1.4, -8); c.quadraticCurveTo(0, -11 - fl, 1.4, -8); c.fill();
+      eyes(-2.2, -4.5, 3.6, .9, '#ffd23f'); break; }
+    case 'cloudy':
+      c.fillStyle = '#ffffff'; c.beginPath(); c.arc(-3.5, -1, 3.6, 0, 7); c.arc(3.5, -1, 3.6, 0, 7); c.arc(0, -3.5, 4.4, 0, 7); c.fill();
+      c.strokeStyle = '#c9d7ec'; c.lineWidth = .8; c.stroke();
+      eyes(-1.8, -2.2, 3.4, .7); c.fillStyle = 'rgba(255,130,160,.6)'; circ(-3.6, -.6, .9); circ(3.6, -.6, .9);
+      if (!shut) { const d2 = (t*.002 + ph) % 1; c.fillStyle = 'rgba(120,180,255,.8)'; c.beginPath(); c.ellipse(1, 3 + d2*5, .8, 1.2, 0, 0, 7); c.fill(); } break;
+    case 'robot':
+      c.fillStyle = '#4a4f62'; const wr = mode === 'walk' ? ph : 0; for (const s2 of [-3.5, 3.5]) { c.beginPath(); c.arc(s2, -1.6, 1.6, 0, 7); c.fill(); c.strokeStyle = '#9aa0b5'; c.lineWidth = .4; c.beginPath(); c.moveTo(s2, -1.6); c.lineTo(s2 + Math.cos(wr)*1.5, -1.6 + Math.sin(wr)*1.5); c.stroke(); }
+      c.fillStyle = '#b0bec5'; rr(-5.5, -11, 11, 9, 1.6); c.fill(); ol();
+      c.fillStyle = '#2a2a33'; rr(-4.2, -9.4, 8.4, 3.4, 1); c.fill();
+      c.fillStyle = shut ? '#555' : '#ff5252'; c.fillRect(-3 + (shut ? 0 : Math.sin(t*.004)*1.5), -8.4, 2.6, 1.4); c.fillRect(1 + (shut ? 0 : Math.sin(t*.004)*1.5), -8.4, 2.6, 1.4);
+      c.strokeStyle = '#4a4f62'; c.lineWidth = .6; c.beginPath(); c.moveTo(0, -11); c.lineTo(0, -14); c.stroke(); c.fillStyle = '#ffd23f'; circ(0, -14.4, 1); break;
+    case 'mummy':
+      feet('#cdbb96');
+      c.fillStyle = '#efe3c8'; c.beginPath(); c.moveTo(-6.5, 0); c.bezierCurveTo(-7, -13, 7, -13, 6.5, 0); c.closePath(); c.fill(); ol();
+      c.strokeStyle = '#cdbb96'; c.lineWidth = .7; for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(-6, -2 - k*2.4); c.lineTo(6, -3.2 - k*2.4); c.stroke(); }
+      c.fillStyle = '#2a2a33'; rr(-4, -7.6, 8, 2.4, 1); c.fill(); c.fillStyle = shut ? '#2a2a33' : '#ffd23f'; circ(-1.6, -6.4, .6); circ(1.8, -6.4, .6);
+      c.strokeStyle = '#efe3c8'; c.lineWidth = 1; c.beginPath(); c.moveTo(-6, -4); c.quadraticCurveTo(-9, -3 + Math.sin(t*.008)*1.5, -10, -1); c.stroke(); break;
+    case 'alien':
+      feet('#3fbf4f');
+      c.fillStyle = '#7dff8a'; c.beginPath(); c.ellipse(0, -5, 5.5, 5, 0, 0, 7); c.fill(); ol();
+      c.fillStyle = '#16161e'; if (shut) { c.strokeStyle = '#16161e'; c.lineWidth = .7; c.beginPath(); c.moveTo(-3.6, -5.4); c.lineTo(-1.2, -5); c.moveTo(1.2, -5); c.lineTo(3.6, -5.4); c.stroke(); } else { c.beginPath(); c.ellipse(-2.2, -5.4, 1.4, 2, -.4, 0, 7); c.ellipse(2.2, -5.4, 1.4, 2, .4, 0, 7); c.fill(); }
+      c.strokeStyle = '#3fbf4f'; c.lineWidth = .6; c.beginPath(); c.moveTo(-2, -9.6); c.lineTo(-3.4, -13); c.moveTo(2, -9.6); c.lineTo(3.4, -13); c.stroke(); c.fillStyle = '#c56bff'; circ(-3.4, -13.4, 1); circ(3.4, -13.4, 1); break;
+    case 'ufo':
+      c.fillStyle = 'rgba(150,230,255,.85)'; c.beginPath(); c.ellipse(0, -3, 3.6, 3.4, 0, Math.PI, 0); c.fill();
+      c.fillStyle = '#7dff8a'; circ(0, -3.2, 1.8); c.fillStyle = OL; if (!shut) { circ(-.6, -3.6, .4); circ(.6, -3.6, .4); } else c.fillRect(-1, -3.6, 2, .4);
+      c.fillStyle = '#9aa0b5'; c.beginPath(); c.ellipse(0, -1.4, 7.5, 2.2, 0, 0, 7); c.fill(); ol(.6);
+      for (let i = 0; i < 4; i++) { c.fillStyle = shut ? '#777' : (Math.floor(t/200) + i) % 2 ? '#ffd23f' : '#ff5252'; circ(-4.5 + i*3, -1, .6); } break;
+    case 'knight':
+      feet('#4a4f62');
+      c.fillStyle = '#9aa0b5'; rr(-5.5, -12, 11, 12, 3); c.fill(); ol();
+      c.fillStyle = '#2a2a33'; c.fillRect(-4, -9, 8, 1.6); c.fillStyle = shut ? '#2a2a33' : '#ff5252'; c.fillRect(-2.6, -8.8, 1.4, 1.2); c.fillRect(1.2, -8.8, 1.4, 1.2);
+      c.strokeStyle = '#6e7488'; c.lineWidth = .6; c.beginPath(); c.moveTo(-5, -5); c.lineTo(5, -5); c.stroke();
+      { const w2 = Math.sin(t*.01)*1; c.fillStyle = '#c0263a'; c.beginPath(); c.moveTo(0, -12); c.quadraticCurveTo(-2, -17, -6, -16 + w2); c.quadraticCurveTo(-3, -14.5, 0, -12); c.fill(); }
+      c.fillStyle = '#dfe6f0'; c.fillRect(-9, -9, 1.2, 8); c.fillStyle = '#c9a227'; c.fillRect(-10.2, -2.4, 3.6, 1.2); break;
+    case 'ghost':
+      c.globalAlpha *= .9;
+      c.fillStyle = '#f4f7ff'; c.beginPath(); c.moveTo(-5, 3); c.lineTo(-5, -2); c.arc(0, -2, 5, Math.PI, 0); c.lineTo(5, 3);
+      for (let i = 0; i < 5; i++) c.lineTo(5 - (i + .5)*2, 3 + (i % 2 ? 0 : 1.6) + Math.sin(t*.01 + i)*.5);
+      c.closePath(); c.fill(); ol(.6);
+      eyes(-1.8, -2.4, 3.4, .9); if (!shut) { c.fillStyle = OL; c.beginPath(); c.ellipse(0, .4, .9, 1.2, 0, 0, 7); c.fill(); } break;
+    case 'bird':
+      c.fillStyle = '#ff9fc8'; circ(0, -1, 4); c.beginPath(); c.arc(0, -1, 4, 0, 7); ol(.6);
+      c.save(); c.translate(1, -1); c.rotate(-.4 + wingF*.6); c.fillStyle = '#ff7fb0'; c.beginPath(); c.ellipse(2.4, 0, 3, 1.4, 0, 0, 7); c.fill(); ol(.5); c.restore();
+      c.fillStyle = '#ff9f1a'; c.beginPath(); c.moveTo(-3.6, -1.4); c.lineTo(-6, -.8); c.lineTo(-3.6, 0); c.fill();
+      c.fillStyle = OL; if (shut) { c.fillRect(-2.6, -2.2, 1.4, .4); } else circ(-2, -2, .6);
+      c.fillStyle = '#ff5fa2'; c.beginPath(); c.moveTo(0, -5); c.lineTo(1, -6.6); c.lineTo(1.6, -4.8); c.fill(); break;
+  }
+  c.restore();
+  if (shut) zzz(x + 5, y - (fly ? 26 : 16), t);
+}
+function drawEnemies(TH, cam, sleeping, hidden){
   for (const e of L.enemies) {
     const age = curS - e.t;
     let ex, mode;
     if (age < 0) { const dx = Math.min(e.range, 14*(-age)); ex = e.xm + dx; mode = dx < e.range ? 'walk' : 'idle'; }
     else { ex = e.xm; mode = 'flat'; }
+    if (sleeping && mode !== 'flat') mode = 'sleep';
     const x = ex - cam; if (x > VW + 20 || x < -30) continue;
+    if (hidden && hidden(x)) continue;
     const y = Y(e.y);
     if (mode === 'flat') {
       if (age > .9) continue;
       c.globalAlpha = age < .5 ? 1 : 1 - (age - .5)/.4;
-      drawEnemy(x, y, 'flat', 0, TH.enemy);
-      for (let i = 0; i < 5; i++) { const a = -Math.PI*(.15 + i*.175), r = 4 + age*28; star(x + Math.cos(a)*r, y - 4 + Math.sin(a)*r, 2.4*(1 - age), '#fff27a'); }
-      c.fillStyle = '#fff'; c.font = 'bold 7px sans-serif'; c.fillText('z', x + 6 + age*8, y - 10 - age*18); c.fillText('Z', x + 10 + age*12, y - 16 - age*22);
+      if (e.fly) { c.save(); c.translate(x, y - 14 + age*age*120); c.rotate(age*8); drawFoe(e.type, 0, 14, 'flat', 0, TH.enemy, now); c.restore(); }
+      else drawFoe(e.type, x, y, 'flat', 0, TH.enemy, now);
+      const sy = e.fly ? y - 20 : y - 4;
+      for (let i = 0; i < 5; i++) { const a = -Math.PI*(.15 + i*.175), r = 4 + age*28; star(x + Math.cos(a)*r, sy + Math.sin(a)*r, 2.4*(1 - age), '#fff27a'); }
       c.globalAlpha = 1;
-    } else drawEnemy(x, y, mode, now*.012 + e.xm, TH.enemy);
+    } else {
+      let fy = 0;
+      if (e.fly && age < 0) fy = Math.sin(now*.004 + e.xm)*3*Math.min(1, -age*2);
+      drawFoe(e.type, x, y + fy, mode, now*.012 + e.xm, TH.enemy, now);
+    }
   }
 }
 function drawDeco(d, cam, back){
@@ -1167,6 +1323,180 @@ function drawConfetti(winT){
   c.globalAlpha = 1;
 }
 let curS = 0;
+
+/* ---------- tea party & inn ---------- */
+function bubble(x, y, text){
+  c.font = 'bold 6px -apple-system,"Hiragino Sans",sans-serif';
+  const w = c.measureText(text).width + 8;
+  c.fillStyle = '#fff'; rr(x - w/2, y - 10, w, 10, 4); c.fill(); c.strokeStyle = OL; c.lineWidth = .6; c.stroke();
+  c.beginPath(); c.moveTo(x - 2, y); c.lineTo(x, y + 3); c.lineTo(x + 2, y); c.fill();
+  c.fillStyle = OL; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, x, y - 4.6); c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+}
+function teaItem(k, x, y, t){
+  switch (k) {
+    case 'pot': c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x, y - 4, 4.5, 4, 0, 0, 7); c.fill(); c.strokeStyle = OL; c.lineWidth = .6; c.stroke(); c.fillStyle = '#4aa3f5'; c.fillRect(x - 4.4, y - 4.6, 8.8, 1.2); c.strokeStyle = '#fff'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x + 4, y - 4); c.lineTo(x + 7, y - 7); c.stroke(); c.fillStyle = '#fff'; circ(x, y - 8.4, 1.2); break;
+    case 'cup': c.fillStyle = '#fff'; c.beginPath(); c.moveTo(x - 2.4, y - 4); c.lineTo(x + 2.4, y - 4); c.lineTo(x + 1.8, y); c.lineTo(x - 1.8, y); c.closePath(); c.fill(); c.strokeStyle = OL; c.lineWidth = .5; c.stroke(); c.fillStyle = '#c96b3a'; c.fillRect(x - 2.2, y - 3.8, 4.4, .9);
+      for (let i = 0; i < 2; i++) { const a = ((t*.0008) + i/2) % 1; c.globalAlpha = .6*(1 - a); c.strokeStyle = '#fff'; c.lineWidth = .6; c.beginPath(); c.moveTo(x + i - .5, y - 5 - a*6); c.quadraticCurveTo(x + 1.5 + i, y - 7 - a*6, x + i - .5, y - 9 - a*6); c.stroke(); } c.globalAlpha = 1; break;
+    case 'cake': c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x, y, 5, 1.2, 0, 0, 7); c.fill(); c.fillStyle = '#ffe7c4'; c.beginPath(); c.moveTo(x - 3.5, y - .5); c.lineTo(x + 3.5, y - .5); c.lineTo(x + 3.5, y - 4); c.lineTo(x - 3.5, y - 4); c.fill(); c.fillStyle = '#fff'; c.fillRect(x - 3.5, y - 5, 7, 1.4); c.fillStyle = '#e8202a'; circ(x, y - 6, 1.2); break;
+  }
+}
+/* the tea party in the stage. k: 0 while relaxing, then 0..1 while cleaning up */
+function drawTea(cam, hx, gy, look, TH, cleaning, k){
+  const t = now, foes = TH.foes.slice(0, 3);
+  const run = v => Math.max(0, k - v);
+  // blanket
+  const bw = 84*(cleaning ? Math.max(0, 1 - run(.8)*5) : 1);
+  if (bw > 0) { c.fillStyle = '#ffffff'; c.fillRect(hx - 10, gy - 1.5, bw, 2.5); c.fillStyle = '#e8475a'; for (let i = 0; i < bw; i += 6) c.fillRect(hx - 10 + i, gy - 1.5, Math.min(3, bw - i), 2.5); }
+  // table + things
+  const tx = hx + 22 + (cleaning ? run(.6)*run(.6)*400 : 0), ty = gy - (cleaning ? run(.6)*40 : 0);
+  if (!cleaning || k < .95) {
+    c.fillStyle = '#a0723a'; c.fillRect(tx - .8, ty - 9, 1.6, 9); c.fillRect(tx - 4, ty - 1, 8, 1.2);
+    c.fillStyle = '#fff'; c.beginPath(); c.ellipse(tx, ty - 9.5, 9, 2, 0, 0, 7); c.fill(); c.fillRect(tx - 9, ty - 9.5, 18, 2.4); c.strokeStyle = '#e0d6c8'; c.lineWidth = .5; c.stroke();
+    const items = [['cake', -4, .15], ['cup', 4, .3], ['pot', 0, .45], ['cup', -1, .38]];
+    for (const [it, dx, v] of items) { if (cleaning && k > v) { const a = k - v; if (a < .1) puff(tx + dx, ty - 14, 3 + a*30, 1 - a*10); continue; } teaItem(it, tx + dx + (it === 'cup' && dx < 0 ? 6 : 0), ty - 11, t); }
+  }
+  // guests
+  foes.forEach((type, i) => {
+    let gx = hx + 40 + i*15, mode = 'idle';
+    if (cleaning) { gx += run(.1)*run(.1)*260 + run(.1)*40; mode = 'walk'; }
+    c.save(); c.translate(gx, 0); c.scale(-1, 1);
+    drawFoe(type, 0, gy, mode, t*.012*(cleaning ? 3 : .4) + i, TH.enemy, t);
+    c.restore();
+    if (!cleaning && Math.sin(t*.0009 + i*2.1) > .97) bubble(gx, gy - 24, '♪');
+  });
+  if (look.pet !== 'none') drawPet(look.pet, hx + 8 + (cleaning ? run(.2)*90 : 0), gy - 22, t);
+  // hero
+  if (!cleaning) {
+    c.fillStyle = '#8a5a32'; c.fillRect(hx - 4, gy - 4.5, 7, 1.6); c.fillRect(hx - 3.4, gy - 3, 1.2, 3); c.fillRect(hx + 1.2, gy - 3, 1.2, 3);
+    drawHero(hx, gy, {mode: 'tea', t, ph: 0, face: 1}, {...look, hand: 'cup'});
+    if (Math.sin(t*.0007) > .96) bubble(hx + 2, gy - 32, 'のんびり〜');
+  } else {
+    drawHero(hx, gy, {mode: k < .25 ? 'hurry' : 'run', ph: t*.03, t, face: 1}, look);
+    if (k < .35) { bubble(hx + 2, gy - 34, 'あっ！ 勉強だ！'); c.fillStyle = '#7fc8ff'; for (let i = 0; i < 3; i++) { const a = ((t*.004) + i/3) % 1; c.globalAlpha = 1 - a; c.beginPath(); c.ellipse(hx - 6 - a*5 + i*4, gy - 26 + a*4, .9, 1.4, 0, 0, 7); c.fill(); } c.globalAlpha = 1; }
+  }
+}
+
+/* the inn after "寝る": walk there, hot spring, ping-pong, cards, then everyone sleeps */
+const NIGHT = [['旅館へ', 7], ['温泉', 14], ['卓球', 12], ['トランプ', 12], ['おやすみ', 1e9]];
+function nightPhase(t){ let a = 0; for (let i = 0; i < NIGHT.length; i++) { if (t < a + NIGHT[i][1]) return {i, name: NIGHT[i][0], t: t - a, len: NIGHT[i][1]}; a += NIGHT[i][1]; } }
+function drawNightSky(vw){
+  const g = c.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#141238'); g.addColorStop(1, '#3b3a8f');
+  c.fillStyle = g; c.fillRect(0, 0, vw, VH);
+  for (let i = 0; i < 60; i++) { c.globalAlpha = .4 + .6*Math.abs(Math.sin(now*.001 + i)); c.fillStyle = '#fff'; c.fillRect(hash(i)*vw, hash(i + .5)*100, .9, .9); }
+  c.globalAlpha = 1;
+  c.fillStyle = 'rgba(255,240,200,.15)'; circ(vw*.82, 36, 26); c.fillStyle = '#fff2cc'; circ(vw*.82, 36, 14);
+}
+function drawRoom(vw){
+  c.fillStyle = '#f3ead6'; c.fillRect(0, 0, vw, 150);
+  c.strokeStyle = '#c9b48a'; c.lineWidth = 1.2;
+  for (let x = 10; x < vw; x += 40) { c.strokeRect(x, 30, 36, 90); c.lineWidth = .4; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(x, 30 + k*22.5); c.lineTo(x + 36, 30 + k*22.5); c.stroke(); } c.beginPath(); c.moveTo(x + 18, 30); c.lineTo(x + 18, 120); c.stroke(); c.lineWidth = 1.2; }
+  c.fillStyle = '#8a5a32'; c.fillRect(0, 120, vw, 4); c.fillRect(0, 26, vw, 4);
+  c.fillStyle = '#c8c98a'; c.fillRect(0, 150, vw, VH);
+  c.strokeStyle = '#9fa064'; c.lineWidth = .6; for (let x = 0; x < vw; x += 32) { c.strokeRect(x, 150, 32, 42); }
+  c.fillStyle = '#b6b778'; c.fillRect(0, 124, vw, 26);
+}
+function drawRyokan(vw, ts, look, TH){
+  const ph = nightPhase(ts), t = now, foes = TH.foes.slice(0, 3), gy = 150;
+  const cast = foes.length;
+  if (ph.i === 0) {
+    drawNightSky(vw);
+    c.fillStyle = '#2a3a4a'; c.fillRect(0, gy, vw, VH); c.fillStyle = '#4a5a6a'; c.fillRect(0, gy, vw, 3);
+    // inn
+    const bx = vw*.58, bw = Math.min(150, vw*.4);
+    c.fillStyle = '#f3e6c8'; c.fillRect(bx, gy - 62, bw, 62);
+    c.fillStyle = '#6e452d'; for (let x = bx; x <= bx + bw; x += bw/6) c.fillRect(x - 1, gy - 62, 2, 62);
+    c.fillStyle = '#2f3a52'; c.beginPath(); c.moveTo(bx - 14, gy - 58); c.quadraticCurveTo(bx + bw/2, gy - 70, bx + bw + 14, gy - 58); c.lineTo(bx + bw - 10, gy - 84); c.lineTo(bx + 10, gy - 84); c.closePath(); c.fill();
+    c.fillStyle = '#3d4a66'; c.fillRect(bx + 6, gy - 86, bw - 12, 4);
+    c.fillStyle = '#ffe9b0'; for (let i = 0; i < 4; i++) c.fillRect(bx + 10 + i*(bw - 20)/4, gy - 50, (bw - 20)/4 - 8, 14);
+    const dx = bx + bw*.5;
+    c.fillStyle = '#2346a8'; c.fillRect(dx - 14, gy - 30, 28, 14); c.fillStyle = '#fff'; c.font = 'bold 8px sans-serif'; c.textAlign = 'center'; c.fillText('♨', dx, gy - 20); c.textAlign = 'left';
+    c.fillStyle = '#3a2a1a'; c.fillRect(dx - 12, gy - 16, 24, 16);
+    for (const lx of [dx - 22, dx + 22]) { c.fillStyle = 'rgba(255,90,60,.3)'; circ(lx, gy - 24, 7); c.fillStyle = '#e8402a'; c.beginPath(); c.ellipse(lx, gy - 24, 3.4, 4.6, 0, 0, 7); c.fill(); c.fillStyle = '#2a2a33'; c.fillRect(lx - 2, gy - 29, 4, 1); c.fillRect(lx - 2, gy - 19.6, 4, 1); }
+    c.fillStyle = '#6e452d'; rr(dx - 18, gy - 78, 36, 11, 1); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 7px "Hiragino Sans",sans-serif'; c.textAlign = 'center'; c.fillText('旅館', dx, gy - 70); c.textAlign = 'left';
+    // walkers
+    const list = [['hero'], ...foes.map(f => ['foe', f]), ...(look.pet !== 'none' ? [['pet']] : [])];
+    list.forEach((m, i) => {
+      const x = -20 - i*22 + ph.t*32, door = dx;
+      if (x > door + 4) return;
+      c.globalAlpha = x > door - 10 ? Math.max(0, (door + 4 - x)/14) : 1;
+      if (m[0] === 'hero') drawHero(x, gy, {mode: 'walk', ph: x/5, t, face: 1}, {...look, hand: 'none'});
+      else if (m[0] === 'foe') { c.save(); c.translate(x, 0); drawFoe(m[1], 0, gy, 'walk', x*.4 + i, TH.enemy, t); c.restore(); }
+      else drawPet(look.pet, x, gy - 22, t);
+      c.globalAlpha = 1;
+    });
+    if (ph.t < 3) bubble(Math.max(30, -20 + ph.t*32), gy - 34, 'おつかれさま！');
+  } else if (ph.i === 1) {
+    drawNightSky(vw);
+    c.fillStyle = '#6e5a3a'; c.fillRect(0, 60, vw, 70);
+    c.fillStyle = '#8a7048'; for (let x = 0; x < vw; x += 7) c.fillRect(x, 60, 5, 70);
+    c.fillStyle = '#4a3a24'; c.fillRect(0, 70, vw, 2); c.fillRect(0, 110, vw, 2);
+    const wy = 130;
+    c.fillStyle = '#7a7a8a'; for (let x = -10; x < vw + 20; x += 22) { c.beginPath(); c.ellipse(x, wy - 2, 14, 8, 0, Math.PI, 0); c.fill(); }
+    c.fillStyle = '#5a5a6a'; c.fillRect(0, wy + 40, vw, VH);
+    c.fillStyle = '#4fb3c4'; c.fillRect(0, wy, vw, 44);
+    const xs = []; const n = 1 + cast + (look.pet !== 'none' ? 1 : 0); for (let i = 0; i < n; i++) xs.push(vw*(.2 + .6*i/Math.max(1, n - 1)));
+    drawHero(xs[0], wy + 8, {mode: 'sit', t, ph: 0, face: 1}, {...look, hand: 'none', back: 'none'});
+    c.fillStyle = '#fff'; rr(xs[0] - 2.6, wy + 8 - 26.5, 7, 3, 1); c.fill();
+    foes.forEach((f, i) => { const x = xs[i + 1]; c.save(); c.translate(x, 0); c.scale(-1, 1); drawFoe(f, 0, wy + 5, 'idle', t*.003 + i, TH.enemy, t); c.restore(); c.fillStyle = '#fff'; rr(x - 3, wy + 5 - (FLYERS.includes(f) ? 30 : 17), 6, 2.6, 1); c.fill(); });
+    if (look.pet !== 'none') drawPet(look.pet, xs[n - 1], wy - 4, t);
+    c.fillStyle = 'rgba(79,179,196,.82)'; c.fillRect(0, wy, vw, 44);
+    c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = .6; for (let i = 0; i < 8; i++) { const x = (hash(i)*vw + Math.sin(t*.001 + i)*6); c.beginPath(); c.ellipse(x, wy + 6 + hash(i + 1)*30, 6, 1.2, 0, 0, 7); c.stroke(); }
+    for (let i = 0; i < 12; i++) { const a = ((t*.0003) + hash(i)) % 1; c.fillStyle = `rgba(255,255,255,${.35*(1 - a)})`; circ(hash(i*3)*vw + Math.sin(a*6 + i)*8, wy - a*70, 6 + a*16); }
+    c.fillStyle = '#7a7a8a'; for (let x = -20; x < vw + 20; x += 26) { c.beginPath(); c.ellipse(x, wy + 44, 15, 7, 0, Math.PI, 0); c.fill(); }
+    if (ph.t > 2 && ph.t < 7) bubble(xs[0] + 2, wy - 26, 'いいお湯〜');
+    if (ph.t > 8 && ph.t < 12 && cast) bubble(xs[1], wy - 24, 'ぽかぽか');
+  } else if (ph.i === 2) {
+    drawRoom(vw);
+    const cx = vw/2, ty = gy - 18;
+    c.fillStyle = '#2f7a55'; c.fillRect(cx - 50, ty, 100, 5); c.fillStyle = '#fff'; c.fillRect(cx - 50, ty, 100, .8); c.fillRect(cx - .5, ty - 6, 1, 6);
+    c.fillStyle = '#6e452d'; c.fillRect(cx - 44, ty + 5, 2.4, gy - ty - 5); c.fillRect(cx + 42, ty + 5, 2.4, gy - ty - 5);
+    const xl = cx - 62, xr = cx + 62, p = (ph.t*1.1) % 2, dir = p < 1 ? 1 : -1, q = p < 1 ? p : 2 - p;
+    const bx = lerp(xl + 8, xr - 8, dir > 0 ? q : 1 - (1 - q)), by = (() => { const u = dir > 0 ? q : 1 - q, bu = dir > 0 ? .72 : .28; if (dir > 0 ? u < bu : u > bu) { const v = dir > 0 ? u/bu : (1 - u)/(1 - bu); return lerp(ty - 22, ty, v) - Math.sin(v*Math.PI)*8; } const v = dir > 0 ? (u - bu)/(1 - bu) : (bu - u)/bu; return ty - Math.sin(v*Math.PI)*16 - v*4; })();
+    const hitL = p > 1.85 || p < .1, hitR = p > .9 && p < 1.1;
+    drawHero(xl, gy, {mode: 'paddle', t, ph: 0, face: 1, hit: hitL}, {...look, hand: 'paddle', back: 'none'});
+    if (cast) { c.save(); c.translate(xr, 0); c.scale(-1, 1); drawFoe(foes[0], 0, gy, 'idle', t*.01, TH.enemy, t); c.fillStyle = '#e8202a'; c.beginPath(); c.ellipse(12, gy - 12 + (hitR ? -3 : 0), 3, 3.6, 0, 0, 7); c.fill(); c.restore(); }
+    c.fillStyle = '#fff'; circ(bx, by, 1.6); c.strokeStyle = '#bbb'; c.lineWidth = .3; c.stroke();
+    for (let i = 1; i < cast; i++) { const x = cx - 20 + i*24; c.globalAlpha = .9; drawFoe(foes[i], x, gy - 28, 'idle', t*.01 + i, TH.enemy, t); c.globalAlpha = 1; }
+    if (look.pet !== 'none') drawPet(look.pet, cx + 30, gy - 44, t);
+    if (ph.t > 6 && ph.t < 9) bubble(xl + 4, gy - 34, 'それっ！');
+  } else if (ph.i === 3) {
+    drawRoom(vw);
+    const cx = vw/2;
+    c.fillStyle = '#7a4a26'; c.beginPath(); c.ellipse(cx, gy - 6, 42, 9, 0, 0, 7); c.fill(); c.fillStyle = '#9a6034'; c.beginPath(); c.ellipse(cx, gy - 8, 42, 9, 0, 0, 7); c.fill();
+    c.fillStyle = '#5a3a1a'; c.fillRect(cx - 30, gy - 2, 3, 5); c.fillRect(cx + 27, gy - 2, 3, 5);
+    for (let i = 0; i < 6; i++) { c.save(); c.translate(cx - 8 + hash(i)*16, gy - 9 + hash(i + 2)*3); c.rotate(hash(i + 4)*2); c.fillStyle = '#fff'; c.fillRect(-2, -3, 4, 6); c.strokeStyle = '#c0263a'; c.lineWidth = .4; c.strokeRect(-2, -3, 4, 6); c.restore(); }
+    const fly = (ph.t*.8) % 1; c.save(); c.translate(lerp(cx - 46, cx, fly), gy - 12 - Math.sin(fly*Math.PI)*12); c.rotate(fly*6); c.fillStyle = '#fff'; c.fillRect(-2, -3, 4, 6); c.restore();
+    drawHero(cx - 52, gy, {mode: 'cards', t, ph: 0, face: 1}, {...look, hand: 'cards', back: 'none'});
+    foes.forEach((f, i) => { const x = cx + 30 + i*16, y = gy - (i === 1 ? 14 : 0); c.save(); c.translate(x, 0); c.scale(-1, 1); drawFoe(f, 0, y, 'idle', t*.004 + i, TH.enemy, t); c.restore();
+      c.fillStyle = '#fff'; for (let k = 0; k < 3; k++) { c.save(); c.translate(x - 8, y - 12); c.rotate(-.4 + k*.3); c.fillRect(-1.6, -5, 3.2, 5); c.strokeStyle = '#2346a8'; c.lineWidth = .3; c.strokeRect(-1.6, -5, 3.2, 5); c.restore(); } });
+    if (look.pet !== 'none') drawPet(look.pet, cx - 16, gy - 40, t);
+    if (ph.t > 8) bubble(cx - 50, gy - 34, 'やったー！あがり！');
+    else if (ph.t > 3 && ph.t < 6 && cast) bubble(cx + 30, gy - 26, 'うーん…');
+  } else {
+    // everyone asleep
+    c.fillStyle = '#20203a'; c.fillRect(0, 0, vw, VH);
+    c.fillStyle = '#2a2a48'; c.fillRect(0, 0, vw, 130);
+    c.fillStyle = '#3a3a5e'; c.fillRect(vw*.7, 30, 50, 50); c.fillStyle = '#fff2cc'; circ(vw*.7 + 32, 46, 7); c.strokeStyle = '#2a2a48'; c.lineWidth = 1.5; c.strokeRect(vw*.7, 30, 50, 50); c.beginPath(); c.moveTo(vw*.7 + 25, 30); c.lineTo(vw*.7 + 25, 80); c.moveTo(vw*.7, 55); c.lineTo(vw*.7 + 50, 55); c.stroke();
+    const g = c.createRadialGradient(vw*.12, 120, 2, vw*.12, 120, 50); g.addColorStop(0, 'rgba(255,200,120,.35)'); g.addColorStop(1, 'rgba(255,200,120,0)'); c.fillStyle = g; c.fillRect(0, 60, vw*.4, 120);
+    c.fillStyle = '#ffe2a8'; rr(vw*.12 - 5, 110, 10, 16, 2); c.fill(); c.fillStyle = '#6e452d'; c.fillRect(vw*.12 - 6, 126, 12, 2);
+    c.fillStyle = '#4a4a6a'; c.fillRect(0, 130, vw, VH);
+    const beds = 1 + cast, bwid = 46, start = vw/2 - (beds*bwid)/2 + 4;
+    const blankets = ['#4a73e0', '#e85a8a', '#3fbf72', '#ffb020'];
+    for (let i = 0; i < beds; i++) {
+      const x = start + i*bwid, y = 150;
+      c.fillStyle = '#f4f1ea'; rr(x, y - 6, 40, 18, 2); c.fill();
+      c.fillStyle = '#ffffff'; rr(x + 2, y - 4, 10, 6, 2); c.fill();
+      if (i === 0) { c.save(); c.translate(x + 33, y + 1); c.rotate(-Math.PI/2); drawHero(0, 0, {mode: 'idle', t, ph: 0, face: 1}, {...look, hand: 'none', back: 'none', pet: 'none'}); c.restore(); }
+      else { c.save(); c.translate(x + 9, y + 2); c.rotate(-1.2); c.scale(.85, .85); drawFoe(foes[i - 1], 0, 0, 'sleep', 0, TH.enemy, t); c.restore(); }
+      c.fillStyle = blankets[i % 4]; rr(x + 12, y - 7, 28, 19, 3); c.fill(); c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(x + 14, y - 5, 24, 2);
+      zzz(x + 10, y - 14, t + i*700, 1.2);
+    }
+    if (look.pet !== 'none') drawPet(look.pet, start + beds*bwid + 6, 148, 0);
+  }
+  // fades between scenes
+  const edge = Math.min(ph.t, ph.len - ph.t);
+  if (edge < .5 && !(ph.i === 0 && ph.t < .5)) { c.fillStyle = `rgba(0,0,0,${1 - edge/.5})`; c.fillRect(0, 0, vw, VH); }
+}
 
 /* ---------- looks (shop) ----------
    Cosmetic only: nothing here touches the stage, path or timing.
@@ -1428,10 +1758,13 @@ function drawHead(k, t, moving, col, ol){
 function drawHand(k, el, hd, t, moving, ol, bodyAng){
   if (k === 'none') return;
   const dir = Math.atan2(hd[1] - el[1], hd[0] - el[0]);
-  const upright = ['flag','balloon','heartb','umbrella','torch','icecream','trophy'].includes(k);
+  const upright = ['flag','balloon','heartb','umbrella','torch','icecream','trophy','cup','cards'].includes(k);
   c.save(); c.translate(hd[0], hd[1]);
   if (!upright) c.rotate(dir - 1.75);
   switch (k) {
+    case 'cup': c.fillStyle = '#fff'; c.beginPath(); c.moveTo(-2, -4); c.lineTo(2, -4); c.lineTo(1.5, -.5); c.lineTo(-1.5, -.5); c.closePath(); c.fill(); ol(.4); c.fillStyle = '#c96b3a'; c.fillRect(-1.8, -3.8, 3.6, .8); break;
+    case 'cards': for (let i = 0; i < 3; i++) { c.save(); c.rotate(-.4 + i*.35); c.fillStyle = '#fff'; c.fillRect(-1.6, -6, 3.2, 5); c.strokeStyle = '#c0263a'; c.lineWidth = .3; c.strokeRect(-1.6, -6, 3.2, 5); c.restore(); } break;
+    case 'paddle': c.fillStyle = '#8a5a32'; c.fillRect(-1, -.6, 3.5, 1.2); c.fillStyle = '#e8202a'; c.beginPath(); c.ellipse(5.6, 0, 3.2, 2.8, 0, 0, 7); c.fill(); ol(.4); break;
     case 'pencil': c.fillStyle = '#ffc93c'; c.fillRect(-1, -1, 9, 2); c.fillStyle = '#ff8fb0'; c.fillRect(-2.2, -1, 1.4, 2); c.fillStyle = '#f3d6a8'; c.beginPath(); c.moveTo(8, -1); c.lineTo(10.5, 0); c.lineTo(8, 1); c.fill(); c.fillStyle = '#2a2a33'; c.beginPath(); c.moveTo(9.6, -.35); c.lineTo(10.5, 0); c.lineTo(9.6, .35); c.fill(); break;
     case 'sword': c.fillStyle = '#6e452d'; c.fillRect(-1.5, -.6, 3, 1.2); c.fillStyle = '#c9a227'; c.fillRect(1.4, -2, 1.2, 4); c.fillStyle = '#dfe6f0'; c.beginPath(); c.moveTo(2.6, -.9); c.lineTo(11.5, -.6); c.lineTo(12.8, 0); c.lineTo(11.5, .6); c.lineTo(2.6, .9); c.fill(); ol(.4); break;
     case 'lightblade': c.fillStyle = '#4a4f62'; c.fillRect(-1.6, -.8, 3.6, 1.6); c.shadowColor = '#4de8ff'; c.shadowBlur = 6*glowScale; c.strokeStyle = '#bff6ff'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(2.2, 0); c.lineTo(14, 0); c.stroke(); c.shadowBlur = 0; break;
@@ -1515,6 +1848,16 @@ function pose(o){
   else if (o.mode === 'hang') { const sw = Math.sin(t*.01)*.15; Lg = [[.3 + sw, .4], [-.1 + sw, .3]]; A = [[Math.PI - .12, 0], [Math.PI + .12, 0]]; hipY = -11.6; }
   else if (o.mode === 'slide') { lean = -.25; Lg = [[.9, .3], [-.5, 1.2]]; A = [[1.5, -.4], [-1.6, .4]]; hipY = -10.2; }
   else if (o.mode === 'ride') { const b = Math.sin(t*.004); hipY = -10.8 + b*.3; Lg = [[.3, .6], [-.3, .6]]; A = [[1.2, -.8], [-1.2, .8]]; }
+  else if (o.mode === 'walk') { const p = o.ph; lean = .06; hipY = -11.2 - .5*Math.abs(Math.cos(p)); for (let i = 0; i < 2; i++) { const q = p + i*Math.PI; Lg[i] = [.55*Math.sin(q), .2 + .8*Math.max(0, Math.cos(q))]; A[i] = [-.5*Math.sin(q), -.8]; } }
+  else if (o.mode === 'sit' || o.mode === 'tea' || o.mode === 'cards' || o.mode === 'perch') {
+    hipY = o.mode === 'tea' ? -6 : -4.5; Lg = [[1.55, 1.6], [1.4, 1.5]]; A = [[.5, -.9], [.3, -.9]];
+    if (o.mode === 'perch') { const sw = Math.sin(t*.004)*.25; Lg = [[1.2 + sw, 1.3], [1.1 - sw, 1.2]]; A = [[-.4, .3], [-.6, .3]]; }
+    if (o.mode === 'tea') { const k = (t*.001) % 4, up = k < 1.2 ? Math.sin(Math.min(1, k/1.2)*Math.PI) : 0; A = [[lerp(.7, 2.0, up), lerp(-1.6, -2.4, up)], [.3, -.9]]; }
+    if (o.mode === 'cards') A = [[1.35, -1.3], [1.15, -1.2]];
+  }
+  else if (o.mode === 'paddle') { lean = .15; hipY = -10.6; Lg = [[.35, .6], [-.35, .6]]; const sw = o.hit ? 1 : 0; A = [[lerp(.9, 2.2, sw), -.9], [-.6, .5]]; }
+  else if (o.mode === 'hurry') { const p = o.ph; lean = .25; hipY = -10.4 - 1.3*Math.abs(Math.cos(p)); for (let i = 0; i < 2; i++) { const q = p + i*Math.PI; Lg[i] = [.9*Math.sin(q), .25 + 1.4*Math.max(0, Math.cos(q))]; A[i] = [2.6 + Math.sin(q*1.3)*.6, -.4]; } }
+  else if (o.mode === 'stretch') { const k = Math.sin(t*.006); A = [[2.7 + k*.1, .1], [-2.7 - k*.1, -.1]]; Lg = [[.15, .05], [-.15, .05]]; hipY = -11.8; }
   else { const b = Math.sin(t*.0025); hipY = -11.5 + b*.25; Lg = [[.12, .05], [-.12, .05]]; A = [[.18 + b*.04, -.35], [-.18, -.35]]; }
   const hip = [0, hipY];
   const neck = [hip[0] + Math.sin(lean)*8.4, hip[1] - Math.cos(lean)*8.4];
@@ -1562,10 +1905,11 @@ function airPose(Lx, s){
 }
 
 /* ---------- study day ----------
-   A day runs until "寝る" is pressed (or 4:00 the next morning). */
+   A day runs until "寝る" is pressed (or 4:00 the next morning).
+   The next day starts from half the stage number reached (rounded down). */
 const dayKey = () => { const d = new Date(Date.now() - 4*3600e3); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
-const fresh = () => ({d: dayKey(), acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0});
-const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null});
+const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null});
+const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
 let bank, st;
 try { bank = JSON.parse(localStorage.getItem('quest-bank')); } catch (e) {}
 if (!bank || !bank.owned) bank = freshBank();
@@ -1576,56 +1920,89 @@ for (const k in SHOP) if (!bank.owned.includes(k + ':none') && k !== 'color') ba
   for (const [o, n] of Object.entries(MAP)) { const [oc, oi] = o.split(':'), [nc, ni] = n.split(':'); if (bank.eq[oc] === oi) { if (oc !== nc) bank.eq[oc] = 'none'; bank.eq[nc] = ni; } }
 }
 bank.eq = Object.assign({color: 'orange'}, bank.eq);
+bank.base = bank.base || 0;
 const saveBank = () => { try { localStorage.setItem('quest-bank', JSON.stringify(bank)); } catch (e) {} };
 const LOOK = () => lookOf(bank.eq);
 try { st = JSON.parse(localStorage.getItem('quest-day')); } catch (e) {}
-if (st && st.done == null) { st.done = 0; st.doneCoins = 0; }
+if (st) { st.done = st.done || 0; st.doneCoins = st.doneCoins || 0; st.base = st.base || 0; }
 const save = () => { try { localStorage.setItem('quest-day', JSON.stringify(st)); } catch (e) {} };
-const msOf = o => o.acc + (o.run ? (Date.now() - o.t0)*o.mult : 0);
+const dayLen = o => (NST - o.base)*STAGE;
+const msOf = o => { let v = o.acc + (o.run ? (Date.now() - o.t0)*o.mult : 0); if (o.ff) v = Math.min(v, o.ff.target); return v; };
 const studyMs = () => msOf(st);
-const commit = () => { if (st.run) { const n = Date.now(); st.acc += (n - st.t0)*st.mult; st.t0 = n; } };
+const commit = () => { if (st.run) { const n = Date.now(); st.acc = msOf(st); st.t0 = n; } };
 function syncDone(o){
-  const Tt = Math.min(DAY, msOf(o)/1000), cl = Math.min(NST, Math.floor(Tt/STAGE));
+  const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   if (o.done > cl) { o.done = 0; o.doneCoins = 0; }
-  while (o.done < cl) { o.doneCoins += stageTotal(o.done); o.done++; }
+  while (o.done < cl) { o.doneCoins += stageTotal(o.base + o.done); o.done++; }
   return Tt;
 }
 function dayCoins(o){
   const Tt = syncDone(o);
-  if (Tt >= DAY) return o.doneCoins;
-  const si = Math.floor(Tt/STAGE);
-  return o.doneCoins + coinsAtIn(getStage(si), Tt - si*STAGE);
+  if (Tt >= dayLen(o)) return o.doneCoins;
+  const k = Math.floor(Tt/STAGE);
+  return o.doneCoins + coinsAtIn(getStage(o.base + k), Tt - k*STAGE);
 }
 const wallet = () => bank.earned + dayCoins(st) - bank.spent;
+function daySummary(o){
+  const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
+  const reachedNum = Math.min(NST, o.base + cl + 1);
+  const next = Math.max(1, Math.floor(reachedNum/2)) - 1;
+  return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageName(o.base), reached: stageName(reachedNum - 1), all: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
+}
 function finishDay(){
   if (st.run) { commit(); st.run = false; }
-  const Tt = Math.min(DAY, msOf(st)/1000), coins = dayCoins(st), cl = Math.min(NST, Math.floor(Tt/STAGE));
-  bank.last = {ms: Math.round(Tt*1000), stages: cl, coins, reached: stageName(Math.min(NST - 1, Math.floor(Tt/STAGE))), d: st.d};
-  bank.earned += coins; saveBank();
-  st = fresh(); save();
-  return bank.last;
+  const sm = daySummary(st);
+  bank.last = sm; bank.earned += sm.coins; bank.base = sm.next; saveBank();
+  st = fresh(sm.next, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
+  return sm;
 }
 let pendingSummary = null;
-if (!st) st = fresh();
-else if (st.d !== dayKey()) { if (st.acc || st.run) pendingSummary = finishDay(); else { st = fresh(); save(); } }
+if (!st) st = fresh(bank.base);
+else if (st.d !== dayKey()) { if (st.acc || st.run) pendingSummary = finishDay(); else { st = fresh(st.base, st.night); save(); } }
 st.mult = st.mult || 1;
+
+/* idle: 1 hour → everyone sleeps, 3 hours → tea party (time at the inn does not count) */
+const idleSec = () => (!st.run && !st.night) ? (Date.now() - st.stopAt)/1000 : 0;
+const restMode = () => { const i = idleSec(); return i >= 3*3600 ? 'tea' : i >= 3600 ? 'sleep' : null; };
+function trueT(){ return Math.min(dayLen(st), studyMs()/1000); }
+function safeTotal(Tt){ const k = Math.min(NST - 1 - st.base, Math.floor(Tt/STAGE)), s = Tt - k*STAGE; return k*STAGE + safeS(getStage(st.base + k), Math.min(STAGE, s)); }
+/* after waking up the hero is shown a little behind and catches up at 1.25× */
+function dispT(Tt){
+  const r = st.resume; if (!r) return Tt;
+  const e = Tt - r.T0; if (e < 0) { st.resume = null; return Tt; }
+  if (e < r.F) return r.Ts;
+  const lag = (r.T0 + r.F - r.Ts) - (e - r.F)*.25;
+  if (lag <= 0) { st.resume = null; save(); return Tt; }
+  return Tt - lag;
+}
+function beginResume(){
+  const rm = restMode(); if (!rm) return;
+  const Tt = trueT();
+  st.resume = {T0: Tt, F: rm === 'tea' ? 5 : .8, Ts: safeTotal(Tt), kind: rm};
+}
 
 let wake = null;
 const lockWake = async () => { try { if (st.run && navigator.wakeLock && document.visibilityState === 'visible') wake = await navigator.wakeLock.request('screen'); } catch (e) {} };
 document.addEventListener('visibilitychange', lockWake);
 function stop(){ commit(); st.run = false; st.stopAt = Date.now(); if (wake) { wake.release().catch(()=>{}); wake = null; } }
 function toggle(){
+  if (st.ff) return;
   if (st.run) stop();
-  else { if (studyMs() >= DAY*1000) return; st.run = true; st.t0 = Date.now(); lockWake(); }
+  else {
+    if (studyMs() >= dayLen(st)*1000) return;
+    if (st.night) st.night = null; else beginResume();
+    st.run = true; st.t0 = Date.now(); lockWake();
+  }
   save(); ui();
 }
 $('go').onclick = toggle;
 document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { commit(); st.mult = +b.dataset.m; save(); ui(); });
-$('rs').onclick = () => { if (confirm('今日の記録をリセットしますか？（集めたコインは残ります）')) { commit(); bank.earned += dayCoins(st); saveBank(); st = fresh(); save(); ui(); } };
+$('rs').onclick = () => { if (confirm('今日の記録をリセットして 1-1 からにしますか？（集めたコインは残ります）')) { commit(); bank.earned += dayCoins(st); bank.base = 0; saveBank(); st = fresh(0); save(); ui(); } };
+document.querySelectorAll('[data-idle]').forEach(b => b.onclick = () => { if (st.run && !st.ff) stop(); st.night = null; st.stopAt = Date.now() - (+b.dataset.idle)*1000 - 1000; save(); ui(); });
 const jumpSel = $('jump');
 jumpSel.innerHTML = '<option value="">ステージへ移動…</option>' + Array.from({length: NST}, (_, i) => `<option value="${i}">${stageName(i)} ${THEMES[Math.floor(i/6)].name}</option>`).join('');
-jumpSel.onchange = () => { if (jumpSel.value === '') return; commit(); st.acc = +jumpSel.value*STAGE*1000; st.t0 = Date.now(); st.allAt = 0; save(); jumpSel.value = ''; ui(); };
-window.__quest = { L: si => getStage(si ?? 0), set(sec){ st.acc = sec*1000; st.t0 = Date.now(); st.allAt = 0; save(); ui(); }, bank: () => bank, eq(e){ Object.assign(bank.eq, e); } };
+jumpSel.onchange = () => { if (jumpSel.value === '') return; commit(); bank.earned += dayCoins(st); saveBank(); const run = st.run; st = fresh(+jumpSel.value); if (run) { st.run = true; st.t0 = Date.now(); } save(); jumpSel.value = ''; ui(); };
+window.__quest = { L: si => getStage(si ?? 0), set(sec){ st.acc = Math.max(0, sec - st.base*STAGE)*1000; st.t0 = Date.now(); st.allAt = 0; st.resume = null; save(); ui(); }, bank: () => bank, st: () => st, eq(e){ Object.assign(bank.eq, e); } };
 
 /* ---------- map ---------- */
 const grid = $('grid');
@@ -1636,35 +2013,40 @@ const fmt = ms => { const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = M
 const fmtHM = ms => { const m = Math.floor(ms/60000); return Math.floor(m/60) + ':' + String(m % 60).padStart(2, '0'); };
 const fmtShort = s => { s = Math.max(0, Math.ceil(s)); return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); };
 const num = n => n.toLocaleString('ja-JP');
-function timeState(){
-  const Tt = Math.min(DAY, studyMs()/1000), si = Math.min(NST - 1, Math.floor(Tt/STAGE)), s = Tt >= DAY ? STAGE : Tt - si*STAGE;
-  return {Tt, si, s, cleared: Math.min(NST, Math.floor(Tt/STAGE))};
+function stageOf(T){
+  const k = Math.min(NST - 1 - st.base, Math.floor(T/STAGE)), all = T >= dayLen(st);
+  return {k, si: st.base + k, s: all ? STAGE : T - k*STAGE, all};
 }
 function ui(){
-  const ms = studyMs(), {Tt, si, s, cleared} = timeState(), Lx = getStage(si), TH = THEMES[Math.floor(si/6)];
+  const ms = studyMs(), Tt = trueT(), {si, s, all} = stageOf(Tt), cleared = Math.floor(Tt/STAGE), Lx = getStage(si), TH = THEMES[Math.floor(si/6)];
   $('tt').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
-  const all = Tt >= DAY;
-  $('go').textContent = st.run ? '停止' : all ? 'クリア' : '開始';
-  $('go').className = 'cir' + (st.run ? ' stop' : '');
-  $('go').disabled = !st.run && all;
+  $('go').textContent = st.ff ? '早送り中' : st.run ? '停止' : all ? 'クリア' : '開始';
+  $('go').className = 'cir' + (st.run && !st.ff ? ' stop' : '');
+  $('go').disabled = !!st.ff || (!st.run && all);
+  $('addb').disabled = !!st.ff || all;
   $('pb').style.width = (s/STAGE*100) + '%';
   $('pn').textContent = `ステージ ${stageName(si)}　${TH.name}`;
-  $('pt').textContent = `今日 ${cleared} / ${NST} クリア`;
-  $('hw').textContent = 'WORLD ' + stageName(si);
-  $('hn').textContent = TH.name;
-  $('hl').textContent = fmtShort(STAGE - s);
-  $('hc').textContent = coinsAtIn(Lx, s);
+  $('pt').textContent = st.base ? `今日 ${cleared} ステージ（${stageName(st.base)}から）` : `今日 ${cleared} ステージ`;
+  if (st.night) {
+    const ph = nightPhase((Date.now() - st.night.at)/1000);
+    $('hw').textContent = '旅館'; $('hn').textContent = ph.name; $('hc').textContent = '—'; $('hl').textContent = '--:--';
+  } else {
+    $('hw').textContent = 'WORLD ' + stageName(si); $('hn').textContent = TH.name;
+    $('hl').textContent = fmtShort(STAGE - s); $('hc').textContent = coinsAtIn(Lx, s);
+  }
   $('wl').textContent = num(wallet());
-  $('hint').classList.toggle('off', st.run || ms > 0);
-  document.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === st.mult));
+  const hint = $('hint');
+  hint.textContent = st.night ? `おやすみ中…「開始」で ${stageName(st.base)} から新しい一日` : '「開始」を押して勉強スタート。キャラが自動で進みます';
+  hint.classList.toggle('off', !st.night && (st.run || ms > 0));
+  document.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === st.mult && !st.ff));
   cells.forEach((el, i) => {
-    const f = i < cleared ? 1 : i === si ? s/STAGE : 0;
+    const f = i < st.base ? 1 : i < si || (all && i === si) ? 1 : i === si ? s/STAGE : 0;
     el.classList.toggle('cur', i === si && !all);
     el.firstChild.style.height = (f*100) + '%';
+    el.firstChild.style.opacity = i < st.base ? .4 : 1;
   });
-  $('wname').textContent = all ? 'オールクリア！ おつかれさまでした。' : `いまはワールド${Math.floor(si/6) + 1}「${TH.name}」。ワールドが進むほど仕掛けが増えます。`;
+  $('wname').textContent = all ? 'オールクリア！ おつかれさまでした。' : `いまはワールド${Math.floor(si/6) + 1}「${TH.name}」。ワールドが進むほど仕掛けが増えます。` + (st.base ? `（うすい色は前の日までに進んだぶん）` : '');
 }
-
 /* ---------- shop ---------- */
 const pv = $('pv'), pctx = pv.getContext('2d');
 let shopCat = 'color', trial = null;
@@ -1732,26 +2114,29 @@ function drawPreview(){
 }
 
 /* ---------- sleep summary ---------- */
+
+/* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
 function showSummary(sm, mode){
   $('smh').textContent = mode === 'confirm' ? '今日のきろく' : mode === 'done' ? 'おやすみなさい' : '前回のきろく';
   $('sm1').textContent = sm.stages; $('sm2').textContent = num(sm.coins); $('sm3').textContent = fmtHM(sm.ms);
-  const where = sm.stages >= NST ? '72ステージ、ぜんぶクリアしました！' : sm.stages ? `1-1 から ${sm.reached} まで進みました。` : sm.ms ? `ステージ ${sm.reached} の途中まで進みました。` : 'まだステージを進めていません。';
-  $('smp').textContent = mode === 'confirm' ? `${where}「おやすみなさい」で今日を終えて、コインを財布に入れます。明日はまた 1-1 からです。`
-    : mode === 'done' ? `${where}コイン ${num(sm.coins)} 枚を財布に入れました。明日はまた 1-1 からスタートです。`
-    : `${where}コイン ${num(sm.coins)} 枚は財布に入っています。`;
+  const where = sm.all ? `${sm.from} から最後まで、ぜんぶクリアしました！` : sm.stages ? `${sm.from} から ${sm.reached} まで進みました。` : sm.ms ? `ステージ ${sm.reached} の途中まで進みました。` : 'まだステージを進めていません。';
+  $('smp').textContent = mode === 'confirm' ? `${where}「おやすみなさい」で今日を終えると、みんなで旅館に泊まります。次は ${sm.nextName} から再開です（進んだステージの半分から）。`
+    : mode === 'done' ? `${where}コイン ${num(sm.coins)} 枚を財布に入れました。次は ${sm.nextName} から。みんなで旅館へ行きます。`
+    : `${where}コイン ${num(sm.coins)} 枚は財布に入っています。次は ${sm.nextName} から再開です。`;
   $('smbtn').hidden = mode !== 'confirm'; $('smclose').hidden = mode === 'confirm';
+  $('smclose').textContent = mode === 'done' ? '旅館へ' : 'とじる';
   $('sleep').hidden = false;
 }
 $('sleepb').onclick = () => {
+  if (st.ff) return;
   if (st.run) { stop(); save(); }
-  const Tt = Math.min(DAY, studyMs()/1000);
-  showSummary({ms: Tt*1000, stages: Math.min(NST, Math.floor(Tt/STAGE)), coins: dayCoins(st), reached: stageName(Math.min(NST - 1, Math.floor(Tt/STAGE)))}, 'confirm');
+  showSummary(daySummary(st), 'confirm');
   ui();
 };
 $('smback').onclick = () => { $('sleep').hidden = true; };
 $('smok').onclick = () => { const sm = finishDay(); showSummary(sm, 'done'); ui(); };
-$('smclose').onclick = () => { $('sleep').hidden = true; ui(); };
+$('smclose').onclick = () => { $('sleep').hidden = true; if (st.night && $('smclose').textContent === '旅館へ') { st.night.at = Date.now(); save(); } ui(); };
 function drawNight(){
   withCtx(sv, sctx, 64, vw => {
     const g = c.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, '#141238'); g.addColorStop(1, '#3b3a8f');
@@ -1771,22 +2156,64 @@ function drawNight(){
   });
 }
 
+/* ---------- entering study time: plays back at 60× or faster, always within a minute ---------- */
+function addPlan(){
+  const h = Math.max(0, +$('ah').value || 0), m = Math.max(0, +$('am').value || 0);
+  const left = dayLen(st) - trueT(), add = Math.min(left, h*3600 + m*60);
+  const speed = Math.max(60, add/60), dur = add/speed;
+  return {add, speed, dur, capped: h*3600 + m*60 > left};
+}
+function addRender(){
+  const p = addPlan();
+  $('aprev').textContent = p.add <= 0 ? '時間を入れてください。' : `${(h => (h >= 60 ? Math.floor(h/60) + '時間' : '') + (h % 60 ? h % 60 + '分' : ''))(Math.round(p.add/60))}を ×${Math.round(p.speed)} の速さで、${Math.max(1, Math.round(p.dur))} 秒で進めます。` + (p.capped ? '（今日の残りステージぶんまで）' : '');
+  $('aok').disabled = p.add <= 0;
+}
+$('addb').onclick = () => { $('ah').value = ''; $('am').value = ''; addRender(); $('addt').hidden = false; };
+$('ah').oninput = $('am').oninput = addRender;
+$('aback').onclick = () => { $('addt').hidden = true; };
+$('addt').onclick = e => { if (e.target.id === 'addt') $('addt').hidden = true; };
+$('aok').onclick = () => {
+  const p = addPlan(); if (p.add <= 0) return;
+  if (st.run) stop();
+  if (st.night) st.night = null; else beginResume();
+  commit();
+  st.ff = {target: st.acc + p.add*1000, prev: st.mult};
+  st.mult = p.speed; st.run = true; st.t0 = Date.now();
+  save(); $('addt').hidden = true; ui();
+};
+
 /* ---------- main loop ---------- */
 function frame(){
   requestAnimationFrame(frame);
   now = performance.now();
-  if (st.d !== dayKey() && !st.run) { if (st.acc) showSummary(finishDay(), 'auto'); else { st = fresh(); save(); } ui(); }
-  let {Tt, si, s} = timeState();
-  if (Tt >= DAY && !st.allAt) { st.allAt = Date.now(); if (st.run) stop(); st.acc = DAY*1000; save(); ui(); }
+  if (st.d !== dayKey() && !st.run) { if (st.acc) showSummary(finishDay(), 'auto'); else { st = fresh(st.base, st.night); save(); } ui(); }
+  if (st.ff && studyMs() >= st.ff.target) { st.acc = st.ff.target; st.run = false; st.mult = st.ff.prev; st.ff = null; st.stopAt = Date.now(); save(); ui(); }
+  const look = LOOK();
+  c.setTransform(SC, 0, 0, SC, 0, 0);
+  glowScale = SC;
+  if (st.night) {
+    drawRyokan(VW, (Date.now() - st.night.at)/1000, look, THEMES[st.night.w || 0]);
+    $('ttl').classList.remove('on'); $('ban').classList.remove('on');
+    if (!$('shop').hidden) drawPreview();
+    if (!$('sleep').hidden) drawNight();
+    return;
+  }
+  const Tt = trueT();
+  if (Tt >= dayLen(st) && !st.allAt) { st.allAt = Date.now(); if (st.run) stop(); st.acc = dayLen(st)*1000; st.ff = null; save(); ui(); }
   const before = st.done; syncDone(st); if (st.done !== before) { save(); ui(); }
+  const rest = restMode();
+  let Td = rest ? safeTotal(Tt) : dispT(Tt);
+  const {si, s, all} = stageOf(Td);
   L = getStage(si); curS = s;
   const TH = L.TH, END = INTRO + RUNT;
   const winT = s >= END ? s - END : -1;
   const hero = heroAtIn(L, s);
   let cam = hero.x - VW*.34;
   cam = Math.max(0, Math.min(cam, L.endCol*T - VW));
-  c.setTransform(SC, 0, 0, SC, 0, 0);
-  glowScale = SC;
+  const r = st.resume, wakeE = r ? Tt - r.T0 : -1;
+  const tea = rest === 'tea', cleaning = r && r.kind === 'tea' && wakeE >= 0 && wakeE < r.F;
+  const stretching = r && r.kind === 'sleep' && wakeE >= 0 && wakeE < r.F;
+  const hx = hero.x - cam, gy = Y(hero.y);
   drawSky(TH, s/STAGE);
   drawFar(TH, cam);
   drawHills(TH, cam);
@@ -1800,40 +2227,46 @@ function frame(){
   drawGimmicks(TH, cam);
   drawBlocks(cam);
   drawCoins(cam);
-  drawEnemies(TH, cam);
+  drawEnemies(TH, cam, rest === 'sleep', (tea || cleaning) ? (x => x > hx - 12 && x < hx + 110) : null);
   drawDust(cam, hero);
-  // hero
-  const look = LOOK();
-  let o = airPose(L, s), hy = hero.y;
-  const idleFor = st.stopAt ? (Date.now() - st.stopAt)/1000 : 0;
-  const ms = studyMs();
-  if (winT >= 0) { o.mode = 'win'; o.flip = 0; o.face = 1; o.rot = 0; const k = (Tt >= DAY ? now/1000 : winT) % .9; hy += (winT < 3.6 || Tt >= DAY) ? Math.sin(k/.9*Math.PI)*14 : 0; }
-  else if (s < INTRO) o.mode = 'idle';
-  else if (!st.run && !hero.air && hero.g.j === 0) { o.mode = (ms > 0 && idleFor > 6) || (ms === 0 && idleFor > 20) ? 'sleep' : 'idle'; }
-  if (st.run && o.mode === 'run') { for (const l of L.landings) { const a = s - l.t; if (a >= 0 && a < .12) { o.sq = 1 - a/.12; break; } if (a < 0) break; } }
-  if (hero.air && hero.g.k === 'b' && Math.abs(hero.u - .5) < .06) o.sq = -.4;
-  o.t = now;
-  if (look.trail !== 'none' && st.run && winT < 0 && s > INTRO + .3) drawTrail(look.trail, (k, dt) => { const q = airPose(L, Math.max(INTRO, s - k*dt)); return {x: q.x - cam, y: Y(q.y), o: q}; }, look);
-  if (look.pet !== 'none') { const pp = heroAtIn(L, Math.max(INTRO, s - .35)); drawPet(look.pet, pp.x - 14 - cam, Y(pp.y) - 30, now); }
-  drawHero(hero.x - cam, Y(hy), o, look);
+  if (tea || cleaning) drawTea(cam, hx, gy, look, TH, cleaning, cleaning ? wakeE/r.F : 0);
+  else {
+    let o = airPose(L, s), hy = hero.y;
+    const idleFor = st.stopAt ? (Date.now() - st.stopAt)/1000 : 0;
+    if (winT >= 0) { o.mode = 'win'; o.flip = 0; o.face = 1; o.rot = 0; const k = (all ? now/1000 : winT) % .9; hy += (winT < 3.6 || all) ? Math.sin(k/.9*Math.PI)*14 : 0; }
+    else if (rest === 'sleep') o.mode = 'sleep';
+    else if (stretching) o.mode = 'stretch';
+    else if (s < INTRO) o.mode = 'idle';
+    else if (!st.run && !hero.air && hero.g.j === 0) o.mode = idleFor > 30 ? 'perch' : 'idle';
+    if (st.run && o.mode === 'run') { for (const l of L.landings) { const a = s - l.t; if (a >= 0 && a < .12) { o.sq = 1 - a/.12; break; } if (a < 0) break; } }
+    if (hero.air && hero.g.k === 'b' && Math.abs(hero.u - .5) < .06) o.sq = -.4;
+    o.t = now;
+    const moving = st.run && !stretching && winT < 0 && s > INTRO + .3;
+    if (look.trail !== 'none' && moving) drawTrail(look.trail, (k, dt) => { const q = airPose(L, Math.max(INTRO, s - k*dt)); return {x: q.x - cam, y: Y(q.y), o: q}; }, look);
+    if (look.pet !== 'none') {
+      if (rest === 'sleep') { drawPet(look.pet, hx - 14, gy - 6, 0); zzz(hx - 10, gy - 12, now + 900); }
+      else { const pp = heroAtIn(L, Math.max(INTRO, s - (moving ? .35 : 0))); drawPet(look.pet, pp.x - 14 - cam, Y(pp.y) - 30, now); }
+    }
+    drawHero(hx, Y(hy), o, look);
+  }
   for (const d of L.decos) drawDeco(d, cam, false);
   drawWeather(TH);
   drawConfetti(winT);
   // overlays
-  const showTitle = Tt < DAY && s < 2.8 && (st.run || Tt > 0);
+  const showTitle = !all && s < 2.8 && (st.run || Tt > 0) && !rest && !cleaning;
   $('ttl').classList.toggle('on', showTitle);
   if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageName(si); $('ttln').textContent = TH.name + (L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
   $('ban').classList.toggle('on', winT >= 0);
   if (winT >= 0) {
-    $('banb').textContent = Tt >= DAY ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
-    $('bans').textContent = Tt >= DAY ? `72ステージ制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageName(si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
+    $('banb').textContent = all ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
+    $('bans').textContent = all ? `72ステージ制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageName(si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
   }
   if (!$('shop').hidden) drawPreview();
   if (!$('sleep').hidden) drawNight();
 }
 
 let lastUi = 0;
-setInterval(() => { if (st.run || Date.now() - lastUi > 1000) { ui(); lastUi = Date.now(); } }, 250);
+setInterval(() => { if (st.run || st.night || Date.now() - lastUi > 1000) { ui(); lastUi = Date.now(); } }, 250);
 resize(); ui(); if (st.run) lockWake();
 if (pendingSummary) showSummary(pendingSummary, 'auto');
 requestAnimationFrame(frame);

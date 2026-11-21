@@ -1,0 +1,38 @@
+<!doctype html><html><body style="margin:0;background:#fff"><canvas id="c" width="1024" height="1024"></canvas>
+<script>
+const cv = document.getElementById('c'), c = cv.getContext('2d');
+function draw(S, maskable){
+  c.setTransform(S/100, 0, 0, S/100, 0, 0);
+  // background: sky + hill + ground, full bleed (rounded by the OS)
+  const g = c.createLinearGradient(0, 0, 0, 100); g.addColorStop(0, '#4aa8ff'); g.addColorStop(1, '#bfe9ff');
+  c.fillStyle = g; c.fillRect(0, 0, 100, 100);
+  c.fillStyle = 'rgba(255,250,210,.45)'; c.beginPath(); c.arc(78, 22, 13, 0, 7); c.fill();
+  c.fillStyle = '#fff6c8'; c.beginPath(); c.arc(78, 22, 8, 0, 7); c.fill();
+  c.fillStyle = '#ffffff'; for (const [x, y, r] of [[18, 26, 6], [25, 24, 7.5], [32, 27, 5.5]]) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); }
+  c.fillStyle = '#8fdc7a'; c.beginPath(); c.ellipse(78, 82, 40, 26, 0, Math.PI, 0); c.fill();
+  c.fillStyle = '#c98a4b'; c.fillRect(0, 80, 100, 20);
+  c.fillStyle = '#3f9e3c'; c.fillRect(0, 79, 100, 4);
+  c.fillStyle = '#5ccf4f'; c.fillRect(0, 76, 100, 4.5);
+  c.fillStyle = '#a86b37'; for (const [x, y] of [[12, 88], [40, 92], [66, 87], [86, 94]]) { c.beginPath(); c.roundRect(x, y, 5, 3, 1.5); c.fill(); }
+  // coin
+  c.fillStyle = '#ffd23f'; c.beginPath(); c.ellipse(74, 46, 6, 7, 0, 0, 7); c.fill(); c.strokeStyle = '#c98a12'; c.lineWidth = 1.2; c.stroke();
+  c.fillStyle = '#fff3b0'; c.fillRect(71.5, 42, 1.8, 8);
+  // stickman mid-leap (big, centered, inside the maskable safe zone)
+  const P = {head: [48, 30], neck: [46, 39], hip: [40, 55], kneeF: [52, 59], footF: [50, 70], kneeB: [31, 62], footB: [22, 58], elbF: [57, 34], handF: [62, 25], elbB: [36, 42], handB: [30, 34]};
+  const line = (pts) => { c.beginPath(); c.moveTo(...pts[0]); for (const p of pts.slice(1)) c.lineTo(...p); c.stroke(); };
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  // speed lines
+  c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 2.2; for (const [y, l] of [[40, 12], [50, 16], [60, 10]]) { c.beginPath(); c.moveTo(18 - l, y); c.lineTo(18, y); c.stroke(); }
+  for (const pass of [0, 1]) {
+    c.lineWidth = pass ? 7 : 10.5; c.strokeStyle = pass ? '#c2401f' : '#2b2340';
+    line([P.hip, P.kneeB, P.footB]); line([P.neck, P.elbB, P.handB]);
+    c.strokeStyle = pass ? '#ff5a2e' : '#2b2340';
+    line([P.hip, P.neck]); line([P.hip, P.kneeF, P.footF]); line([P.neck, P.elbF, P.handF]);
+    c.fillStyle = pass ? '#ff5a2e' : '#2b2340'; c.beginPath(); c.arc(...P.head, pass ? 9 : 10.8, 0, 7); c.fill();
+  }
+  // headband tails
+  c.strokeStyle = '#ffffff'; c.lineWidth = 2.6; c.beginPath(); c.moveTo(41, 27); c.quadraticCurveTo(34, 24, 29, 27); c.moveTo(41, 28.5); c.quadraticCurveTo(35, 30, 31, 33); c.stroke();
+  c.fillStyle = '#ffffff'; c.save(); c.beginPath(); c.arc(...P.head, 9, 0, 7); c.clip(); c.fillRect(38, 24.5, 22, 3.6); c.restore();
+}
+window.render = (S) => { cv.width = S; cv.height = S; draw(S); return cv.toDataURL('image/png'); };
+</script></body></html>
