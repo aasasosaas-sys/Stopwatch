@@ -87,6 +87,12 @@ canvas{display:block;width:100%;height:100%}
 .pill{background:var(--card);border-radius:999px;padding:8px 16px;font-size:14px}
 .pill.on{background:var(--acc);color:#fff}
 .dev p{margin:8px 0 0;font-size:13px;line-height:1.5}
+.dev input[type=text]{flex:1;min-width:0;background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:9px 10px;font-size:13px}
+.dev ol{margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.6}
+#gstat{font-size:13px}
+.toast{position:absolute;left:50%;top:46px;transform:translateX(-50%);background:rgba(20,16,40,.78);color:#fff;padding:8px 14px;border-radius:12px;font-size:clamp(12px,2.6vw,14px);font-weight:600;opacity:0;transition:opacity .4s;pointer-events:none;max-width:92%;text-align:center;line-height:1.5}
+.toast.on{opacity:1}
+#bktext{width:100%;min-height:110px;background:var(--card);color:var(--fg);border:0;border-radius:12px;padding:10px;font:12px/1.4 ui-monospace,monospace;word-break:break-all;resize:vertical}
 .addb{margin-top:10px;font-size:13px;padding:7px 14px}
 .addb:disabled{opacity:.4}
 .hm{display:flex;gap:10px;justify-content:center;align-items:center;font-size:17px}
@@ -96,20 +102,23 @@ canvas{display:block;width:100%;height:100%}
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(10,8,20,.45);display:flex;align-items:flex-end;justify-content:center}
 .sh-in{background:var(--bg);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;border-radius:20px 20px 0 0;
   padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+.sh-in>*{flex-shrink:0}
 .sh-top{display:flex;align-items:center;gap:12px}
+.shead{position:sticky;top:-16px;margin-top:-16px;padding-top:16px;padding-bottom:4px;background:var(--bg);z-index:3;display:flex;flex-direction:column;gap:10px}
+#sact{position:sticky;bottom:0;z-index:3;box-shadow:0 0 0 10px var(--bg)}
 .sh-top>b{font-size:20px;flex:1}
 .bal{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
 .sh-note{margin:0;color:var(--sub);font-size:13px;line-height:1.5}
-#pv{width:100%;aspect-ratio:2/1;border-radius:14px;display:block;background:#8fd3ff}
+#pv{width:100%;aspect-ratio:3/1;max-height:18vh;border-radius:14px;display:block;background:#8fd3ff}
 .tabs2{display:flex;gap:4px;background:var(--card);border-radius:999px;padding:3px;overflow-x:auto;scrollbar-width:none}
 .tabs2::-webkit-scrollbar{display:none}
 .tabs2 button{flex:1 0 auto;background:none;border-radius:999px;padding:8px 12px;font-size:15px;white-space:nowrap}
 .tabs2 button.on{background:var(--bg);color:var(--acc);font-weight:600}
-.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
-.items button{background:var(--card);border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:13px;border:2px solid transparent;line-height:1.3}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}
+.items button{background:var(--card);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;border:2px solid transparent;line-height:1.25;word-break:keep-all;overflow-wrap:anywhere}
 .items button.sel{border-color:var(--acc)}
-.items i{width:22px;height:22px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25)}
-.items em{font-style:normal;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.items i{width:18px;height:18px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.25)}
+.items em{font-style:normal;font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums}
 .items em.own{color:var(--go)}
 .act{background:var(--acc);color:#fff;border-radius:14px;padding:14px;font-size:17px;font-weight:600}
 .act:disabled{background:var(--card);color:var(--sub)}
@@ -138,6 +147,7 @@ canvas{display:block;width:100%;height:100%}
     </div>
     <div class="title" id="ttl"><b id="ttlw">WORLD 1-1</b><span id="ttln"></span></div>
     <div class="hint" id="hint">「開始」を押して勉強スタート。キャラが自動で進みます</div>
+    <div class="toast" id="toast"></div>
     <div class="banner" id="ban"><b id="banb">STAGE CLEAR!</b><span id="bans"></span></div>
   </div>
 
@@ -162,6 +172,23 @@ canvas{display:block;width:100%;height:100%}
       <div class="grid" id="grid"></div>
       <div class="wname" id="wname"></div>
     </div>
+    <details class="dev" id="datasec">
+      <summary>データの保存・引き継ぎ</summary>
+      <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
+      <div class="row"><button class="pill" id="gbtn">Googleアカウントと連携</button><span id="gstat"></span></div>
+      <div id="gsetup" hidden>
+        <p>Google連携には、最初に一度だけ「クライアントID」の設定が必要です。</p>
+        <ol>
+          <li>Google Cloud Console でプロジェクトを作り、「Google Drive API」を有効にする</li>
+          <li>「OAuth クライアントID（ウェブアプリケーション）」を作る</li>
+          <li>「承認済みの JavaScript 生成元」にこのアプリのURL（例：https://○○.github.io）を入れる</li>
+          <li>できたクライアントIDを下に貼って「保存」</li>
+        </ol>
+        <div class="row"><input type="text" id="gcid" placeholder="xxxxxxxx.apps.googleusercontent.com" aria-label="クライアントID"><button class="pill" id="gcidok">保存</button></div>
+      </div>
+      <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
+      <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
+    </details>
     <details class="dev">
       <summary>確認用（早送り・ステージ移動・リセット）</summary>
       <div class="row">
@@ -187,10 +214,12 @@ canvas{display:block;width:100%;height:100%}
 
 <div class="sheet" id="shop" hidden>
   <div class="sh-in" role="dialog" aria-label="ショップ">
-    <div class="sh-top"><b>ショップ</b><span class="bal"><span class="coin"></span><span id="sbal">0</span></span><button class="pill" id="shx">閉じる</button></div>
+    <div class="shead">
+      <div class="sh-top"><b>ショップ</b><span class="bal"><span class="coin"></span><span id="sbal">0</span></span><button class="pill" id="shx">閉じる</button></div>
+      <canvas id="pv"></canvas>
+      <div class="tabs2" id="stabs"></div>
+    </div>
     <p class="sh-note">変わるのは見た目だけで、速さやジャンプは変わりません。</p>
-    <canvas id="pv"></canvas>
-    <div class="tabs2" id="stabs"></div>
     <div class="comp"><span id="scomp"></span><span id="scat"></span></div>
     <div class="items" id="sitems"></div>
     <button class="act" id="sact">装備中</button>
@@ -212,6 +241,22 @@ canvas{display:block;width:100%;height:100%}
       <button class="act" id="smok">おやすみなさい</button>
     </div>
     <button class="act" id="smclose" hidden>とじる</button>
+  </div>
+</div>
+<div class="sheet" id="bk" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="バックアップコード">
+    <h2 id="bkh">バックアップコード</h2>
+    <p id="bkp"></p>
+    <textarea id="bktext" spellcheck="false" aria-label="バックアップコード"></textarea>
+    <div class="row2"><button class="act alt" id="bkclose">とじる</button><button class="act" id="bkact">コピー</button></div>
+  </div>
+</div>
+<div class="sheet" id="gch" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="どちらのデータを使うか">
+    <h2>どちらのデータを使いますか？</h2>
+    <p id="gchp"></p>
+    <button class="act" id="gchr">Googleのデータを使う</button>
+    <button class="act alt" id="gchl">この端末のデータを使う</button>
   </div>
 </div>
 <div class="sheet" id="addt" hidden>
@@ -286,6 +331,7 @@ function build(si){
   const GR = TH.grav || 1;
   const G = [], ICE = [], segs = [], coins = [], blocks = [], enemies = [], stumps = [], plats = [], decos = [];
   const spikes = [], springs = [], bridges = [], movers = [], ropes = [], cannons = [], bullets = [], lifts = [], bars = [], gates = [];
+  const saws = [], lasers = [], crushers = [], rocks = [];
   let col = 0, h = 2, px = 2*T, hp = 2*T, est = 0, iceOn = false;
   const flat = (n, deco = true) => {
     for (let i = 0; i < n; i++, col++) {
@@ -497,6 +543,60 @@ function build(si){
       jump(sx, sx + 20, hp - 3, 6);
       gates.push({sx, x: (c0+8)*T + 2, y: h*T, hgt: 3*T, seg: s});
     },
+    saw(){
+      const c0 = col; flat(10);
+      const xj = (c0+3)*T + 8;
+      const s = jump(xj - 30, xj + 30, hp, 32, 'hop');
+      saws.push({xj, y: h*T, seg: s, x0: xj + 150});
+      if (D > .6) { const xk = (c0+7)*T + 8, s2 = jump(xk - 30, xk + 30, hp, 32, 'hop'); saws.push({xj: xk, y: h*T, seg: s2, x0: xk + 150}); }
+    },
+    ropes2(){
+      flat(2);
+      const n = 15, c0 = col;
+      for (let i = 0; i < n; i++) G[col+i] = 0;
+      col += n;
+      const Rr = 50, th = .8, ay = h*T + HANG + Rr + 18;
+      const mk = ax => ({ax, sx0: ax - Rr*Math.sin(th), sy0: ay - Rr*Math.cos(th) - HANG, sx1: ax + Rr*Math.sin(th)});
+      const r1 = mk((c0+4)*T), r2 = mk((c0+11)*T);
+      jump(c0*T - 24, r1.sx0, r1.sy0, 12, 'grab');
+      ropes.push({ax: r1.ax, ay, R: Rr, th, seg: special({j:4, k:'swing', x0: r1.sx0, x1: r1.sx1, h1: r1.sy0, ax: r1.ax, ay, R: Rr, th, d: 1.15*GR})});
+      arcCoins(jump(px, r2.sx0, r2.sy0, 10, 'grab'), 1);
+      ropes.push({ax: r2.ax, ay, R: Rr, th, seg: special({j:4, k:'swing', x0: r2.sx0, x1: r2.sx1, h1: r2.sy0, ax: r2.ax, ay, R: Rr, th, d: 1.15*GR})});
+      jump(px, (c0+n)*T + 8, h*T, 20, 'flip');
+      flat(3);
+    },
+    springs3(){
+      if (h > 2) return F.height();
+      flat(2);
+      const c0 = col, n = 10, sc = [1, 4, 7];
+      for (let i = 0; i < n; i++) G[col+i] = h;
+      for (const [a, b] of [[0, 1], [2, 2], [5, 2], [8, 2]]) spikes.push({col: c0 + a, n: b, h});
+      col += n;
+      const sp = sc.map(k => { const o = {x: (c0+k)*T, y: h*T}; springs.push(o); return o; });
+      jump(c0*T - 6, (c0+1)*T + 8, hp, 24);
+      sp[0].seg = jump((c0+1)*T + 8, (c0+4)*T + 8, hp, 44, 'spring'); arcCoins(sp[0].seg, 2);
+      sp[1].seg = jump((c0+4)*T + 8, (c0+7)*T + 8, hp, 44, 'spring'); arcCoins(sp[1].seg, 2);
+      sp[2].seg = jump((c0+7)*T + 8, (c0+n)*T + 10, hp, 36, 'spring');
+      flat(3);
+    },
+    diag(){
+      if (h > 3) return F.height();
+      flat(2);
+      const n = 11, c0 = col, k = 3;
+      for (let i = 0; i < n; i++) G[col+i] = 0;
+      col += n;
+      const P0 = (c0+1)*T, P1 = (c0+n-4)*T;
+      jump(c0*T - 3, P0 + 24, hp, 18);
+      const s = special({j:5, k:'ride', x0: P0 + 24, x1: P1 + 24, h1: hp + k*T, d: (P1 - P0)/40 + .6});
+      movers.push({x0: P0, x1: P1, y: s.h0, y1: s.h1, w: 3*T, seg: s});
+      h += k; jump(px, (c0+n)*T + 8, h*T, 16);
+      const ct = col; flat(ri(4,5)); lineCoins(ct + 1, 3, h*T);
+      h -= k; jump(col*T - 2, col*T + 32, h*T, 12, 'drop');
+      flat(3);
+    },
+    laser(){ const c0 = col; flat(8); lasers.push({x: (c0+4)*T + 8, y: h*T}); },
+    crusher(){ const c0 = col; flat(9); crushers.push({x: (c0+4)*T, y: h*T}); },
+    rocks(){ const c0 = col; flat(8); for (let i = 0; i < 3; i++) rocks.push({x: (c0+2+i*2)*T + 8, y: h*T, i}); },
     coins(){ const c0 = col; flat(6); lineCoins(c0 + 1, 4, h*T); },
     rest(){ flat(ri(2, D > .5 ? 3 : 5)); }
   };
@@ -511,7 +611,11 @@ function build(si){
   if (w >= 5) W.push(['cannon', 1.7], ['lift', 1.3]);
   if (w >= 6) W.push(['firebar', 1.7]);
   if (w >= 8) W.push(['gate', 1.5]);
-  const NEW = {1:['bigpit','bridge'], 2:['spring','spikes'], 3:['ride','wallkick'], 4:['swing'], 5:['cannon','lift'], 6:['firebar'], 8:['gate']}[w] || [];
+  if (w >= 5) W.push(['rocks', [5, 6, 11].includes(w) ? 1.6 : .8]);
+  if (w >= 6) W.push(['saw', 1.5], ['ropes2', 1.3]);
+  if (w >= 7) W.push(['springs3', 1.3], ['diag', 1.3]);
+  if (w >= 8) W.push(['laser', 1.6], ['crusher', 1.6]);
+  const NEW = {1:['bigpit','bridge'], 2:['spring','spikes'], 3:['ride','wallkick'], 4:['swing'], 5:['cannon','lift','rocks'], 6:['firebar','saw','ropes2'], 7:['springs3','diag'], 8:['gate','laser','crusher']}[w] || [];
   for (const e of W) {
     if (TH.boost && TH.boost[e[0]]) e[1] *= TH.boost[e[0]];
     if (NEW.includes(e[0])) e[1] *= 1.6;          // show off the world's new gimmick
@@ -545,7 +649,7 @@ function build(si){
   let t = INTRO;
   for (const s of segs) { if (!s.fx) s.d = (s.x1 - s.x0)/V; s.t0 = t; t += s.d; }
 
-  const L = {si, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, goalX, houseX, V, endCol: col};
+  const L = {si, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, goalX, houseX, V, endCol: col};
   const tAt = x => timeAtIn(L, x);
   for (const o of coins) o.t = tAt(o.x);
   for (const o of blocks) if (o.q) o.t = tAt(o.hx);
@@ -554,6 +658,10 @@ function build(si){
   for (const o of bars) o.t = tAt(o.x);
   for (const o of bullets) { o.tj = o.seg.t0 + o.seg.d/2; o.tf = o.tj - (o.xc - o.xj)/70; }
   for (const o of gates) o.t = o.seg.t0 + o.seg.d;
+  for (const o of saws) { o.tj = o.seg.t0 + o.seg.d/2; o.tf = o.tj - (o.x0 - o.xj)/60; }
+  for (const o of lasers) o.t = tAt(o.x);
+  for (const o of crushers) o.t = tAt(o.x + 16);
+  for (const o of rocks) o.t = tAt(o.x) + .35 + o.i*.12;
   L.landings = segs.filter(s => s.j === 1 && !['e','air','kick','grab'].includes(s.k)).map(s => ({x: s.x1, y: s.h1, t: s.t0 + s.d}));
   L.airFx = segs.filter(s => s.k === 'dj' || s.k === 'kick').map(s => ({x: s.x0, y: s.h0, t: s.t0, k: s.k}));
   L.coinTimes = blocks.filter(b => b.q).map(b => b.t).concat(coins.map(o => o.t)).sort((a,b) => a - b);
@@ -576,7 +684,7 @@ function heroAtIn(L, s){
   const g = segAtT(L, s), u = Math.max(0, Math.min(1, (s - g.t0)/g.d));
   if (g.j === 4) { const ph = -g.th*Math.cos(Math.PI*u); return {x: g.ax + g.R*Math.sin(ph), y: g.ay - g.R*Math.cos(ph) - HANG, air: true, g, u, ph}; }
   const x = g.x0 + (g.x1 - g.x0)*u;
-  if (g.j === 3) { const e = u*u*(3 - 2*u); return {x, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
+  if (g.j === 3 || g.j === 5) { const e = u*u*(3 - 2*u); return {x, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
   if (g.j === 0) return {x, y: g.h0, air: false, g, u};
   return {x, y: g.h0 + (g.h1 - g.h0)*u + 4*g.A*u*(1-u), air: true, g, u, vy: (g.h1 - g.h0) + 4*g.A*(1-2*u)};
 }
@@ -589,8 +697,8 @@ function getStage(si){
 }
 const totals = {};
 function stageTotal(si){
-  if (totals[si] == null) { try { const m = JSON.parse(localStorage.getItem('quest-totals-v4') || '{}'); Object.assign(totals, m); } catch (e) {} }
-  if (totals[si] == null) { totals[si] = getStage(si).total; try { localStorage.setItem('quest-totals-v4', JSON.stringify(totals)); } catch (e) {} }
+  if (totals[si] == null) { try { const m = JSON.parse(localStorage.getItem('quest-totals-v5') || '{}'); Object.assign(totals, m); } catch (e) {} }
+  if (totals[si] == null) { totals[si] = getStage(si).total; try { localStorage.setItem('quest-totals-v5', JSON.stringify(totals)); } catch (e) {} }
   return totals[si];
 }
 
@@ -885,7 +993,8 @@ function drawPlats(TH, cam){
   for (const m of L.movers) {
     const s = curS, g = m.seg; const k = Math.max(0, Math.min(1, (s - g.t0)/g.d)), x = lerp(m.x0, m.x1, k) - cam;
     if (x > VW + 40 || x + m.w < -40) continue;
-    const y = Y(m.y);
+    const y = Y(m.y1 == null ? m.y : lerp(m.y, m.y1, k*k*(3 - 2*k)));
+    if (m.y1 != null) { c.fillStyle = 'rgba(255,255,255,.35)'; for (let q = 0; q < 6; q++) circ(lerp(m.x0, m.x1, q/5) - cam + m.w/2, Y(lerp(m.y, m.y1, (q/5)*(q/5)*(3 - 2*q/5))) + 3, .8); }
     c.fillStyle = '#ffb020'; rr(x, y, m.w, 6, 2); c.fill(); c.strokeStyle = OL; c.lineWidth = .9; c.stroke();
     c.fillStyle = '#c47a10'; for (let k2 = 0; k2 < 3; k2++) { c.beginPath(); c.moveTo(x + 6 + k2*14, y + 1.5); c.lineTo(x + 10 + k2*14, y + 3); c.lineTo(x + 6 + k2*14, y + 4.5); c.fill(); }
   }
@@ -1015,6 +1124,49 @@ function drawGimmicks(TH, cam){
       c.fillStyle = 'rgba(255,120,30,.45)'; circ(fx, fy, 5.5);
       c.fillStyle = '#ff7a1a'; circ(fx, fy, 3.8); c.fillStyle = '#ffd23f'; circ(fx, fy, 2);
     }
+  }
+  // saw blades rolling in on the ground
+  for (const sw of L.saws) {
+    if (s < sw.tf || s > sw.tj + 3) continue;
+    const x = sw.x0 - 60*(s - sw.tf) - cam; if (x < -20 || x > VW + 20) continue;
+    const y = Y(sw.y) - 7, a = -s*12;
+    c.save(); c.translate(x, y); c.rotate(a);
+    c.fillStyle = '#c9ced8'; c.beginPath(); for (let i = 0; i < 16; i++) { const r = i % 2 ? 5.4 : 7.4, an = i*Math.PI/8; c.lineTo(Math.cos(an)*r, Math.sin(an)*r); } c.closePath(); c.fill();
+    c.strokeStyle = OL; c.lineWidth = .6; c.stroke(); c.fillStyle = '#6e7488'; circ(0, 0, 2.2); c.fillStyle = '#fff'; c.fillRect(-4, -.4, 2.4, .8);
+    c.restore();
+    c.fillStyle = 'rgba(255,200,80,.8)'; for (let i = 0; i < 3; i++) circ(x + 6 + hash(i + Math.floor(now/60))*6, Y(sw.y) - 1 - hash(i*3 + Math.floor(now/60))*4, .6);
+  }
+  // lasers: off while the hero passes
+  for (const lz of L.lasers) {
+    const x = lz.x - cam; if (x > VW + 30 || x < -30) continue;
+    const gy = Y(lz.y), top = gy - 4.6*T;
+    const fr = ((((s - lz.t)/2.4 + .25) % 1) + 1) % 1, on = fr >= .5, warn = fr > .38 && fr < .5;
+    c.fillStyle = '#4a4f62'; c.fillRect(x - 9, top - 4, 2.4, gy - top + 4); c.fillRect(x + 6.6, top - 4, 2.4, gy - top + 4); c.fillRect(x - 9, top - 6, 18, 4);
+    c.fillStyle = '#2a2a33'; rr(x - 3.5, top - 2, 7, 4, 1); c.fill(); rr(x - 3.5, gy - 3, 7, 3, 1); c.fill();
+    c.fillStyle = on ? '#ff3b3b' : warn && (now % 200) < 100 ? '#ffb020' : '#555'; circ(x, top + 1.6, 1.2); circ(x, gy - 2, 1);
+    if (on) { c.shadowColor = '#ff3b3b'; c.shadowBlur = 6*glowScale; c.strokeStyle = 'rgba(255,60,60,.9)'; c.lineWidth = 1.6 + Math.sin(now*.05)*.4; c.beginPath(); c.moveTo(x, top + 2); c.lineTo(x, gy - 3); c.stroke(); c.shadowBlur = 0; c.strokeStyle = '#fff'; c.lineWidth = .5; c.stroke(); }
+    else if (warn) { c.strokeStyle = 'rgba(255,90,90,.5)'; c.lineWidth = .5; c.setLineDash([2, 3]); c.beginPath(); c.moveTo(x, top + 2); c.lineTo(x, gy - 3); c.stroke(); c.setLineDash([]); }
+  }
+  // crushers: up while the hero passes underneath
+  for (const cr of L.crushers) {
+    const x = cr.x - cam; if (x > VW + 40 || x < -40) continue;
+    const fr = ((((s - cr.t)/2.6 + .5) % 1) + 1) % 1, up = 4.5*T;
+    const yb = fr < .12 ? up*(1 - (fr/.12)**2) : fr < .3 ? 0 : fr < .45 ? up*(1 - (1 - (fr - .3)/.15)**2) : up;
+    const by = Y(cr.y + yb);
+    c.fillStyle = '#6e7488'; c.fillRect(x + 13, 0, 6, by - 14);
+    c.fillStyle = '#4a4f62'; for (let q = 0; q < by - 14; q += 6) c.fillRect(x + 13, q, 6, 1.4);
+    c.fillStyle = '#7a7f92'; rr(x, by - 14, 2*T, 14, 2); c.fill(); c.strokeStyle = OL; c.lineWidth = .9; c.stroke();
+    c.fillStyle = '#ffd23f'; for (let q = 0; q < 4; q++) { c.beginPath(); c.moveTo(x + 2 + q*8, by - 12); c.lineTo(x + 6 + q*8, by - 12); c.lineTo(x + 2 + q*8, by - 3); c.fill(); }
+    c.fillStyle = '#c9ced8'; for (let q = 0; q < 4; q++) { c.beginPath(); c.moveTo(x + q*8, by); c.lineTo(x + 4 + q*8, by + 3.5); c.lineTo(x + 8 + q*8, by); c.fill(); }
+    if (fr >= .12 && fr < .22) { const a = (fr - .12)/.1; puff(x - 2 - a*8, Y(cr.y) - 2, 3*(1 - a) + 1, .8*(1 - a)); puff(x + 34 + a*8, Y(cr.y) - 2, 3*(1 - a) + 1, .8*(1 - a)); }
+  }
+  // falling rocks land just behind the hero
+  for (const rk of L.rocks) {
+    const x = rk.x - cam; if (x > VW + 20 || x < -20) continue;
+    const age = s - rk.t, gy = Y(rk.y);
+    if (age < -1) continue;
+    if (age < 0) { c.fillStyle = `rgba(0,0,0,${.25*(1 + age)})`; c.beginPath(); c.ellipse(x, gy, 6*(1 + age) + 1, 1.6, 0, 0, 7); c.fill(); const y = gy - 6 - 200*age*age; c.fillStyle = '#5a4646'; c.beginPath(); c.arc(x, y, 6, 0, 7); c.fill(); c.strokeStyle = OL; c.lineWidth = .7; c.stroke(); if (L.TH.pit === 'lava') { c.fillStyle = 'rgba(255,120,30,.6)'; circ(x, y - 7, 3); } }
+    else { c.fillStyle = '#5a4646'; c.beginPath(); c.ellipse(x, gy - 4, 6, 4.2, 0, Math.PI, 0); c.fill(); c.strokeStyle = OL; c.lineWidth = .7; c.stroke(); if (age < .4) { const a = age/.4; puff(x - 5 - a*8, gy - 2, 3*(1 - a) + 1, .9*(1 - a)); puff(x + 5 + a*8, gy - 2, 3*(1 - a) + 1, .9*(1 - a)); } }
   }
   // gates & switches
   for (const gt of L.gates) {
@@ -1377,7 +1529,7 @@ function drawTea(cam, hx, gy, look, TH, cleaning, k){
 }
 
 /* the inn after "寝る": walk there, hot spring, ping-pong, cards, then everyone sleeps */
-const NIGHT = [['旅館へ', 7], ['温泉', 14], ['卓球', 12], ['トランプ', 12], ['おやすみ', 1e9]];
+const NIGHT = [['旅館へ', 18], ['温泉', 14], ['卓球', 12], ['トランプ', 12], ['おやすみ', 1e9]];
 function nightPhase(t){ let a = 0; for (let i = 0; i < NIGHT.length; i++) { if (t < a + NIGHT[i][1]) return {i, name: NIGHT[i][0], t: t - a, len: NIGHT[i][1]}; a += NIGHT[i][1]; } }
 function drawNightSky(vw){
   const g = c.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, '#141238'); g.addColorStop(1, '#3b3a8f');
@@ -1396,35 +1548,68 @@ function drawRoom(vw){
   c.fillStyle = '#b6b778'; c.fillRect(0, 124, vw, 26);
 }
 function drawRyokan(vw, ts, look, TH){
+  vw = vw;
   const ph = nightPhase(ts), t = now, foes = TH.foes.slice(0, 3), gy = 150;
   const cast = foes.length;
+  const Z = ph.i === 0 ? 1.4 : 1;
+  c.save(); if (Z !== 1) { c.translate(0, VH - 8); c.scale(Z, Z); c.translate(0, -(VH - 8)); vw /= Z; }
   if (ph.i === 0) {
+    // everyone walks to the inn together along a lantern-lit night street, chatting
+    const t2 = ph.t, STOP = 14, sc = Math.min(t2, STOP)*30;
     drawNightSky(vw);
-    c.fillStyle = '#2a3a4a'; c.fillRect(0, gy, vw, VH); c.fillStyle = '#4a5a6a'; c.fillRect(0, gy, vw, 3);
-    // inn
-    const bx = vw*.58, bw = Math.min(150, vw*.4);
-    c.fillStyle = '#f3e6c8'; c.fillRect(bx, gy - 62, bw, 62);
-    c.fillStyle = '#6e452d'; for (let x = bx; x <= bx + bw; x += bw/6) c.fillRect(x - 1, gy - 62, 2, 62);
-    c.fillStyle = '#2f3a52'; c.beginPath(); c.moveTo(bx - 14, gy - 58); c.quadraticCurveTo(bx + bw/2, gy - 70, bx + bw + 14, gy - 58); c.lineTo(bx + bw - 10, gy - 84); c.lineTo(bx + 10, gy - 84); c.closePath(); c.fill();
-    c.fillStyle = '#3d4a66'; c.fillRect(bx + 6, gy - 86, bw - 12, 4);
-    c.fillStyle = '#ffe9b0'; for (let i = 0; i < 4; i++) c.fillRect(bx + 10 + i*(bw - 20)/4, gy - 50, (bw - 20)/4 - 8, 14);
-    const dx = bx + bw*.5;
-    c.fillStyle = '#2346a8'; c.fillRect(dx - 14, gy - 30, 28, 14); c.fillStyle = '#fff'; c.font = 'bold 8px sans-serif'; c.textAlign = 'center'; c.fillText('♨', dx, gy - 20); c.textAlign = 'left';
-    c.fillStyle = '#3a2a1a'; c.fillRect(dx - 12, gy - 16, 24, 16);
-    for (const lx of [dx - 22, dx + 22]) { c.fillStyle = 'rgba(255,90,60,.3)'; circ(lx, gy - 24, 7); c.fillStyle = '#e8402a'; c.beginPath(); c.ellipse(lx, gy - 24, 3.4, 4.6, 0, 0, 7); c.fill(); c.fillStyle = '#2a2a33'; c.fillRect(lx - 2, gy - 29, 4, 1); c.fillRect(lx - 2, gy - 19.6, 4, 1); }
-    c.fillStyle = '#6e452d'; rr(dx - 18, gy - 78, 36, 11, 1); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 7px "Hiragino Sans",sans-serif'; c.textAlign = 'center'; c.fillText('旅館', dx, gy - 70); c.textAlign = 'left';
-    // walkers
+    c.fillStyle = '#1d1c45'; c.beginPath(); c.moveTo(0, gy); for (let x = 0; x <= vw + 4; x += 4) { const w2 = x + sc*.15; c.lineTo(x, 104 - Math.sin(w2*.02)*10 - Math.sin(w2*.047 + 1)*6); } c.lineTo(vw, gy); c.fill();
+    for (let i = Math.floor(sc*.45/46) - 1; i < Math.floor((sc*.45 + vw)/46) + 2; i++) {
+      const x = i*46 - sc*.45, hh = 22 + hash(i)*14;
+      c.fillStyle = '#2a2850'; c.fillRect(x, gy - 12 - hh, 34, hh + 12);
+      c.beginPath(); c.moveTo(x - 4, gy - 12 - hh); c.lineTo(x + 17, gy - 24 - hh); c.lineTo(x + 38, gy - 12 - hh); c.fill();
+      c.fillStyle = `rgba(255,214,140,${.55 + .3*Math.sin(now*.002 + i)})`; for (let k = 0; k < 2; k++) if (hash(i*3 + k) > .35) c.fillRect(x + 5 + k*14, gy - 6 - hh*.7, 7, 6);
+    }
+    c.fillStyle = '#3a3550'; c.fillRect(0, gy, vw, VH);
+    c.fillStyle = '#4a4566'; c.fillRect(0, gy, vw, 2.5);
+    c.fillStyle = '#332f48'; for (let x = -((sc) % 20); x < vw; x += 20) c.fillRect(x, gy + 8, 12, 2);
+    for (let i = Math.floor(sc/90) - 1; i < Math.floor((sc + vw)/90) + 2; i++) {
+      const x = i*90 - sc + 30;
+      c.fillStyle = '#5a4646'; c.fillRect(x - 1, gy - 26, 2, 26);
+      c.fillStyle = 'rgba(255,160,80,.25)'; circ(x, gy - 30, 10);
+      c.fillStyle = '#ffb44a'; rr(x - 3, gy - 34, 6, 8, 2); c.fill(); c.fillStyle = '#5a4646'; c.fillRect(x - 3.5, gy - 35, 7, 1.4);
+    }
+    for (let i = 0; i < 10; i++) { const a = now*.0004 + i*1.7; c.fillStyle = `rgba(220,255,140,${.4 + .4*Math.sin(now*.005 + i)})`; circ((hash(i)*vw + Math.sin(a)*20 - sc*.3) % vw + (hash(i)*vw - sc*.3 < 0 ? vw : 0), 90 + hash(i + 3)*50 + Math.cos(a*1.3)*8, .9); }
+    // the inn comes into view and everyone stops at its door
+    const bw = Math.min(150, vw*.4), bx = STOP*30 + vw*.56 - sc, dx = bx + bw*.5;
+    if (bx < vw + 20) {
+      c.fillStyle = '#f3e6c8'; c.fillRect(bx, gy - 62, bw, 62);
+      c.fillStyle = '#6e452d'; for (let x = bx; x <= bx + bw; x += bw/6) c.fillRect(x - 1, gy - 62, 2, 62);
+      c.fillStyle = '#2f3a52'; c.beginPath(); c.moveTo(bx - 14, gy - 58); c.quadraticCurveTo(bx + bw/2, gy - 70, bx + bw + 14, gy - 58); c.lineTo(bx + bw - 10, gy - 84); c.lineTo(bx + 10, gy - 84); c.closePath(); c.fill();
+      c.fillStyle = '#3d4a66'; c.fillRect(bx + 6, gy - 86, bw - 12, 4);
+      c.fillStyle = '#ffe9b0'; for (let i = 0; i < 4; i++) c.fillRect(bx + 10 + i*(bw - 20)/4, gy - 50, (bw - 20)/4 - 8, 14);
+      c.fillStyle = '#2346a8'; c.fillRect(dx - 14, gy - 30, 28, 14); c.fillStyle = '#fff'; c.font = 'bold 8px sans-serif'; c.textAlign = 'center'; c.fillText('♨', dx, gy - 20); c.textAlign = 'left';
+      c.fillStyle = t2 > STOP + 1 ? '#ffe2a0' : '#3a2a1a'; c.fillRect(dx - 12, gy - 16, 24, 16);
+      for (const lx of [dx - 22, dx + 22]) { c.fillStyle = 'rgba(255,90,60,.3)'; circ(lx, gy - 24, 7); c.fillStyle = '#e8402a'; c.beginPath(); c.ellipse(lx, gy - 24, 3.4, 4.6, 0, 0, 7); c.fill(); c.fillStyle = '#2a2a33'; c.fillRect(lx - 2, gy - 29, 4, 1); c.fillRect(lx - 2, gy - 19.6, 4, 1); }
+      c.fillStyle = '#6e452d'; rr(dx - 18, gy - 78, 36, 11, 1); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 7px "Hiragino Sans",sans-serif'; c.textAlign = 'center'; c.fillText('旅館', dx, gy - 70); c.textAlign = 'left';
+      if (t2 > STOP + .4) bubble(dx, gy - 38, 'いらっしゃいませ〜');
+    }
     const list = [['hero'], ...foes.map(f => ['foe', f]), ...(look.pet !== 'none' ? [['pet']] : [])];
+    const lead = vw*.46;
+    const walking = t2 < STOP;
     list.forEach((m, i) => {
-      const x = -20 - i*22 + ph.t*32, door = dx;
-      if (x > door + 4) return;
-      c.globalAlpha = x > door - 10 ? Math.max(0, (door + 4 - x)/14) : 1;
-      if (m[0] === 'hero') drawHero(x, gy, {mode: 'walk', ph: x/5, t, face: 1}, {...look, hand: 'none'});
-      else if (m[0] === 'foe') { c.save(); c.translate(x, 0); drawFoe(m[1], 0, gy, 'walk', x*.4 + i, TH.enemy, t); c.restore(); }
-      else drawPet(look.pet, x, gy - 22, t);
+      const join = Math.max(0, 1.8 - t2)*(40 + i*25);
+      let x = lead - i*22 - join + Math.max(0, t2 - STOP)*30;
+      if (x > dx + 2) return;
+      const hopK = ((t2*.6 + i*.41) % 2.6), hop = (walking || t2 > STOP) && hopK < .35 ? Math.sin(hopK/.35*Math.PI)*7 : 0;
+      c.globalAlpha = x > dx - 10 ? Math.max(0, (dx + 2 - x)/12) : 1;
+      if (m[0] === 'hero') drawHero(x, gy - hop, {mode: hop ? 'jump' : 'walk', vy: hopK < .17 ? 1 : -1, ph: now*.012, t: now, face: 1}, {...look, hand: 'none'});
+      else if (m[0] === 'foe') drawFoe(m[1], x, gy - hop, 'walk', now*.012 + i, TH.enemy, now);
+      else drawPet(look.pet, x + Math.sin(now*.003)*6, gy - 26 - Math.cos(now*.004)*4, now);
       c.globalAlpha = 1;
     });
-    if (ph.t < 3) bubble(Math.max(30, -20 + ph.t*32), gy - 34, 'おつかれさま！');
+    // chatter: someone says something every couple of seconds
+    const lines = [[0, '今日もがんばった〜！'], [1, 'おつかれさま！'], [2, 'おなかすいた〜'], [0, '温泉たのしみ！'], [1, '卓球しようよ！'], [3, '♪'], [2, 'トランプもやろう！'], [0, 'みんなありがとう！'], [1, 'わーい！']];
+    const li = Math.floor(t2/1.6), lt = t2 - li*1.6;
+    if (t2 < STOP + .3 && lt < 1.3 && lines[li % lines.length]) {
+      const [who, text] = lines[li % lines.length], k = who % list.length;
+      const x = lead - k*22 - Math.max(0, 1.8 - t2)*(40 + k*25);
+      bubble(Math.max(36, Math.min(vw - 36, x)), gy - (list[k][0] === 'pet' ? 40 : 34), text);
+    }
   } else if (ph.i === 1) {
     drawNightSky(vw);
     c.fillStyle = '#6e5a3a'; c.fillRect(0, 60, vw, 70);
@@ -1493,6 +1678,7 @@ function drawRyokan(vw, ts, look, TH){
     }
     if (look.pet !== 'none') drawPet(look.pet, start + beds*bwid + 6, 148, 0);
   }
+  c.restore(); vw *= Z;
   // fades between scenes
   const edge = Math.min(ph.t, ph.len - ph.t);
   if (edge < .5 && !(ph.i === 0 && ph.t < .5)) { c.fillStyle = `rgba(0,0,0,${1 - edge/.5})`; c.fillRect(0, 0, vw, VH); }
@@ -1502,7 +1688,7 @@ function drawRyokan(vw, ts, look, TH){
    Cosmetic only: nothing here touches the stage, path or timing.
    Prices: each item has a tier; tiers are scaled so that buying everything
    takes about COMPLETE_HOURS of study at the average coin rate. */
-const COMPLETE_HOURS = 300, COINS_PER_HOUR = 3500;
+const COMPLETE_HOURS = 300, COINS_PER_HOUR = 3200;
 const TIERW = [0, 1, 2.5, 5, 9, 15, 25, 40, 60, 90, 140];
 const SHOP = {
   color: {name: '色', items: [
@@ -1892,7 +2078,7 @@ function drawSleep(x, y, t, look){
 function airPose(Lx, s){
   const h = heroAtIn(Lx, s), g = h.g, o = {x: h.x, y: h.y, mode: 'run', ph: h.x/6.5, vy: h.vy, t: now, flip: 0, face: 1, rot: 0};
   if (g.j === 0) { if (g.k === 'ride') o.mode = 'ride'; else if (Lx.ICE[Math.floor(h.x/T)]) o.mode = 'slide'; }
-  else if (g.j === 3) o.mode = 'ride';
+  else if (g.j === 3 || g.j === 5) o.mode = 'ride';
   else if (g.j === 4) { o.mode = 'hang'; o.rot = -h.ph; }
   else {
     o.mode = 'jump';
@@ -1921,11 +2107,11 @@ for (const k in SHOP) if (!bank.owned.includes(k + ':none') && k !== 'color') ba
 }
 bank.eq = Object.assign({color: 'orange'}, bank.eq);
 bank.base = bank.base || 0;
-const saveBank = () => { try { localStorage.setItem('quest-bank', JSON.stringify(bank)); } catch (e) {} };
+const saveBank = () => { try { localStorage.setItem('quest-bank', JSON.stringify(bank)); } catch (e) {} onSaved(); };
 const LOOK = () => lookOf(bank.eq);
 try { st = JSON.parse(localStorage.getItem('quest-day')); } catch (e) {}
 if (st) { st.done = st.done || 0; st.doneCoins = st.doneCoins || 0; st.base = st.base || 0; }
-const save = () => { try { localStorage.setItem('quest-day', JSON.stringify(st)); } catch (e) {} };
+const save = () => { try { localStorage.setItem('quest-day', JSON.stringify(st)); } catch (e) {} onSaved(); };
 const dayLen = o => (NST - o.base)*STAGE;
 const msOf = o => { let v = o.acc + (o.run ? (Date.now() - o.t0)*o.mult : 0); if (o.ff) v = Math.min(v, o.ff.target); return v; };
 const studyMs = () => msOf(st);
@@ -2037,7 +2223,7 @@ function ui(){
   $('wl').textContent = num(wallet());
   const hint = $('hint');
   hint.textContent = st.night ? `おやすみ中…「開始」で ${stageName(st.base)} から新しい一日` : '「開始」を押して勉強スタート。キャラが自動で進みます';
-  hint.classList.toggle('off', !st.night && (st.run || ms > 0));
+  hint.classList.toggle('off', st.night ? nightPhase((Date.now() - st.night.at)/1000).i < 4 : (st.run || ms > 0));
   document.querySelectorAll('[data-m]').forEach(b => b.classList.toggle('on', +b.dataset.m === st.mult && !st.ff));
   cells.forEach((el, i) => {
     const f = i < st.base ? 1 : i < si || (all && i === si) ? 1 : i === si ? s/STAGE : 0;
@@ -2114,6 +2300,130 @@ function drawPreview(){
 }
 
 /* ---------- sleep summary ---------- */
+
+/* ---------- keeping data safe: persistent storage, backup codes, Google Drive ---------- */
+function onSaved(){
+  try { localStorage.setItem('quest-saved', String(Date.now())); } catch (e) {}
+  try { gQueue(); } catch (e) {}
+}
+const payload = () => ({v: 1, at: Date.now(), bank, st});
+const summarize = p => { const n = (p.bank.owned || []).filter(x => !x.endsWith(':none')).length; return `コイン ${num(p.bank.earned - p.bank.spent)}・アイテム ${n}個・${new Date(p.at).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}`; };
+function applyPayload(p){
+  if (!p || !p.bank || !Array.isArray(p.bank.owned) || !p.st) throw new Error('bad');
+  bank = p.bank; st = p.st; saveBank(); save();
+  location.reload();
+}
+function askPersist(){ try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} }
+askPersist();
+
+// backup code
+const enc = o => 'BQ1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+const dec = s => JSON.parse(decodeURIComponent(escape(atob(s.trim().replace(/^BQ1:/, '')))));
+let bkMode = 'out';
+$('bkout').onclick = () => {
+  commit(); save();
+  bkMode = 'out'; $('bkh').textContent = 'バックアップコード'; $('bkp').textContent = 'このコードをメモ帳などに保存しておくと、あとで「コードから戻す」で今の状態に戻せます。';
+  $('bktext').value = enc(payload()); $('bktext').readOnly = true; $('bkact').textContent = 'コピー'; $('bk').hidden = false;
+};
+$('bkin').onclick = () => {
+  bkMode = 'in'; $('bkh').textContent = 'コードから戻す'; $('bkp').textContent = 'バックアップコードを貼り付けて「戻す」を押してください。今の端末の記録は置きかわります。';
+  $('bktext').value = ''; $('bktext').readOnly = false; $('bkact').textContent = '戻す'; $('bk').hidden = false;
+};
+$('bkclose').onclick = () => { $('bk').hidden = true; };
+$('bkact').onclick = async () => {
+  if (bkMode === 'out') {
+    try { await navigator.clipboard.writeText($('bktext').value); $('bkact').textContent = 'コピーしました'; }
+    catch (e) { $('bktext').select(); $('bkact').textContent = '選択しました（長押しでコピー）'; }
+    return;
+  }
+  try { applyPayload(dec($('bktext').value)); } catch (e) { $('bkp').textContent = 'コードが読み取れませんでした。最初から最後まで、まるごと貼り付けてください。'; }
+};
+
+// Google Drive (app data folder; only this app can see the file)
+let gcfg = {}; try { gcfg = JSON.parse(localStorage.getItem('quest-google') || '{}'); } catch (e) {}
+const saveG = () => { try { localStorage.setItem('quest-google', JSON.stringify(gcfg)); } catch (e) {} };
+let gTok = null, gFile = null, gTimer = null, gClient = null, gWait = null;
+const gOk = () => gTok && Date.now() < gTok.exp;
+function gStatus(msg){
+  $('gstat').textContent = msg || (!gcfg.on ? '' : gOk() ? `連携中${gcfg.last ? '・' + new Date(gcfg.last).toLocaleTimeString('ja-JP', {hour: '2-digit', minute: '2-digit'}) + 'に保存' : ''}` : '連携中（もう一度押すと保存を再開）');
+  $('gbtn').textContent = gcfg.on ? (gOk() ? 'Googleに今すぐ保存' : 'Googleと再接続') : 'Googleアカウントと連携';
+}
+function gScript(){
+  return new Promise((res, rej) => {
+    if (window.google && google.accounts && google.accounts.oauth2) return res();
+    const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+async function gToken(){
+  await gScript();
+  if (!gClient) gClient = google.accounts.oauth2.initTokenClient({client_id: gcfg.cid, scope: 'https://www.googleapis.com/auth/drive.appdata',
+    callback: r => { const w = gWait; gWait = null; if (!w) return; if (r.error) w.rej(r); else { gTok = {t: r.access_token, exp: Date.now() + (r.expires_in - 60)*1000}; w.res(); } },
+    error_callback: e => { const w = gWait; gWait = null; if (w) w.rej(e); }});
+  return new Promise((res, rej) => { gWait = {res, rej}; gClient.requestAccessToken({prompt: gcfg.on ? '' : 'consent'}); });
+}
+async function gFetch(url, opt = {}){
+  const r = await fetch(url, {...opt, headers: {...(opt.headers || {}), Authorization: 'Bearer ' + gTok.t}});
+  if (!r.ok) throw new Error('drive ' + r.status);
+  return r;
+}
+async function gFind(){
+  const r = await gFetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,modifiedTime)&q=' + encodeURIComponent("name='quest-save.json'"));
+  const j = await r.json(); return j.files && j.files[0];
+}
+async function gUpload(){
+  if (!gOk()) return gStatus();
+  commit();
+  const body = JSON.stringify(payload());
+  if (gFile) await gFetch(`https://www.googleapis.com/upload/drive/v3/files/${gFile}?uploadType=media`, {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body});
+  else {
+    const b = 'qb' + Math.random().toString(36).slice(2), meta = JSON.stringify({name: 'quest-save.json', parents: ['appDataFolder']});
+    const r = await gFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {method: 'POST', headers: {'Content-Type': 'multipart/related; boundary=' + b},
+      body: `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${b}--`});
+    gFile = (await r.json()).id;
+  }
+  gcfg.last = Date.now(); saveG(); gStatus();
+}
+function gQueue(){ if (!gcfg.on || !gOk() || gTimer) return; gTimer = setTimeout(() => { gTimer = null; gUpload().catch(() => gStatus('保存に失敗しました。あとでもう一度ためします')); }, 15000); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && gcfg.on && gOk()) gUpload().catch(() => {}); });
+let gRemote = null;
+$('gbtn').onclick = async () => {
+  if (!gcfg.cid) { $('gsetup').hidden = false; return; }
+  try {
+    gStatus('接続中…');
+    if (!gOk()) await gToken();
+    if (gcfg.on) { await gUpload(); return; }
+    const f = await gFind();
+    if (f) {
+      gFile = f.id;
+      gRemote = await (await gFetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`)).json();
+      $('gchp').textContent = `Google：${summarize(gRemote)}\nこの端末：${summarize(payload())}`;
+      $('gch').hidden = false;
+    } else { gcfg.on = true; saveG(); await gUpload(); }
+  } catch (e) {
+    gStatus(location.protocol === 'file:' || !window.google ? 'このページではGoogleに接続できません（GitHub Pagesで公開したアプリで使えます）' : '連携できませんでした。クライアントIDとURLの設定を確認してください');
+  }
+};
+$('gchr').onclick = () => { gcfg.on = true; saveG(); $('gch').hidden = true; try { applyPayload(gRemote); } catch (e) { gStatus('Googleのデータが読み取れませんでした'); } };
+$('gchl').onclick = async () => { gcfg.on = true; saveG(); $('gch').hidden = true; try { await gUpload(); } catch (e) { gStatus('保存に失敗しました'); } };
+$('gcidok').onclick = () => { const v = $('gcid').value.trim(); if (!v) return; gcfg.cid = v; gClient = null; saveG(); $('gsetup').hidden = true; gStatus('クライアントIDを保存しました。もう一度「連携」を押してください'); };
+gStatus();
+
+// welcome back: progress made while the app was closed
+const markSeen = () => { try { localStorage.setItem('quest-seen', String(Date.now())); } catch (e) {} };
+let seenBefore = 0; try { seenBefore = +localStorage.getItem('quest-seen') || 0; } catch (e) {}
+setInterval(markSeen, 5000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') markSeen(); else welcome(seenBefore = (+localStorage.getItem('quest-seen') || 0)); });
+function toast(msg, ms = 6000){ const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), ms); }
+function welcome(seen){
+  if (!st.run || st.ff || !seen) return;
+  const gap = Date.now() - Math.max(seen, st.t0); if (gap < 60000) return;
+  const thenT = Math.min(dayLen(st), (st.acc + (Math.max(seen, st.t0) - st.t0)*st.mult)/1000), nowT = trueT();
+  const a = stageOf(thenT).si, b = stageOf(nowT).si, mins = Math.round((nowT - thenT)/60);
+  if (mins < 1) return;
+  toast(`おかえり！ 閉じている間に ${mins >= 60 ? Math.floor(mins/60) + '時間' : ''}${mins % 60 ? mins % 60 + '分' : ''} 進みました` + (a !== b ? `（${stageName(a)} → ${stageName(b)}）` : ''));
+  markSeen();
+}
+setTimeout(() => welcome(seenBefore), 600);
 
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
