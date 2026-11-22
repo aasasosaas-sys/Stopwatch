@@ -33,6 +33,15 @@ button,select{font:inherit;color:inherit;cursor:pointer;border:0}
 canvas{display:block;width:100%;height:100%}
 .fpv{position:absolute;right:8px;bottom:8px;z-index:3;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(20,16,40,.55);color:#fff}
 .fpv.on{background:#ff7a3d}
+.stage.watching .hud{display:none}
+.specb{display:flex;align-items:center;gap:8px;margin-top:8px;background:var(--card);border-radius:14px;padding:8px 8px 8px 14px;font-size:12px;font-weight:600}
+.specb[hidden]{display:none}
+.specb span{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.specb b,.specb small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.specb b{font-size:13px}.specb small{font-size:11px;opacity:.85;font-weight:500}
+.specb button{flex-shrink:0;background:#ff7a3d;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700}
+.specn{background:none;padding:0;font:inherit;font-weight:inherit;color:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+.specn.on{color:var(--acc)}
 .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
   padding:10px 14px;color:#fff;font-weight:800;font-size:clamp(12px,2.6vw,18px);letter-spacing:.04em;
   text-shadow:0 2px 0 rgba(30,20,60,.55);pointer-events:none;font-variant-numeric:tabular-nums}
@@ -131,7 +140,7 @@ canvas{display:block;width:100%;height:100%}
 .hm input{width:84px;background:var(--card);color:var(--fg);border:0;border-radius:12px;padding:12px;font-size:24px;text-align:center;font-variant-numeric:tabular-nums}
 @media (max-width:520px){.cir{width:84px;height:84px;font-size:17px}.grid{gap:4px}}
 
-.sheet{position:fixed;inset:0;z-index:20;background:rgba(10,8,20,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{position:fixed;inset:0;z-index:70;background:rgba(10,8,20,.45);display:flex;align-items:flex-end;justify-content:center}
 .sh-in{background:var(--bg);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;border-radius:20px 20px 0 0;
   padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
 .sh-in>*{flex-shrink:0}
@@ -172,6 +181,58 @@ canvas{display:block;width:100%;height:100%}
 .lotg em{font-style:normal;color:var(--sub);font-size:10px}
 #sv{width:100%;aspect-ratio:3/1;border-radius:14px;display:block;background:#1d1b40}
 .sum .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* tabs */
+.wrap{padding-bottom:calc(84px + env(safe-area-inset-bottom,0))}
+.tabp{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:14px}
+.tabp[hidden]{display:none!important}
+.tabp>section,.tabp>.map,.tabp>details{border-top:0;padding-top:0}
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:center;gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0));background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.nav button{flex:1;max-width:120px;background:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 0;border-radius:12px;color:var(--sub);font-size:11px;font-weight:600;position:relative}
+.nav button i{font-style:normal;font-size:20px;line-height:1.1}
+.nav button.on{color:var(--acc);background:var(--card)}
+.nav button .dot{position:absolute;top:2px;right:calc(50% - 18px);min-width:16px;height:16px;border-radius:8px;background:#ff3b30;color:#fff;font-size:10px;line-height:16px;padding:0 4px}
+.card2{background:var(--card);border-radius:16px;padding:14px}
+.card2 h3{margin:0 0 10px;font-size:16px}
+.card2 h3 small{font-weight:500;color:var(--sub);font-size:12px;margin-left:6px}
+.ms{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.ms:first-of-type{border-top:0}
+.ms .ic{font-size:22px;width:34px;text-align:center}
+.ms .bd{flex:1;min-width:0}
+.ms .bd b{display:block;font-size:14px}
+.ms .bd small{color:var(--sub);font-size:12px}
+.pbar{height:6px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--acc);border-radius:3px}
+.ms .rw{font-size:12px;font-weight:700;white-space:nowrap}
+.ms .rw.get{background:var(--acc);color:#fff;border-radius:999px;padding:7px 12px}
+.ms .rw.done{color:var(--go)}
+.bdg{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.bdg div{background:var(--bg);border-radius:12px;padding:10px 6px;text-align:center;font-size:11px;line-height:1.3}
+.bdg div i{font-style:normal;font-size:26px;display:block;margin-bottom:3px}
+.bdg div.no{opacity:.45;filter:grayscale(1)}
+.bdg div small{display:block;color:var(--sub);font-size:10px}
+.rk{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.rk:first-of-type{border-top:0}
+.rk .n{width:26px;text-align:center;font-weight:800}
+.rk .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk .tm{font-variant-numeric:tabular-nums;font-weight:700}
+.rk.me{color:var(--acc)}
+.stp{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.stp button{background:var(--bg);border-radius:999px;padding:5px 9px;font-size:16px}
+.stp button:disabled{opacity:.4}
+.setr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.setr:first-of-type{border-top:0}
+/* theater (full screen) */
+.thv{position:absolute;right:66px;bottom:8px;z-index:3;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(20,16,40,.55);color:#fff}
+.thc{display:none}
+body.theater{overflow:hidden}
+body.theater .stage{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-height:none;aspect-ratio:auto;border-radius:0;z-index:60}
+body.theater .nav{display:none}
+body.theater .thc{display:flex;position:absolute;left:10px;bottom:10px;z-index:4;align-items:center;gap:10px;background:rgba(20,16,40,.55);border-radius:999px;padding:6px 6px 6px 14px;color:#fff}
+.thc b{font-size:20px;font-variant-numeric:tabular-nums;font-weight:300;letter-spacing:.02em}
+.thc button{border-radius:999px;padding:8px 16px;font-weight:700;background:var(--go);color:#fff}
+.thc button.stop{background:var(--stop)}
+body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:0}
+
 </style>
 </head>
 <body>
@@ -187,14 +248,17 @@ canvas{display:block;width:100%;height:100%}
     <div class="hint" id="hint">「開始」を押して勉強スタート。キャラが自動で進みます</div>
     <div class="toast" id="toast"></div>
     <button class="fpv" id="fpv" aria-label="視点を切りかえる">👁 視点</button>
+    <button class="thv" id="thv" aria-label="全画面">⛶ 全画面</button>
+    <div class="thc"><b id="tt2">0:00</b><button id="go2">開始</button><button id="thx" style="background:rgba(255,255,255,.2)">✕</button></div>
     <div class="banner" id="ban"><b id="banb">STAGE CLEAR!</b><span id="bans"></span></div>
   </div>
 
+  <div class="specb" id="specb" hidden><span><b id="specn"></b><small id="spect"></small></span><button id="specx">✕ 自分にもどる</button></div>
   <div class="panel">
     <div>
       <div class="lbl">今日の勉強時間</div>
       <div class="tt" id="tt">0:00</div>
-      <div class="mini"><button class="pill addb" id="addb">＋ 勉強した時間を入れる</button><button class="pill addb" id="sndb">音：オン</button><button class="pill addb" id="bgmb">BGM：オン</button></div>
+      <div class="mini"><button class="pill addb" id="addb">＋ 勉強した時間を入れる</button></div>
     </div>
     <button class="cir" id="go">開始</button>
     <div class="prog">
@@ -202,6 +266,7 @@ canvas{display:block;width:100%;height:100%}
       <div class="ticks"><span>0分</span><span>2分</span><span>4分</span><span>6分</span><span>8分</span><span>10分</span></div>
       <div class="meta"><span id="pn">ステージ 1-1</span><b id="pt">今日 0 / 72 クリア</b></div>
     </div>
+    <div class="tabp" data-tab="home">
     <div class="btns">
       <button class="big" id="shopb"><span>ショップ<small>見た目を変える</small></span><b><span class="coin"></span><span id="wl">0</span></b></button>
       <button class="big sleep" id="sleepb"><span>寝る<small>今日のきろくを見て終わる</small></span><b>☾</b></button>
@@ -211,6 +276,13 @@ canvas{display:block;width:100%;height:100%}
       <div class="grid" id="grid"></div>
       <div class="wname" id="wname"></div>
     </div>
+    </div>
+    <div class="tabp" data-tab="mis" hidden>
+      <section class="card2"><h3>今日のミッション<small id="misd"></small></h3><div id="misl"></div></section>
+      <section class="card2"><h3>実績バッジ<small id="achn"></small></h3><div class="bdg" id="achl"></div></section>
+    </div>
+    <div class="tabp" data-tab="vs" hidden>
+      <section class="card2" id="rkbox" hidden><h3>今週のランキング<small>月曜から今日までの勉強時間</small></h3><div id="rkl"></div></section>
     <section class="vs" id="vs">
       <h3>友だちと勝負</h3>
       <div id="vsOff">
@@ -240,6 +312,14 @@ canvas{display:block;width:100%;height:100%}
       <h3>友だちを招待</h3>
       <div id="inv"></div>
     </section>
+    </div>
+    <div class="tabp" data-tab="set" hidden>
+      <section class="card2"><h3>設定</h3>
+        <div class="setr"><span>効果音</span><button class="pill" id="sndb">音：オン</button></div>
+        <div class="setr"><span>BGM</span><button class="pill" id="bgmb">BGM：オン</button></div>
+        <div class="setr"><span>見え方</span><button class="pill" id="fpv2">横から見る</button></div>
+        <div class="setr"><span>全画面で見る<br><small style="color:var(--sub)">スマホを横にすると自動で全画面</small></span><button class="pill" id="thv2">全画面にする</button></div>
+      </section>
     <details class="dev" id="datasec">
       <summary>アカウントとデータの保存</summary>
       <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
@@ -258,9 +338,16 @@ canvas{display:block;width:100%;height:100%}
       <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
       <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
     </details>
+    </div>
   </div>
 </div>
 
+<nav class="nav" id="nav">
+  <button data-t="home" class="on"><i>🏠</i>ホーム</button>
+  <button data-t="mis"><i>🎯</i>ミッション<span class="dot" id="misdot" hidden></span></button>
+  <button data-t="vs"><i>⚔️</i>対戦</button>
+  <button data-t="set"><i>⚙️</i>設定</button>
+</nav>
 <div class="sheet" id="shop" hidden>
   <div class="sh-in" role="dialog" aria-label="ショップ">
     <div class="shead">
@@ -305,7 +392,7 @@ canvas{display:block;width:100%;height:100%}
     <h2>今日のステージ抽選</h2>
     <p id="lotp">全432ステージの中から、今日の72ステージを選んでいます…</p>
     <div class="lotg" id="lotg"></div>
-    <p>各ワールドの1〜6面に、A・B・Cのどれが出るかを毎朝ランダムで決めます。</p>
+    <p>各ワールドの1〜6面に、A〜F（D：てき、E：パルクール、F：トロッコ）のどれが出るかを毎日ランダムで決めます。</p>
     <button class="act" id="lotok" disabled>OK</button>
   </div>
 </div>
@@ -3201,7 +3288,7 @@ function dayCoins(o){
   const k = Math.floor(Tt/STAGE);
   return o.doneCoins + coinsAtIn(getStage(o.base + k, vIn(o, o.base + k)), Tt - k*STAGE);
 }
-const wallet = () => bank.earned + dayCoins(st) - bank.spent;
+const wallet = () => bank.earned + (typeof bonusCoins === 'function' ? bonusCoins() : 0) + dayCoins(st) - bank.spent;
 function daySummary(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   const reachedNum = Math.min(NST, o.base + cl + 1);
@@ -3211,7 +3298,7 @@ function daySummary(o){
 function finishDay(){
   if (st.run) { commit(); st.run = false; }
   const sm = daySummary(st);
-  bank.last = sm; bank.earned += sm.coins; bank.base = sm.next; saveBank();
+  bank.last = sm; bank.earned += sm.coins; bank.base = sm.next; try { statsOnFinish(sm); } catch (e) {} saveBank();
   st = fresh(sm.next, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
   return sm;
 }
@@ -3603,8 +3690,10 @@ async function rpc(name, args){
   if (!r.ok) throw new Error(name + ' ' + r.status);
   const t = await r.text(); return t ? JSON.parse(t) : null;
 }
+let spec = null, specTxt = '';   // the friend being watched (declared early: vsRender runs at startup)
 const myKey = () => fb.uid;
-const myEntry = () => ({n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
+let myCheer = null;   // the last cheer stamp this player sent ({to, k, at})
+const myEntry = () => ({wk: typeof weekKey === 'function' ? weekKey(st.d) : '', wkms: typeof weekMs === 'function' ? Math.round(weekMs()) : 0, ch: myCheer,n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
   base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: bank.champ || 0, a: bank.vsAwards || 0}),
   allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0});
 async function vsPush(leave){
@@ -3662,7 +3751,7 @@ function vsRender(){
     const done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
     const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : done >= NST ? '全クリ！' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
     const rm = rms[k] || 0, line = 8*3600e3;
-    return {me, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
+    return {me, k, today, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   const race = board && board.race, last = board && board.last;
   $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'})}から）・${rows.length}人` : '全クリレース';
@@ -3672,11 +3761,13 @@ function vsRender(){
   $('vsHost').innerHTML = !ri ? '' : ri.host === mine
     ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small>`
     : `${ri.public ? '公開部屋（だれでも入れます）' : 'プライベート部屋（コードを知っている人だけ）'}<br><small>ホスト：${esc(hostName)}</small>`;
-  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${esc(r.name)}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
+  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${r.me || !r.today ? esc(r.name) : `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.name)} 👀</button>`}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
   $('vsStat').textContent = vsErr || (rows.length < 5 ? `一番に全クリした人が優勝。チャンピオンスキンは5人以上のときだけもらえます（あと${5 - rows.length}人）。` : '一番に全クリした人が優勝して、チャンピオンスキンがもらえます。') + ' レースが終わったとき、レース中に8時間以上勉強していた人には参加賞（2人以上のレース）。';
 }
 /* ghosts: every friend who is studying today runs in your stage at their own place in their stage */
+let ghostHits = [];   // where each friend's name tag was drawn (for tapping)
 function drawGhosts(si, cam){
+  ghostHits = [];
   if (!fb.room || !room) return;
   const mine = myKey();
   for (const [k, e] of Object.entries(room)) {
@@ -3694,14 +3785,19 @@ function drawGhosts(si, cam){
       const left = x < 8, ex = left ? 4 : VW - 4, ey = Math.max(30, Math.min(VH - 30, Y(o.y) - 16)), lbl = (left ? '◀ ' : '') + tag + (left ? '' : ' ▶');
       c.font = 'bold 6px -apple-system,"Hiragino Sans",sans-serif';
       const tw = c.measureText(lbl).width + 8, bx = left ? ex : ex - tw;
-      c.fillStyle = 'rgba(20,16,40,.62)'; rr(bx, ey - 6, tw, 11, 4); c.fill();
+      c.fillStyle = 'rgba(20,16,40,.62)'; rr(bx, ey - 6, tw, 11, 4); c.fill(); ghostHits.push({k, x: bx, y: ey - 6, w: tw, h: 11});
       c.fillStyle = '#fff'; c.textAlign = left ? 'left' : 'right'; c.fillText(lbl, left ? ex + 4 : ex - 4, ey + 2); c.textAlign = 'left';
       continue;
     }
     c.globalAlpha = .5; drawHero(x, Y(o.y), o, {...look, pet: 'none', trail: 'none'}); c.globalAlpha = 1;
     c.font = 'bold 5.5px -apple-system,"Hiragino Sans",sans-serif'; c.textAlign = 'center';
-    const tw = c.measureText(tag).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill();
+    const tw = c.measureText(tag).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill(); ghostHits.push({k, x: x - 14, y: Y(o.y) - 42, w: 28, h: 44});
     c.fillStyle = '#fff'; c.fillText(tag, x, Y(o.y) - 34.3); c.textAlign = 'left';
+    if (e.ch && Date.now() - e.ch.at < 8000 && typeof STAMPS !== 'undefined') { // a cheer this friend just sent floats over their head
+      const k = (Date.now() - e.ch.at)/8000, by = Y(o.y) - 50 - k*6; c.globalAlpha = k > .8 ? (1 - k)/.2 : 1;
+      c.fillStyle = '#fff'; rr(x - 8, by - 8, 16, 13, 5); c.fill(); c.strokeStyle = OL; c.lineWidth = .6; c.stroke();
+      c.font = '9px sans-serif'; c.textAlign = 'center'; c.fillText(STAMPS[e.ch.k] || '👍', x, by + 2); c.textAlign = 'left'; c.globalAlpha = 1;
+    }
   }
 }
 function applyRoomDraw(){
@@ -3760,6 +3856,56 @@ vsRender();
 if (FB_ON && fb.room) { vsPull().then(vsRender).catch(() => {}); vsPush().catch(() => {}); }
 setInterval(() => { if (fb.room) vsRender(); }, 5000);
 
+/* ---------- watching a friend: tap their name to see where they are in their own stage ---------- */
+const lookFromEntry = e => { try { const lk = JSON.parse(e.lk || '{}'); return lk.eq ? lookOf(lk.eq, lk.w || 0, lk.a || 0) : lookOf(lk); } catch (er) { return lookOf({}); } };
+function setSpec(k){
+  spec = k && room && room[k] ? k : null;
+  $('specb').hidden = !spec; document.querySelector('.stage').classList.toggle('watching', !!spec); lastDraw = 0; specTxt = '';
+  if (spec) { const r = $('cv').getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) window.scrollTo({top: 0, behavior: 'smooth'}); }
+  vsRender();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-spec]'); if (b) setSpec(spec === b.dataset.spec ? null : b.dataset.spec); });
+$('specx').onclick = () => setSpec(null);
+$('cv').addEventListener('click', e => {   // tapping a ghost or its name tag on the stage
+  const r = $('cv').getBoundingClientRect(), x = (e.clientX - r.left)/r.width*VW, y = (e.clientY - r.top)/r.height*VH;
+  const h = ghostHits.find(g => x >= g.x - 4 && x <= g.x + g.w + 4 && y >= g.y - 4 && y <= g.y + g.h + 4);
+  if (h) setSpec(h.k);
+});
+/* draws the friend's stage in place of ours; returns false when there is no one to watch */
+function drawSpectate(){
+  const e = spec && room && room[spec];
+  if (!e || e.d !== st.d) { if (spec) setSpec(null); return false; }
+  const ms = memberStage(e), look = lookFromEntry(e);
+  L = getStage(ms.si, ms.v); const TH = L.TH, END = INTRO + RUNT;
+  const s = Math.min(ms.s, END + 6); curS = s;
+  const winT = s >= END ? s - END : -1, hero = heroAtIn(L, s);
+  let cam = (hero.cx != null ? hero.cx : hero.x) - VW*.34; cam = Math.max(0, Math.min(cam, L.endCol*T - VW));
+  const o = airPose(L, s); o.t = now;
+  if (e.night) o.mode = 'sleep';
+  else if (winT >= 0) { o.mode = 'win'; o.flip = 0; o.rot = 0; }
+  else if (s < INTRO || (!e.run && !hero.air && hero.g.j === 0)) o.mode = 'idle';
+  const moving = e.run && !e.night && winT < 0 && s > INTRO + .3;
+  if (fpOn) drawFP(TH, s, look);
+  else {
+    drawSky(TH, s/STAGE); drawFar(TH, cam); drawHills(TH, cam);
+    const d0 = lowerX(L.decos, cam - 40), d1 = lowerX(L.decos, cam + VW + 40);
+    for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, true);
+    drawGoal(cam, winT); drawSigns(cam); drawPitFill(TH, cam); drawGround(TH, cam); drawRails(TH, cam);
+    drawObstacles(TH, cam); drawWalls(TH, cam); drawPlats(TH, cam); drawGimmicks(TH, cam); drawXObjs(TH, cam);
+    drawBlocks(cam); drawCoins(cam); drawEnemies(TH, cam, false, null); drawDust(cam, hero);
+    const hx = hero.x - cam, hy = Y(hero.y);
+    if (look.trail !== 'none' && moving) drawTrail(look.trail, (k, dt) => { const q = airPose(L, Math.max(INTRO, s - k*dt)); return {x: q.x - cam, y: Y(q.y), o: q}; }, look);
+    if (look.pet !== 'none') { const pp = heroAtIn(L, Math.max(INTRO, s - (moving ? .35 : 0))); drawPet(look, pp.x - 14 - cam, Y(pp.y) - 30, now); }
+    drawHero(hx, hy, o, look);
+    for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, false);
+    drawWeather(TH);
+  }
+  const txt = `${stageName(ms.si)} ${VAR[ms.v]} ${TH.name} · ${e.night ? 'おやすみ中' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中'} · 今日 ${fmtHM(ms.T*1000)}`;
+  if (txt !== specTxt) { specTxt = txt; $('specn').textContent = `👀 ${e.n} を見ています`; $('spect').textContent = txt; }
+  $('ttl').classList.remove('on'); $('ban').classList.remove('on');
+  return true;
+}
+
 /* ---------- account: ID + password, save data kept on the server ----------
    The password is only sent when signing up or logging in; after that the device keeps a session token. */
 let acct = {}; try { acct = JSON.parse(localStorage.getItem('quest-acct') || '{}'); } catch (e) {}
@@ -3787,6 +3933,11 @@ function mergeSave(R){
     earned: Math.max(Lb.earned || 0, Rb.earned || 0), spent: Math.max(Lb.spent || 0, Rb.spent || 0),
     champ: Math.max(Lb.champ || 0, Rb.champ || 0), vsAwards: Math.max(Lb.vsAwards || 0, Rb.vsAwards || 0), vsAwardsPaid: Math.max(Lb.vsAwardsPaid || 0, Rb.vsAwardsPaid || 0), refCount: Math.max(Lb.refCount || 0, Rb.refCount || 0),
     owned: [...new Set([...(Lb.owned || []), ...(Rb.owned || [])])],
+    ach: [...new Set([...(Lb.ach || []), ...(Rb.ach || [])])],
+    misLog: (() => { const o = {...(Rb.misLog || {})}; for (const [d, l] of Object.entries(Lb.misLog || {})) o[d] = [...new Set([...(o[d] || []), ...l])]; return o; })(),
+    totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
+    ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
+    wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
     eq: {...(newerBank.eq || Lb.eq)}};
   let s = Ls;
   if (Rs) {
@@ -3919,7 +4070,7 @@ async function refLoad(){
 }
 function refRender(){
   const box = $('inv'); if (!box) return;
-  if (!acct.id) { box.innerHTML = '<p class="vsn">招待リンクを使うには、アカウントが必要です。下の「アカウントとデータの保存」から作れます。</p>'; return; }
+  if (!acct.id) { box.innerHTML = '<p class="vsn">招待リンクを使うには、アカウントが必要です。「設定」タブの「アカウントとデータの保存」から作れます。</p>'; return; }
   if (!refInfo) { box.innerHTML = '<p class="vsn">読みこみ中…</p>'; return; }
   const n = bank.refCount || 0, nx = Object.entries(REF_NEED).map(([k, need]) => [k, need]).find(([k, need]) => need > n);
   box.innerHTML = `<p class="vsn">このリンクから友だちがアカウントを作って30分勉強すると、1人とカウントされて専用の見た目がもらえます。</p>
@@ -3940,6 +4091,206 @@ setInterval(() => { if (acct.id && document.visibilityState === 'visible') refLo
 setTimeout(refLoad, 2000);
 window.__quest.refLoad = refLoad;
 refRender();
+
+/* ---------- tabs ---------- */
+let curTab = 'home';
+function showTab(t){
+  curTab = t;
+  document.querySelectorAll('.tabp').forEach(el => el.hidden = el.dataset.tab !== t);
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  if (t === 'mis') misRender();
+  if (t === 'vs') { try { vsRender(); } catch (e) {} rankRender(); }
+}
+$('nav').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { showTab(b.dataset.t); window.scrollTo({top: 0}); } };
+
+/* ---------- full screen (theater) ---------- */
+let thUser = null;   // null = follow the phone's orientation
+const landShort = () => matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
+function setTheater(on){ document.body.classList.toggle('theater', on); setTimeout(() => { resize(); try { lastDraw = 0; } catch (e) {} }, 30); }
+function autoTheater(){ setTheater(thUser != null ? thUser : landShort()); }
+$('thv').onclick = $('thv2').onclick = () => { thUser = true; setTheater(true); };
+$('thx').onclick = () => { thUser = false; setTheater(false); };
+$('go2').onclick = () => $('go').click();
+addEventListener('resize', () => { if (thUser === false && !landShort()) thUser = null; autoTheater(); });
+autoTheater();
+function fpLabel(){ $('fpv2').textContent = fpOn ? '一人称（自分の目線）' : '横から見る'; }
+$('fpv2').onclick = () => { $('fpv').click(); fpLabel(); };
+$('fpv').addEventListener('click', fpLabel); fpLabel();
+setInterval(() => {
+  if (!document.body.classList.contains('theater')) return;
+  const ms = studyMs(); $('tt2').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
+  $('go2').textContent = $('go').textContent; $('go2').className = st.run && !st.ff ? 'stop' : ''; $('go2').disabled = $('go').disabled;
+}, 250);
+
+/* ---------- lifetime stats (kept in the bank, merged across devices) ---------- */
+const prevDay = d => { const [y, m, dd] = String(d).split('-').map(Number); const t = new Date(y, m - 1, dd - 1); return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); };
+const weekKey = d => { const [y, m, dd] = String(d).split('-').map(Number); const t = new Date(y, m - 1, dd); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); };
+function statsInit(){
+  if (bank.totalMs == null) {   // estimate past study time from the coins earned so far
+    bank.totalMs = Math.round((bank.earned || 0)/COINS_PER_HOUR*3600e3);
+    bank.days = bank.earned ? Math.max(1, Math.round(bank.totalMs/(3*3600e3))) : 0;
+    bank.best = bank.last ? bank.last.ms || 0 : 0; bank.streak = 0; bank.lastDay = ''; bank.allcN = bank.last && bank.last.all ? 1 : 0;
+    saveBank();
+  }
+}
+statsInit();
+function statsOnFinish(sm){
+  statsInit();
+  bank.totalMs += sm.ms;
+  if (sm.ms >= 60000) {
+    bank.days = (bank.days || 0) + 1;
+    bank.streak = bank.lastDay === prevDay(sm.d) ? (bank.streak || 0) + 1 : 1;
+    bank.lastDay = sm.d;
+  }
+  bank.best = Math.max(bank.best || 0, sm.ms);
+  if (sm.all) bank.allcN = (bank.allcN || 0) + 1;
+  const wk = weekKey(sm.d);
+  bank.wk = bank.wk && bank.wk.k === wk ? {k: wk, ms: bank.wk.ms + sm.ms} : {k: wk, ms: sm.ms};
+}
+const todayMs = () => Math.min(dayLen(st), studyMs()/1000)*1000;
+const curStreak = () => { const s = bank.streak || 0; if (bank.lastDay === st.d || bank.lastDay === prevDay(st.d)) return s + (bank.lastDay === prevDay(st.d) && todayMs() >= 60000 ? 1 : 0); return todayMs() >= 60000 ? 1 : 0; };
+const weekMs = () => (bank.wk && bank.wk.k === weekKey(st.d) ? bank.wk.ms : 0) + todayMs();
+
+/* ---------- daily missions ---------- */
+const STOMP_KEY = 'quest-foes-v1';
+let foeCounts = {}; try { foeCounts = JSON.parse(localStorage.getItem(STOMP_KEY) || '{}'); } catch (e) {}
+function foesIn(si, v){ const k = si + ':' + v; if (foeCounts[k] == null) { const Lx = getStage(si, v); foeCounts[k] = Lx.enemies.length + Lx.carries.length + Lx.cfoes.length; try { localStorage.setItem(STOMP_KEY, JSON.stringify(foeCounts)); } catch (e) {} } return foeCounts[k]; }
+function stompsToday(){
+  const Tt = trueT(), k = Math.floor(Tt/STAGE); let n = 0;
+  for (let i = 0; i < k && st.base + i < NST; i++) n += foesIn(st.base + i, vIn(st, st.base + i));
+  if (st.base + k < NST) { const Lx = stg(st.base + k), s = Tt - k*STAGE; n += Lx.enemies.filter(e => e.t <= s).length + Lx.carries.filter(o => o.tH <= s).length + Lx.cfoes.filter(f => f.t <= s).length; }
+  return n;
+}
+function courseClears(cv){ const k = Math.floor(trueT()/STAGE); let n = 0; for (let i = 0; i < k; i++) if (vIn(st, st.base + i) === cv) n++; return n; }
+const MIS_POOL = [
+  {k: 'study', ic: '⏱', lv: [60, 90, 120, 180], name: n => `${n >= 60 ? n/60 + '時間' : n + '分'}勉強する`, cur: () => todayMs()/60000, unit: '分'},
+  {k: 'stage', ic: '🚩', lv: [3, 6, 9, 12], name: n => `${n}ステージ進む`, cur: () => Math.floor(trueT()/STAGE), unit: ''},
+  {k: 'coin', ic: '🪙', lv: [400, 800, 1200, 1600], name: n => `コインを${n}枚集める`, cur: () => dayCoins(st), unit: '枚'},
+  {k: 'stomp', ic: '👟', lv: [15, 30, 50, 80], name: n => `敵を${n}体たおす`, cur: () => stompsToday(), unit: '体'},
+  {k: 'course', ic: '🎢', lv: [1, 1, 2, 2], name: (n, cv) => `${'DEF'[cv - 3]}コース（${COURSE_NAME[cv].replace('コース', '')}）を${n}つクリア`, cur: cv => courseClears(cv), unit: ''}
+];
+const MIS_REWARD = [300, 450, 650, 900], MIS_ALL = 500;
+function missionsFor(d, draw, base){
+  let h = 99; for (const ch of 'mis|' + d) h = (h*33 + ch.charCodeAt(0)) | 0;
+  const R = rng(h), pool = MIS_POOL.slice(), out = [];
+  while (out.length < 3 && pool.length) {
+    const t = pool.splice(Math.floor(R()*pool.length), 1)[0], lv = Math.floor(R()*4);
+    if (t.k === 'course') {   // only a course that actually comes up soon today
+      const near = (draw || []).slice(base, base + 12).map(v => +v).filter(v => v >= 3);
+      if (!near.length) continue;
+      const cv = near[Math.floor(R()*near.length)];
+      out.push({t, lv: Math.min(lv, near.filter(v => v === cv).length > 1 ? 3 : 1), cv});
+    } else out.push({t, lv});
+  }
+  return out.map(m => ({...m, need: m.t.lv[m.lv], reward: MIS_REWARD[m.lv]}));
+}
+const todayMis = () => missionsFor(st.d, st.draw, st.base);
+const misGot = d => ((bank.misLog || {})[d] || []);
+function misProgress(m){ const v = m.t.k === 'course' ? m.t.cur(m.cv) : m.t.cur(); return Math.min(m.need, v); }
+function claimMis(i){
+  const ms = todayMis(), m = ms[i]; if (!m || misGot(st.d).includes(i) || misProgress(m) < m.need) return;
+  bank.misLog = {...(bank.misLog || {}), [st.d]: [...misGot(st.d), i]};
+  const all = ms.every((x, j) => misGot(st.d).includes(j));
+  saveBank(); sfx('buy'); ui(); misRender();
+  toast(`🎯 ミッション達成！ +${num(m.reward)}コイン` + (all ? `・全部クリアでボーナス +${MIS_ALL}` : ''), 6000);
+  try { acNow(); } catch (e) {}
+}
+function misRender(){
+  const ms = todayMis(), got = misGot(st.d);
+  $('misd').textContent = `${got.length} / ${ms.length} 達成・毎日0時に入れかわり`;
+  $('misl').innerHTML = ms.map((m, i) => {
+    const p = misProgress(m), ok = p >= m.need, done = got.includes(i);
+    const label = m.t.k === 'course' ? m.t.name(m.need, m.cv) : m.t.name(m.need);
+    const pv = m.t.k === 'study' ? `${fmtHM(p*60000)} / ${fmtHM(m.need*60000)}` : `${num(Math.floor(p))} / ${num(m.need)}${m.t.unit}`;
+    return `<div class="ms"><div class="ic">${m.t.ic}</div><div class="bd"><b>${label}</b><small>${pv}</small><div class="pbar"><i style="width:${p/m.need*100}%"></i></div></div>${done ? '<span class="rw done">✓ 受け取り済み</span>' : ok ? `<button class="rw get" data-mis="${i}">+${num(m.reward)} 受け取る</button>` : `<span class="rw">🪙${num(m.reward)}</span>`}</div>`;
+  }).join('') + `<p class="vsn" style="margin:8px 0 0">3つ全部クリアすると、さらに +${MIS_ALL} コイン。</p>`;
+}
+$('misl').onclick = e => { const b = e.target.closest('[data-mis]'); if (b) claimMis(+b.dataset.mis); };
+
+/* ---------- achievements ---------- */
+const ownedCount = () => Object.entries(SHOP).reduce((a, [k, s2]) => a + (s2.special ? 0 : s2.items.filter(i => i[0] !== 'none' && !AWARD_NEED[k + ':' + i[0]] && !REF_NEED[k + ':' + i[0]] && bank.owned.includes(k + ':' + i[0])).length), 0);
+const misDoneN = () => Object.values(bank.misLog || {}).reduce((a, x) => a + x.length, 0);
+const hrs = () => ((bank.totalMs || 0) + todayMs())/3600e3;
+const ACH = [
+  ['first', '📗', 'はじめの一歩', '1分勉強する', () => [Math.min(1, hrs()*60), 1], 200],
+  ['h10', '⏱', '10時間', '合計10時間', () => [hrs(), 10], 500],
+  ['h50', '⌛', '50時間', '合計50時間', () => [hrs(), 50], 1500],
+  ['h100', '🏛', '100時間', '合計100時間', () => [hrs(), 100], 3000],
+  ['h300', '👑', '300時間', '合計300時間', () => [hrs(), 300], 8000],
+  ['d4', '💪', '1日4時間', '1日で4時間', () => [Math.max(bank.best || 0, todayMs())/3600e3, 4], 600],
+  ['d8', '🦾', '1日8時間', '1日で8時間', () => [Math.max(bank.best || 0, todayMs())/3600e3, 8], 1500],
+  ['s3', '🔥', '3日連続', '3日続けて勉強', () => [curStreak(), 3], 500],
+  ['s7', '🔥', '7日連続', '7日続けて勉強', () => [curStreak(), 7], 1500],
+  ['s30', '☄️', '30日連続', '30日続けて勉強', () => [curStreak(), 30], 6000],
+  ['days10', '🗓', '10日', '10日勉強した', () => [(bank.days || 0) + (todayMs() >= 60000 && bank.lastDay !== st.d ? 1 : 0), 10], 800],
+  ['allc', '🏁', '全クリ', '1日で72ステージ', () => [(bank.allcN || 0) + (st.allAt ? 1 : 0), 1], 2000],
+  ['allc5', '🌟', '全クリ5回', '全クリを5回', () => [(bank.allcN || 0) + (st.allAt ? 1 : 0), 5], 6000],
+  ['shop10', '🛍', 'おしゃれ', 'アイテム10個', () => [ownedCount(), 10], 500],
+  ['shop50', '🧺', 'コレクター', 'アイテム50個', () => [ownedCount(), 50], 2500],
+  ['mis10', '🎯', 'ミッション10', 'ミッション10個', () => [misDoneN(), 10], 600],
+  ['mis50', '🏹', 'ミッション50', 'ミッション50個', () => [misDoneN(), 50], 2500],
+  ['champ', '🏆', '初優勝', 'レースで優勝', () => [bank.champ || 0, 1], 1500],
+  ['award', '🎖', '完走', '参加賞をもらう', () => [bank.vsAwards || 0, 1], 800],
+  ['ref', '💌', 'なかま', '友だちを招待', () => [bank.refCount || 0, 1], 800]
+];
+function achRender(){
+  const have = bank.ach || [];
+  $('achn').textContent = `${have.length} / ${ACH.length}`;
+  $('achl').innerHTML = ACH.map(([id, ic, nm, ds, f, rw]) => { const ok = have.includes(id), [cu, nd] = f(); return `<div class="${ok ? '' : 'no'}"><i>${ic}</i><b>${nm}</b><small>${ok ? '解除ずみ' : ds}</small>${ok ? '' : `<div class="pbar"><i style="width:${Math.min(100, cu/nd*100)}%"></i></div>`}<small>🪙${num(rw)}</small></div>`; }).join('');
+}
+function achCheck(){
+  const have = new Set(bank.ach || []), got = [];
+  for (const [id, , nm, , f, rw] of ACH) { if (have.has(id)) continue; const [cu, nd] = f(); if (cu >= nd) { have.add(id); got.push([nm, rw]); } }
+  if (got.length) { bank.ach = [...have]; saveBank(); ui(); sfx('world'); toast(`🏅 実績「${got.map(g => g[0]).join('・')}」解除！ +${num(got.reduce((a, g) => a + g[1], 0))}コイン`, 7000); try { acNow(); } catch (e) {} }
+}
+/* coins from missions and badges are computed from what was earned, so devices can never double count */
+function bonusCoins(){
+  try {
+    let n = 0;
+    for (const [d, list] of Object.entries(bank.misLog || {})) { const ms = missionsFor(d, d === st.d ? st.draw : null, d === st.d ? st.base : 0); for (const i of list) n += ms[i] ? ms[i].reward : MIS_REWARD[1]; if (list.length >= 3) n += MIS_ALL; }
+    for (const id of bank.ach || []) { const a = ACH.find(x => x[0] === id); if (a) n += a[5]; }
+    return n;
+  } catch (e) { return 0; }
+}
+function misBadge(){ try { const ms = todayMis(), got = misGot(st.d), n = ms.filter((m, i) => !got.includes(i) && misProgress(m) >= m.need).length; $('misdot').hidden = !n; $('misdot').textContent = n; } catch (e) {} }
+setInterval(() => { achCheck(); misBadge(); if (curTab === 'mis') { misRender(); achRender(); } if (curTab === 'vs') rankRender(); }, 3000);
+const _misRender = misRender; misRender = function(){ _misRender(); achRender(); };
+
+/* ---------- weekly ranking and cheers (room members) ---------- */
+const STAMPS = ['👍', '🔥', '💪', '👏', '📚', '☕'];
+let cheerSeen = 0; try { cheerSeen = +localStorage.getItem('quest-cheer') || 0; } catch (e) {}
+let cheerCool = 0;
+function rankRender(){
+  const box = $('rkbox'); box.hidden = !fb.room; if (!fb.room) return;
+  const mine = myKey(), wk = weekKey(st.d), rows = [];
+  for (const [k, e] of Object.entries(room || {})) {
+    if (k === mine) continue;
+    const live = e.d === st.d ? memberT(e)*1000 : 0;
+    const base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0;
+    rows.push({k, n: e.n, ms: Math.max(0, base) + live, me: false, today: e.d === st.d});
+  }
+  rows.push({k: mine, n: fb.name || '自分', ms: weekMs(), me: true});
+  rows.sort((a, b) => b.ms - a.ms);
+  const can = Date.now() > cheerCool;
+  $('rkl').innerHTML = rows.map((r, i) => `<div class="rk${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><span class="nm">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : esc(r.n)}${r.me ? '（自分）' : ''}</span><span class="tm">${fmtHM(r.ms)}</span></div>${r.me ? '' : `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${can ? '' : 'disabled'} aria-label="${esc(r.n)}に${s2}を送る">${s2}</button>`).join('')}</div>`}`).join('')
+    + `<p class="vsn" style="margin:8px 0 0">スタンプを押すと、その人の画面に届きます（15秒に1回まで）。</p>`;
+}
+$('rkl').onclick = e => {
+  const b = e.target.closest('[data-st]'); if (!b || Date.now() < cheerCool) return;
+  myCheer = {to: b.dataset.to, k: +b.dataset.st, at: Date.now()}; cheerCool = Date.now() + 15000;
+  vsPush().catch(() => {}); sfx('coin'); toast(`${STAMPS[myCheer.k]} を送りました`, 2500); rankRender();
+};
+function cheerCheck(){
+  if (!fb.room || !room) return;
+  const mine = myKey();
+  for (const [k, e] of Object.entries(room)) {
+    const ch = e.ch; if (!ch || ch.to !== mine || !(ch.at > cheerSeen) || Date.now() - ch.at > 10*60e3) continue;
+    cheerSeen = ch.at; try { localStorage.setItem('quest-cheer', String(cheerSeen)); } catch (er) {}
+    toast(`${e.n} から応援が届きました ${STAMPS[ch.k] || '👍'}`, 6000); sfx('buy');
+  }
+}
+setInterval(cheerCheck, 2000);
+showTab('home');
 
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
@@ -4083,6 +4434,7 @@ function frameBody(){
   const tea = rest === 'tea', cleaning = r && r.kind === 'tea' && wakeE >= 0 && wakeE < r.F;
   const stretching = r && r.kind === 'sleep' && wakeE >= 0 && wakeE < r.F;
   const hx = hero.x - cam, gy = Y(hero.y);
+  if (spec && drawSpectate()) { bgmTick(st.run ? 'stage' : null, L.w); sPrev = null; if (!$('shop').hidden) drawPreview(); if (!$('sleep').hidden) drawNight(); return; }
   if (fpOn) drawFP(TH, s, look);
   else {
   drawSky(TH, s/STAGE);
