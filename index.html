@@ -2765,7 +2765,7 @@ async function vsJoin(code){
   if (!name) { $('vsStat2').textContent = 'ニックネームを入れてください'; return; }
   fb.name = name; fb.room = code; saveFb();
   $('vsStat2').textContent = 'つないでいます…';
-  try { applyRoomDraw(); await vsPush(); await vsPull(); vsPollT = Date.now(); $('vsStat2').textContent = ''; vsRender(); }
+  try { applyRoomDraw(); await vsPush(); await vsPull(); vsPollT = Date.now(); fb.joinedAt = Date.now(); saveFb(); $('vsStat2').textContent = ''; vsRender(); acNow(); }
   catch (e) { fb.room = ''; saveFb(); $('vsStat2').textContent = 'つながりませんでした。少ししてからもう一度ためしてください'; vsRender(); }
 }
 $('vsJoin').onclick = () => vsJoin($('vsRoom').value);
@@ -2795,7 +2795,7 @@ $('vsAuto').onclick = async () => {
   const list = await vsList(); if (!list) return;
   if (list.length) vsJoin(list[0].room); else vsCreate(true);   // nobody around: open a new public room
 };
-$('vsLeave').onclick = async () => { try { await vsPush(true); } catch (e) {} fb.room = ''; room = null; saveFb(); vsRender(); };
+$('vsLeave').onclick = async () => { try { await vsPush(true); } catch (e) {} fb.room = ''; fb.leftAt = Date.now(); room = null; saveFb(); vsRender(); acNow(); };
 $('vsCopy').onclick = async () => { try { await navigator.clipboard.writeText(fb.room); $('vsCopy').textContent = 'コピーしました'; } catch (e) { $('vsCopy').textContent = fb.room; } setTimeout(() => { $('vsCopy').textContent = 'コードをコピー'; }, 1500); };
 $('vsName').value = fb.name || '';
 vsRender();
@@ -2841,10 +2841,23 @@ function mergeSave(R){
     }
   }
   s = {...s, done: 0, doneCoins: 0};
-  return {bank: b, st: s};
+  // room membership: the newest join/leave wins; with no record of either, the device that is in a room wins
+  let v = null; const Lv = fb || {}, Rv = R.vs || {};
+  if (Rv.uid && Rv.secret) {
+    const la = Math.max(Lv.joinedAt || 0, Lv.leftAt || 0), ra = Math.max(Rv.joinedAt || 0, Rv.leftAt || 0);
+    const takeRemote = (la || ra) ? ra > la : (!Lv.room && !!Rv.room);
+    if (takeRemote && (Rv.room || '') !== (Lv.room || '')) v = {...Rv, name: Rv.name || Lv.name};
+  }
+  return {bank: b, st: s, vs: v};
 }
 /* use the combined record right away, without reloading the page */
 function applyMem(m){
+  if (m.vs) {   // follow the other device into (or out of) its room, as the same player
+    fb = {...m.vs}; saveFb(); room = null; board = null; vsPollT = 0;
+    if ($('vsName')) $('vsName').value = fb.name || '';
+    vsRender();
+    if (fb.room) { vsPull().then(vsRender).catch(() => {}); toast(`ほかの端末で入った部屋「${fb.room}」に参加しました`); }
+  }
   bank = m.bank; st = m.st;
   if (!st.draw) { st.draw = Array(NST).fill(0); st.drawSeen = true; }
   st.mult = st.ff ? st.mult : 1;
