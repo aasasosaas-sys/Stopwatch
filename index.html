@@ -100,7 +100,7 @@ canvas{display:block;width:100%;height:100%}
 .pill{background:var(--card);border-radius:999px;padding:8px 16px;font-size:14px}
 .pill.on{background:var(--acc);color:#fff}
 .dev p{margin:8px 0 0;font-size:13px;line-height:1.5}
-.dev input[type=text]{flex:1;min-width:0;background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:9px 10px;font-size:13px}
+.dev input[type=password],.dev input[type=text]{flex:1;min-width:0;background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:9px 10px;font-size:13px}
 .dev ol{margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.6}
 #gstat{font-size:13px}
 .toast{position:absolute;left:50%;top:46px;transform:translateX(-50%);background:rgba(20,16,40,.78);color:#fff;padding:8px 14px;border-radius:12px;font-size:clamp(12px,2.6vw,14px);font-weight:600;opacity:0;transition:opacity .4s;pointer-events:none;max-width:92%;text-align:center;line-height:1.5}
@@ -210,8 +210,20 @@ canvas{display:block;width:100%;height:100%}
       </div>
     </section>
     <details class="dev" id="datasec">
-      <summary>データの保存・引き継ぎ</summary>
+      <summary>アカウントとデータの保存</summary>
       <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
+      <div id="acOut">
+        <p><b>アカウントを作ると</b>、記録・コイン・買った見た目がサーバーにも自動で保存され、機種変更や別の端末でも同じIDでログインすれば続きから遊べます。</p>
+        <div class="row"><input type="text" id="acId" maxlength="20" placeholder="ID（英小文字・数字・_ 3〜20文字）" autocomplete="username" autocapitalize="none" aria-label="ID"></div>
+        <div class="row"><input type="password" id="acPass" maxlength="72" placeholder="パスワード（6文字以上）" autocomplete="current-password" aria-label="パスワード"></div>
+        <div class="row"><button class="pill" id="acNew">新しく作る</button><button class="pill" id="acLogin">ログイン</button></div>
+      </div>
+      <div id="acIn" hidden>
+        <div class="row"><span>ログイン中：<b id="acName"></b></span></div>
+        <p id="acLast"></p>
+        <div class="row"><button class="pill" id="acSave">今すぐ保存</button><button class="pill" id="acPull" hidden>最新を読みこむ</button><button class="pill" id="acLogout" style="margin-left:auto">ログアウト</button></div>
+      </div>
+      <p id="acStat" style="color:var(--acc)"></p>
       <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
       <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
     </details>
@@ -264,6 +276,14 @@ canvas{display:block;width:100%;height:100%}
     <div class="lotg" id="lotg"></div>
     <p>各ワールドの1〜6面に、A・B・Cのどれが出るかを毎朝ランダムで決めます。</p>
     <button class="act" id="lotok" disabled>OK</button>
+  </div>
+</div>
+<div class="sheet" id="acCh" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="どちらの記録を使うか">
+    <h2>どちらの記録を使いますか？</h2>
+    <p id="acChP" style="white-space:pre-line"></p>
+    <button class="act" id="acChR">サーバーの記録を使う</button>
+    <button class="act alt" id="acChL">この端末の記録を使う（サーバーに上書き）</button>
   </div>
 </div>
 <div class="sheet" id="addt" hidden>
@@ -2366,6 +2386,7 @@ function drawPreview(){
 function onSaved(){
   try { localStorage.setItem('quest-saved', String(Date.now())); } catch (e) {}
   try { vsQueue(); } catch (e) {}
+  try { acQueue(); } catch (e) {}
 }
 const payload = () => ({v: 1, at: Date.now(), bank, st});
 const summarize = p => { const n = (p.bank.owned || []).filter(x => !x.endsWith(':none')).length; return `コイン ${num(p.bank.earned - p.bank.spent)}・アイテム ${n}個・${new Date(p.at).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}`; };
@@ -2645,6 +2666,78 @@ $('vsName').value = fb.name || '';
 vsRender();
 if (FB_ON && fb.room) { vsPull().then(vsRender).catch(() => {}); vsPush().catch(() => {}); }
 setInterval(() => { if (fb.room) vsRender(); }, 5000);
+
+/* ---------- account: ID + password, save data kept on the server ----------
+   The password is only sent when signing up or logging in; after that the device keeps a session token. */
+let acct = {}; try { acct = JSON.parse(localStorage.getItem('quest-acct') || '{}'); } catch (e) {}
+const saveAcct = () => { try { localStorage.setItem('quest-acct', JSON.stringify(acct)); } catch (e) {} };
+let acPushT = null, acBlocked = false, acPending = null;
+const acMsg = t => { $('acStat').textContent = t || ''; };
+function acRender(){
+  $('acOut').hidden = !!acct.id; $('acIn').hidden = !acct.id;
+  if (acct.id) {
+    $('acName').textContent = acct.id;
+    $('acLast').textContent = acBlocked ? '別の端末で新しく保存されています。「最新を読みこむ」を押してください'
+      : acct.last ? `${new Date(acct.last).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})} に保存しました` : 'まだ保存していません';
+    $('acPull').hidden = !acBlocked;
+  }
+}
+const hasProgress = p => p && p.bank && ((p.bank.earned || 0) + (p.bank.spent || 0) > 0 || (p.st && p.st.acc > 0));
+async function acPush(force){
+  if (!acct.id || !acct.token || (acBlocked && !force)) return;
+  commit();
+  const r = await rpc('quest_put', {p_id: acct.id, p_token: acct.token, p_save: payload(), p_rev: acct.rev || 0});
+  if (r && r.conflict) { acBlocked = true; acRender(); return; }
+  acct.rev = r.rev; acct.last = Date.now(); saveAcct(); acRender();
+}
+function acQueue(){ if (!acct.id || acBlocked || acPushT) return; acPushT = setTimeout(() => { acPushT = null; acPush().catch(e => { if (String(e).includes('400')) { acMsg('ログインの期限が切れました。もう一度ログインしてください'); acct = {}; saveAcct(); acRender(); } }); }, 20000); }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden' || !acct.id || acBlocked) return;
+  try { commit(); fetch(`${SB.url}/rest/v1/rpc/quest_put`, {method: 'POST', keepalive: true, headers: {'Content-Type': 'application/json', apikey: SB.key}, body: JSON.stringify({p_id: acct.id, p_token: acct.token, p_save: payload(), p_rev: acct.rev || 0})})
+    .then(r => r.json()).then(j => { if (j && j.rev && !j.conflict) { acct.rev = j.rev; acct.last = Date.now(); saveAcct(); } }).catch(() => {}); } catch (e) {}
+});
+const acInputs = () => ({id: $('acId').value.trim().toLowerCase(), pass: $('acPass').value});
+function acCheck({id, pass}){
+  if (!/^[a-z0-9_]{3,20}$/.test(id)) { acMsg('IDは半角の英小文字・数字・_ で3〜20文字にしてください'); return false; }
+  if (pass.length < 6) { acMsg('パスワードは6文字以上にしてください'); return false; }
+  return true;
+}
+$('acNew').onclick = async () => {
+  const v = acInputs(); if (!acCheck(v)) return;
+  acMsg('作っています…');
+  try {
+    commit();
+    const r = await rpc('quest_signup', {p_id: v.id, p_pass: v.pass, p_save: payload()});
+    acct = {id: r.id, token: r.token, rev: r.rev, last: Date.now()}; saveAcct();
+    $('acPass').value = ''; acMsg('アカウントを作りました。これからは自動でサーバーに保存されます。'); acRender();
+  } catch (e) { acMsg(String(e).includes('400') ? 'そのIDはもう使われています。別のIDにしてください' : 'つながりませんでした。電波を確認してください'); }
+};
+$('acLogin').onclick = async () => {
+  const v = acInputs(); if (!acCheck(v)) return;
+  acMsg('ログインしています…');
+  try {
+    const r = await rpc('quest_login', {p_id: v.id, p_pass: v.pass});
+    if (r && r.error) { acMsg('IDかパスワードがちがいます（5回まちがえると10分間ログインできません）'); return; }
+    acct = {id: r.id, token: r.token, rev: r.rev, last: Date.now()}; saveAcct(); $('acPass').value = ''; acBlocked = false;
+    const local = payload();
+    if (r.save && hasProgress(r.save) && hasProgress(local)) {
+      acPending = r.save;
+      $('acChP').textContent = `サーバー：${summarize(r.save)}\nこの端末：${summarize(local)}`;
+      $('acCh').hidden = false;
+    } else if (r.save && hasProgress(r.save)) { applyPayload(r.save); }
+    else { await acPush(true); acMsg('ログインしました。この端末の記録をサーバーに保存しました。'); }
+    acRender();
+  } catch (e) { acMsg(String(e).includes('400') ? 'ログインできません。しばらく待ってからもう一度ためしてください' : 'つながりませんでした。電波を確認してください'); }
+};
+$('acChR').onclick = () => { $('acCh').hidden = true; try { applyPayload(acPending); } catch (e) { acMsg('サーバーの記録が読み取れませんでした'); } };
+$('acChL').onclick = async () => { $('acCh').hidden = true; try { await acPush(true); acMsg('この端末の記録をサーバーに保存しました。'); } catch (e) { acMsg('保存できませんでした'); } };
+$('acSave').onclick = async () => { acMsg('保存しています…'); try { await acPush(); acMsg(acBlocked ? '' : '保存しました。'); } catch (e) { acMsg('保存できませんでした。電波を確認してください'); } };
+$('acPull').onclick = async () => {
+  try { const r = await rpc('quest_pull', {p_id: acct.id, p_token: acct.token}); acct.rev = r.rev; saveAcct(); acBlocked = false; if (r.save) applyPayload(r.save); }
+  catch (e) { acMsg('読みこめませんでした'); }
+};
+$('acLogout').onclick = async () => { try { await acPush(); } catch (e) {} try { await rpc('quest_logout', {p_id: acct.id, p_token: acct.token}); } catch (e) {} acct = {}; saveAcct(); acMsg('ログアウトしました。この端末の記録はそのまま残っています。'); acRender(); };
+acRender();
 
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
