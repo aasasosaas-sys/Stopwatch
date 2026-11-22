@@ -31,6 +31,8 @@ button,select{font:inherit;color:inherit;cursor:pointer;border:0}
 .wrap{max-width:900px;margin:0 auto;padding:12px 16px 24px}
 .stage{position:relative;width:100%;aspect-ratio:16/9;max-height:62vh;border-radius:18px;overflow:hidden;background:#8fd3ff}
 canvas{display:block;width:100%;height:100%}
+.fpv{position:absolute;right:8px;bottom:8px;z-index:3;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(20,16,40,.55);color:#fff}
+.fpv.on{background:#ff7a3d}
 .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
   padding:10px 14px;color:#fff;font-weight:800;font-size:clamp(12px,2.6vw,18px);letter-spacing:.04em;
   text-shadow:0 2px 0 rgba(30,20,60,.55);pointer-events:none;font-variant-numeric:tabular-nums}
@@ -184,6 +186,7 @@ canvas{display:block;width:100%;height:100%}
     <div class="title" id="ttl"><b id="ttlw">WORLD 1-1</b><span id="ttln"></span></div>
     <div class="hint" id="hint">「開始」を押して勉強スタート。キャラが自動で進みます</div>
     <div class="toast" id="toast"></div>
+    <button class="fpv" id="fpv" aria-label="視点を切りかえる">👁 視点</button>
     <div class="banner" id="ban"><b id="banb">STAGE CLEAR!</b><span id="bans"></span></div>
   </div>
 
@@ -2284,6 +2287,149 @@ function shakeAt(s){
   return a;
 }
 
+/* ---------- first-person view (experimental) ----------
+   The same stage seen through the hero's eyes: the path ahead is projected
+   in perspective, the camera rises and falls with the hero's jumps. */
+let fpOn = false; try { fpOn = localStorage.getItem('quest-fp') === '1'; } catch (e) {}
+const FP_F = 130, FP_HALF = 46, FP_FAR = 760;
+function drawFP(TH, s, look){
+  const h = heroAtIn(L, s), o = airPose(L, s), hx = h.cx != null ? h.cx : h.x;
+  // view bobbing like a first-person game: a small up-down and side sway in step with the feet
+  const walking = o.mode === 'run' && !L.cart, bob = walking ? {x: Math.sin(o.ph)*1.8, y: Math.abs(Math.cos(o.ph))*2.4} : {x: 0, y: 0};
+  const eye = h.y + (L.cart ? 30 : 26) + bob.y, HZ = 92, CX = VW/2;
+  const P = (z, wy) => { const k = FP_F/Math.max(2, z); return {k, y: HZ + (eye - wy)*k}; };
+  c.save(); c.translate(bob.x*.6, 0);
+  if (o.flip) { c.translate(CX, VH/2); c.rotate(-o.flip*.5*Math.sin(o.flip/2)); c.translate(-CX, -VH/2); }   // a gentle roll during flips
+  if (o.rot) { c.translate(CX, VH/2); c.rotate(o.rot*.35); c.translate(-CX, -VH/2); }
+  // sky and the far landscape, slowly sliding
+  drawSky(TH, s/STAGE);
+  c.save(); c.translate(0, HZ - 112); drawFar(TH, hx*.15); c.restore();
+  // abyss below the horizon (pits show it)
+  // the land on both sides of the path (or open water / lava, or a deep valley for the minecart)
+  const fieldTop = L.cart ? mix(TH.sky[1], TH.hill, .5) : TH.pit === 'water' ? '#5fb8f0' : TH.pit === 'lava' ? '#ff7a2a' : mix(TH.hill, TH.sky[1], .35);
+  const fieldBot = L.cart ? mix(TH.hill2, '#000000', .35) : TH.pit === 'water' ? '#1d6fb8' : TH.pit === 'lava' ? '#c43a10' : TH.hill2;
+  const ab = c.createLinearGradient(0, HZ, 0, VH); ab.addColorStop(0, fieldTop); ab.addColorStop(1, fieldBot);
+  c.fillStyle = ab; c.fillRect(-20, HZ, VW + 40, VH - HZ + 20);
+  const pitCol = TH.pit === 'water' ? '#2b8fd9' : TH.pit === 'lava' ? '#ff6a1a' : mix(TH.hill2, '#000000', .55);
+  const S = TH.g, G = L.G;
+  const sprites = [];   // things standing on the path, drawn far to near together with the ground
+  const i0 = Math.floor(hx/T), i1 = Math.floor((hx + FP_FAR)/T);
+  // gather sprites by column
+  const add = (x, fn) => { const z = x - hx; if (z > 3 && z < FP_FAR) sprites.push({z, fn}); };
+  for (let i = lowerX(L.coins, hx), n = L.coins.length; i < n && L.coins[i].x < hx + FP_FAR; i++) {
+    const cn = L.coins[i]; if (s >= cn.t) continue;
+    add(cn.x, (k, sx) => { const y = HZ + (eye - cn.y)*k, w = Math.abs(Math.cos(now*.004 + cn.x*.05))*5*k + .6*k; c.fillStyle = '#ffd23f'; c.beginPath(); c.ellipse(sx, y, w, 5.5*k, 0, 0, 7); c.fill(); c.strokeStyle = '#c98a12'; c.lineWidth = .8*k; c.stroke(); });
+  }
+  for (const e of L.enemies) {
+    if (e.xm < hx - 10 || e.xm > hx + FP_FAR) continue;
+    const age = s - e.t; if (age > .6) continue;
+    add(e.xm + (age < 0 ? Math.min(e.range, 14*(-age)) : 0), (k, sx) => { c.save(); c.translate(sx, HZ + (eye - e.y)*k); c.scale(k*1.1, k*1.1); drawFoe(e.type, 0, 0, age >= 0 ? 'flat' : 'walk', now*.012 + e.xm, TH.enemy, now); c.restore(); });
+  }
+  for (const st2 of L.stumps) {
+    const x = st2.col*T; if (x < hx - 2*T || x > hx + FP_FAR) continue;
+    add(x, (k, sx) => { const top = HZ + (eye - (st2.h + st2.k)*T)*k, bot = HZ + (eye - st2.h*T)*k, w = FP_HALF*.7*k;
+      c.fillStyle = TH.obst === 'stump' ? '#9a6034' : mix(S.dirt, '#ffffff', .15); c.fillRect(sx - w, top, w*2, bot - top); c.strokeStyle = OL; c.lineWidth = .8*k; c.strokeRect(sx - w, top, w*2, bot - top);
+      c.fillStyle = TH.obst === 'stump' ? '#e8b57a' : mix(S.top, '#ffffff', .1); c.fillRect(sx - w, top - 2*k, w*2, 3*k); });
+  }
+  for (const wl of L.walls) {
+    if (wl.x < hx - T || wl.x > hx + FP_FAR) continue;
+    add(wl.x, (k, sx) => { const top = HZ + (eye - wl.y1)*k, bot = Math.min(VH + 10, HZ + (eye - wl.y0)*k), w = Math.max(wl.w*.9, 10)*k*.9;
+      c.fillStyle = mix(S.dirt, '#000000', .1); c.fillRect(sx - w, top, w*2, bot - top); c.strokeStyle = OL; c.lineWidth = .7*k; c.strokeRect(sx - w, top, w*2, bot - top); c.fillStyle = S.top; c.fillRect(sx - w - k, top - 2*k, w*2 + 2*k, 4*k); });
+  }
+  for (const b of L.blocks) {
+    if (b.x < hx - T || b.x > hx + FP_FAR) continue;
+    add(b.x + 8, (k, sx) => { const y = HZ + (eye - b.y - T)*k, w = 8*k; c.fillStyle = b.q && !(s >= b.t) ? '#ffb020' : '#b5793e'; rr(sx - w, y, w*2, w*2, 2*k); c.fill(); c.strokeStyle = OL; c.lineWidth = .8*k; c.stroke(); if (b.q && !(s >= b.t)) { c.fillStyle = '#fff'; c.font = `bold ${10*k}px sans-serif`; c.textAlign = 'center'; c.fillText('?', sx, y + 12*k); c.textAlign = 'left'; } });
+  }
+  for (const bb of L.bars2) {
+    if (bb.x < hx - 4 || bb.x > hx + FP_FAR) continue;
+    add(bb.x, (k, sx) => { const y = HZ + (eye - bb.y)*k; c.strokeStyle = '#c9ced8'; c.lineWidth = 2*k; c.beginPath(); c.moveTo(sx - FP_HALF*k, y); c.lineTo(sx + FP_HALF*k, y); c.stroke(); c.fillStyle = '#6e7488'; c.fillRect(sx - FP_HALF*k - 2*k, y, 3*k, VH); c.fillRect(sx + FP_HALF*k - k, y, 3*k, VH); });
+  }
+  for (const d of L.decos) {
+    if (d.x < hx || d.x > hx + FP_FAR || d.k === 'start') continue;
+    const side = hash(d.x) > .5 ? 1 : -1;
+    add(d.x, (k, sx) => { c.save(); c.translate(sx + side*(FP_HALF + 14)*k, HZ + (eye - d.y)*k); c.scale(k, k); c.translate(0, -Y(d.y)); drawDeco(d, d.x, true); drawDeco(d, d.x, false); c.restore(); });
+  }
+  if (L.goalX > hx && L.goalX < hx + FP_FAR) add(L.goalX, (k, sx) => { const y = HZ + (eye - 2*T)*k, w = FP_HALF*k;
+    c.fillStyle = '#fff'; c.fillRect(sx - w, y - 46*k, 4*k, 46*k); c.fillRect(sx + w - 4*k, y - 46*k, 4*k, 46*k); c.fillStyle = '#ff5a4e'; rr(sx - w - 4*k, y - 58*k, w*2 + 8*k, 13*k, 3*k); c.fill();
+    c.fillStyle = '#fff'; c.font = `bold ${9*k}px sans-serif`; c.textAlign = 'center'; c.fillText('GOAL', sx, y - 48*k); c.textAlign = 'left'; });
+  sprites.sort((a, b) => b.z - a.z);
+  let si2 = 0;
+  const flush = zMin => { while (si2 < sprites.length && sprites[si2].z >= zMin) { const sp = sprites[si2++]; if (sp.z > 16) sp.fn(Math.min(4, FP_F/sp.z), CX); } };   // skip things right under your nose
+  // ground, far to near
+  for (let i = i1; i >= i0; i--) {
+    const z0 = i*T - hx, z1 = z0 + T;
+    flush(z1);
+    if (z1 <= 2) continue;
+    let gh = G[i] || 0, wy;
+    if (L.cart) { const ry = railAt(i*T + 8); if (ry == null) continue; wy = ry; }
+    else if (!gh) { // a pit in the path
+      const lv = (G[i - 1] || G[i + 1] || 2)*T, pa = P(Math.max(z0, 2), lv), pb = P(z1, lv);
+      c.fillStyle = pitCol; c.beginPath(); c.moveTo(CX - FP_HALF*pa.k, pa.y); c.lineTo(CX + FP_HALF*pa.k, pa.y); c.lineTo(CX + FP_HALF*pb.k, pb.y); c.lineTo(CX - FP_HALF*pb.k, pb.y); c.closePath(); c.fill();
+      continue;
+    } else wy = gh*T;
+    const a = P(Math.max(z0, 2), wy), b = P(z1, wy);
+    const wa = FP_HALF*a.k, wb = FP_HALF*b.k;
+    if (L.cart) {
+      c.fillStyle = '#6b4526'; for (const q of [0, .5]) { const pz = P(Math.max(2, z0 + q*T), wy); c.fillRect(CX - FP_HALF*.8*pz.k, pz.y - 1.2*pz.k, FP_HALF*1.6*pz.k, 2.4*pz.k); }
+      c.strokeStyle = '#c9ced8'; c.lineWidth = Math.max(.6, 1.6*b.k);
+      c.beginPath(); c.moveTo(CX - wa*.5, a.y); c.lineTo(CX - wb*.5, b.y); c.moveTo(CX + wa*.5, a.y); c.lineTo(CX + wb*.5, b.y); c.stroke();
+      continue;
+    }
+    // front face where the nearer column is lower
+    const near = G[i - 1] || 0;
+    if (near < gh && z0 > 2) { const f = P(z0, near*T), fy = near ? f.y : VH + 20; c.fillStyle = S.dirt; c.fillRect(CX - wa, a.y, wa*2, fy - a.y); c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(CX - wa, a.y + 3*a.k, wa*2, 1.2*a.k); }
+    c.fillStyle = i % 2 ? S.top : mix(S.top, S.hi, .45);
+    if (L.ICE[i]) c.fillStyle = i % 2 ? '#bfe9ff' : '#e6f7ff';
+    c.beginPath(); c.moveTo(CX - wa, a.y); c.lineTo(CX + wa, a.y); c.lineTo(CX + wb, b.y); c.lineTo(CX - wb, b.y); c.closePath(); c.fill();
+    c.fillStyle = S.lip; c.fillRect(CX - wa - 1.5*a.k, a.y, 1.5*a.k, Math.max(1, (VH - a.y)*.04)); c.fillRect(CX + wa, a.y, 1.5*a.k, Math.max(1, (VH - a.y)*.04));
+    if (L.spikes.some(sp => i >= sp.col && i < sp.col + sp.n)) { c.fillStyle = '#c9ced8'; for (let q = -2; q <= 2; q++) { const xx = CX + q*wa*.4; c.beginPath(); c.moveTo(xx - wa*.15, a.y); c.lineTo(xx, a.y - 10*a.k); c.lineTo(xx + wa*.15, a.y); c.fill(); } }
+  }
+  flush(-1e9);
+  c.restore();
+  drawFPHands(o, look, bob);
+}
+/* height of the rails at world x (minecart course), or null over a gap */
+function railAt(x){
+  const R2 = L.rails; let lo = 0, hi = R2.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (R2[m].x0 <= x) lo = m + 1; else hi = m; }
+  for (let j = lo - 1; j >= Math.max(0, lo - 5); j--) {
+    const r = R2[j];
+    if (r.k === 'loop' || r.k === 'dead') continue;
+    if (x >= r.x0 && x <= r.x1) { const u = (x - r.x0)/(r.x1 - r.x0 || 1); return r.y0 + (r.y1 - r.y0)*(r.lin ? u : ease3(u)); }
+  }
+  return null;
+}
+/* the hero's right arm, like a block-game first-person hand: it always comes in from the
+   bottom-right corner (never floating), sways with the steps, lags in jumps and swings to throw.
+   Drawn as the stick figure's own thick rounded line, with whatever it holds from the shop. */
+function drawFPHands(o, look, bob){
+  const bs = bodyStyle(look, now), col = bs.col, S = 5;
+  let sh = [VW + 26, VH + 34], el, hd;   // shoulder is off screen
+  const rest = (dx, dy) => { el = [VW*.88 + dx*.4, VH - 8 + dy*.4]; hd = [VW*.76 + dx, VH - 26 + dy]; };
+  if (o.cart) { // the front edge of the vehicle, with the hand resting on it
+    c.fillStyle = '#5d6170'; rr(VW*.1, VH - 16, VW*.8, 26, 6); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = '#8a8fa0'; rr(VW*.08, VH - 21, VW*.84, 7, 3); c.fill(); c.stroke();
+    rest(-10, 6 + Math.sin(now*.03)*1);
+  }
+  else if (o.mode === 'hang' || o.mode === 'reach') { el = [VW*.86, VH*.42]; hd = [VW*.74, -24]; }   // reaching up out of the top of the view to the bar
+  else if (o.mode === 'climb') { const u = o.cu || 0; el = [VW*.86, lerp(VH*.42, VH - 8, u)]; hd = [VW*.74, lerp(-24, VH - 26, u)]; }
+  else if (o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'wall') rest(4, o.vy > 0 ? 14 : -4);   // the hand lags behind the jump
+  else if (o.mode === 'run') rest(bob.x*3 + Math.sin(o.ph)*4, -bob.y*3 + Math.cos(o.ph*2)*2);
+  else rest(0, Math.sin(now*.0025)*1.5);
+  if (o.carry) { el = [VW*.86, VH*.55]; hd = [VW*.7, VH*.28]; }
+  if (o.throwK != null) { const k = o.throwK, sw = Math.sin(k*Math.PI); el = [VW*.86 - sw*10, lerp(VH*.5, VH - 6, k)]; hd = [lerp(VW*.72, VW*.58, sw), lerp(VH*.25, VH - 22, k)]; }
+  c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+  if (bs.glow) { c.shadowColor = bs.glow; c.shadowBlur = 5*glowScale*S*.4; }
+  const line = (w, st) => { c.strokeStyle = st; c.lineWidth = w; c.beginPath(); c.moveTo(sh[0], sh[1]); c.lineTo(el[0], el[1]); c.lineTo(hd[0], hd[1]); c.stroke(); };
+  line(3.9*S, 'rgba(43,35,64,.85)'); c.shadowBlur = 0;
+  line(2.5*S, col);
+  c.strokeStyle = 'rgba(255,255,255,.22)'; c.lineWidth = .8*S; c.beginPath(); c.moveTo(el[0] - 3, el[1] - 2); c.lineTo(hd[0] - 3, hd[1] - 2); c.stroke();
+  // held item (from the shop), drawn at the same scale as the arm
+  if (look.hand && look.hand !== 'none' && hd[1] > 0) { c.save(); c.translate(hd[0], hd[1]); c.scale(S*.75, S*.75); drawHand(look.hand, [(el[0] - hd[0])/(S*.75), (el[1] - hd[1])/(S*.75)], [0, 0], now, o.mode === 'run', (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); }, 0); c.restore(); }
+  c.restore();
+}
+const CXm = f => VW*(.5 + f);
+
 /* ---------- tea party & inn ---------- */
 function bubble(x, y, text){
   c.font = 'bold 6px -apple-system,"Hiragino Sans",sans-serif';
@@ -3937,6 +4083,8 @@ function frameBody(){
   const tea = rest === 'tea', cleaning = r && r.kind === 'tea' && wakeE >= 0 && wakeE < r.F;
   const stretching = r && r.kind === 'sleep' && wakeE >= 0 && wakeE < r.F;
   const hx = hero.x - cam, gy = Y(hero.y);
+  if (fpOn) drawFP(TH, s, look);
+  else {
   drawSky(TH, s/STAGE);
 
   drawFar(TH, cam);
@@ -3980,6 +4128,7 @@ function frameBody(){
     drawHero(hx, Y(hy), o, look);
   }
   for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, false);
+  }
   sfxFrame(si, s, st.run && !rest && !cleaning && !stretching);
   bgmTick(st.run && !cleaning ? 'stage' : null, L.w);
   drawWeather(TH);
@@ -3998,6 +4147,8 @@ function frameBody(){
   if (!$('sleep').hidden) drawNight();
 }
 
+$('fpv').classList.toggle('on', fpOn);
+$('fpv').onclick = () => { fpOn = !fpOn; try { localStorage.setItem('quest-fp', fpOn ? '1' : '0'); } catch (e) {} $('fpv').classList.toggle('on', fpOn); lastDraw = 0; };
 let lastUi = 0;
 setInterval(() => { if (st.run || st.night || Date.now() - lastUi > 1000) { ui(); lastUi = Date.now(); } }, 250);
 resize(); ui(); if (st.run) lockWake();
