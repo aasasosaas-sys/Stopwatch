@@ -2865,6 +2865,7 @@ setInterval(() => { if (fb.room) vsRender(); }, 5000);
 /* ---------- account: ID + password, save data kept on the server ----------
    The password is only sent when signing up or logging in; after that the device keeps a session token. */
 let acct = {}; try { acct = JSON.parse(localStorage.getItem('quest-acct') || '{}'); } catch (e) {}
+let refInfo = null; // declared early: acRender() runs at startup and reads it
 const saveAcct = () => { try { localStorage.setItem('quest-acct', JSON.stringify(acct)); } catch (e) {} };
 let acPushT = null, acPending = null, acBusy = false;
 const acMsg = t => { $('acStat').textContent = t || ''; };
@@ -3000,7 +3001,6 @@ $('acLogout').onclick = async () => { try { await acPush(); } catch (e) {} try {
 acRender();
 
 /* ---------- inviting friends ---------- */
-let refInfo = null;
 (() => { // opened through a friend's invite link: remember it until an account is made
   const m = /[?&]ref=([a-z0-9]{8})\b/.exec(location.search);
   if (m && !acct.id) { try { localStorage.setItem('quest-ref', m[1]); } catch (e) {} setTimeout(() => toast('友だちからの招待で来てくれてありがとう！ アカウントを作ると、招待した友だちにプレゼントが届きます', 9000), 1500); }
