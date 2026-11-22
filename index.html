@@ -206,10 +206,10 @@ canvas{display:block;width:100%;height:100%}
 .ms .rw.get{background:var(--acc);color:#fff;border-radius:999px;padding:7px 12px}
 .ms .rw.done{color:var(--go)}
 .bdg{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
-.bdg div{background:var(--bg);border-radius:12px;padding:10px 6px;text-align:center;font-size:11px;line-height:1.3}
-.bdg div i{font-style:normal;font-size:26px;display:block;margin-bottom:3px}
-.bdg div.no{opacity:.45;filter:grayscale(1)}
-.bdg div small{display:block;color:var(--sub);font-size:10px}
+.bdg>div{background:var(--bg);border-radius:12px;padding:10px 6px;text-align:center;font-size:11px;line-height:1.3}
+.bdg .bi{font-style:normal;font-size:26px;display:block;margin-bottom:3px}
+.bdg>div.no{opacity:.45;filter:grayscale(1)}
+.bdg>div small{display:block;color:var(--sub);font-size:10px}
 .rk{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
 .rk:first-of-type{border-top:0}
 .rk .n{width:26px;text-align:center;font-weight:800}
@@ -219,6 +219,27 @@ canvas{display:block;width:100%;height:100%}
 .stp{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
 .stp button{background:var(--bg);border-radius:999px;padding:5px 9px;font-size:16px}
 .stp button:disabled{opacity:.4}
+.rc{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.rc:first-child{border-top:0}
+.rc .n{width:26px;text-align:center;font-weight:800;flex-shrink:0}
+.rc .rb{flex:1;min-width:0}
+.rc .rt{display:flex;justify-content:space-between;gap:8px;font-size:14px;align-items:baseline}
+.rc .rt>span{font-size:12px;color:var(--sub);white-space:nowrap}
+.rc .rt em{font-style:normal}.rc .rt em.on{color:var(--go);font-weight:700}
+.rc.me .rt b{color:var(--acc)}
+.trk{position:relative;height:8px;border-radius:4px;background:var(--line);margin-top:6px}
+.trk i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,#3fbf72,#ffd23f,#ff7a3d)}
+.trk u{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;border:2px solid var(--acc)}
+.rc.me .trk u{background:var(--acc)}
+.sto{background:var(--bg);border-radius:999px;padding:6px 9px;font-size:15px;flex-shrink:0}
+.seg2{display:flex;gap:4px;background:var(--bg);border-radius:999px;padding:3px;margin-bottom:8px}
+.seg2 button{flex:1;border-radius:999px;padding:7px 0;font-size:13px;font-weight:600;background:none;color:var(--sub)}
+.seg2 button.on{background:var(--card);color:var(--fg)}
+.bdg>div{position:relative;border:1.5px solid color-mix(in srgb,var(--tc) 55%,transparent)}
+.bdg>div em{font-style:normal;font-size:9px;font-weight:800;color:var(--tc);letter-spacing:.04em;display:block}
+.bdg>div.t-l:not(.no){box-shadow:0 0 0 1px var(--tc),0 0 12px color-mix(in srgb,var(--tc) 60%,transparent)}
+.bdg>div.t-p:not(.no){box-shadow:0 0 8px color-mix(in srgb,var(--tc) 45%,transparent)}
+.bdg>div .lk{color:var(--acc);font-weight:700}
 .setr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
 .setr:first-of-type{border-top:0}
 /* theater (full screen) */
@@ -267,6 +288,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
       <div class="meta"><span id="pn">ステージ 1-1</span><b id="pt">今日 0 / 72 クリア</b></div>
     </div>
     <div class="tabp" data-tab="home">
+    <section class="card2" id="racebox" hidden><h3><span id="raceh">全クリレース</span><small>名前をタップでその人の画面へ</small></h3><div id="racel"></div></section>
     <div class="btns">
       <button class="big" id="shopb"><span>ショップ<small>見た目を変える</small></span><b><span class="coin"></span><span id="wl">0</span></b></button>
       <button class="big sleep" id="sleepb"><span>寝る<small>今日のきろくを見て終わる</small></span><b>☾</b></button>
@@ -282,7 +304,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
       <section class="card2"><h3>実績バッジ<small id="achn"></small></h3><div class="bdg" id="achl"></div></section>
     </div>
     <div class="tabp" data-tab="vs" hidden>
-      <section class="card2" id="rkbox" hidden><h3>今週のランキング<small>月曜から今日までの勉強時間</small></h3><div id="rkl"></div></section>
+      <section class="card2" id="rkbox" hidden><h3>ランキング</h3><div class="seg2" id="rkseg"><button data-rk="race" class="on">今回のレース</button><button data-rk="week">今週の勉強時間</button></div><div id="rkl"></div></section>
     <section class="vs" id="vs">
       <h3>友だちと勝負</h3>
       <div id="vsOff">
@@ -2227,6 +2249,16 @@ function drawRide(k, t, wx){
       c.fillStyle = '#2f8a50'; for (const x of [-6, 6]) { c.beginPath(); c.ellipse(x + Math.sin(t*.02 + x)*1, -2, 2, 2.2, 0, 0, 7); c.fill(); }
       break;
     }
+    case 'a_chariot': { // golden chariot: big spoked wheel, sweeping front, glowing emblem
+      const a = -wx/5; c.save(); c.translate(-4, -5.5);
+      c.fillStyle = '#5a3a10'; circ(0, 0, 5.5); c.strokeStyle = '#ffd23f'; c.lineWidth = 1.2; c.beginPath(); c.arc(0, 0, 5, 0, 7); c.stroke();
+      c.lineWidth = .6; for (let i = 0; i < 6; i++) { const q = a + i*Math.PI/3; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(q)*4.6, Math.sin(q)*4.6); c.stroke(); } c.fillStyle = '#ffd23f'; circ(0, 0, 1.2); c.restore();
+      c.save(); c.shadowColor = '#ffd23f'; c.shadowBlur = 4*glowScale;
+      c.fillStyle = '#e0a800'; c.beginPath(); c.moveTo(-12, -15); c.lineTo(-2, -15); c.quadraticCurveTo(12, -15, 15, -6); c.lineTo(9, -4); c.lineTo(-12, -4); c.closePath(); c.fill(); c.restore(); ol();
+      c.fillStyle = '#fff1a8'; c.beginPath(); c.moveTo(-10, -13.5); c.lineTo(-2, -13.5); c.quadraticCurveTo(8, -13.5, 11, -8); c.lineTo(9, -8); c.quadraticCurveTo(6, -12, -2, -12); c.lineTo(-10, -12); c.fill();
+      c.fillStyle = '#e8213f'; circ(4, -8.5, 2); c.fillStyle = '#fff'; star(4, -8.5, 1.1, '#fff');
+      break;
+    }
     default: cartBox('#8a8fa0', '#5d6170', () => { c.fillStyle = '#5d6170'; for (const x of [-9, -3, 3, 9]) circ(x, -12.4, .6); c.fillStyle = 'rgba(0,0,0,.15)'; c.fillRect(-10, -9, 20, 1); });
   }
 }
@@ -2738,33 +2770,33 @@ const SHOP = {
     ['navy','ネイビー',3,'#24408e'], ['teal','ティール',3,'#14a39a'], ['coral','コーラル',3,'#ff7f6e'], ['mint','ミント',3,'#5fe3b0'], ['lavender','ラベンダー',3,'#b49cff'], ['gray','グレー',3,'#8a8d99'],
     ['black','ブラック',4,'#2a2a33'], ['white','ホワイト',4,'#ffffff'], ['wine','ワイン',4,'#8e1f45'], ['peach','ピーチ',4,'#ffb38a'],
     ['silver','シルバー',6,'silver'], ['ice','アイス',6,'ice'], ['gold','ゴールド',7,'gold'], ['lava','マグマ',7,'lava'], ['neon','ネオン',7,'neon'],
-    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref']]},
+    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend']]},
   head: {name: '頭', items: [
     ['none','なし',0], ['cap_b','キャップ（青）',1], ['cap_r','キャップ（赤）',1], ['band_r','ハチマキ（赤）',1], ['cap_k','キャップ（黒）',2], ['band_w','ハチマキ（白）',2],
     ['beanie_t','ニット帽（緑）',2], ['beanie_p','ニット帽（ピンク）',2], ['beanie_y','ニット帽（黄）',3], ['party','パーティー帽',3], ['flower','花かざり',3],
     ['cat','ネコ耳',4], ['bunny','ウサ耳',4], ['bear','クマ耳',4], ['horns','ツノ',5], ['devil','デビルのツノ',5], ['headphones','ヘッドホン',5], ['chef','コック帽',5],
     ['tophat','シルクハット',6], ['witch','魔女の帽子',6], ['santa','サンタ帽',6], ['antenna','アンテナ',6], ['viking','バイキング',7], ['propeller','プロペラ帽',7],
-    ['halo','天使の輪',8], ['crown_s','銀の王冠',8], ['crown','王冠',9], ['wizard','大魔法使いの帽子',9], ['king','覇王のかぶと',10], ['ref_cap','友情キャップ',0]]},
+    ['halo','天使の輪',8], ['crown_s','銀の王冠',8], ['crown','王冠',9], ['wizard','大魔法使いの帽子',9], ['king','覇王のかぶと',10], ['ref_cap','友情キャップ',0], ['a_visor','サイバーバイザー',0], ['a_halo','光輪',0], ['a_crown','伝説の王冠',0]]},
   face: {name: '顔', items: [
     ['none','なし',0], ['smile','にっこり',1], ['cool','キリッ',2], ['cat3','ネコ口',2], ['blush','ほっぺ',2], ['glasses','メガネ',3], ['round','まるメガネ',3],
     ['star','キラキラ目',4], ['heart','ハート目',4], ['mustache','ヒゲ',4], ['sun','サングラス',5], ['mask','ヒーローマスク',6], ['ninja','忍者マスク',6], ['monocle','片メガネ',7], ['visor','未来バイザー',8]]},
   back: {name: '背中', items: [
     ['none','なし',0], ['scarf_y','マフラー（黄）',1], ['scarf_r','マフラー（赤）',2], ['scarf_b','マフラー（青）',2], ['pack','リュック',2], ['scarf_s','しましまマフラー',3], ['pack_r','ランドセル',3],
     ['tail','しっぽ',4], ['cape_r','マント（赤）',4], ['cape_b','マント（青）',5], ['cape_k','マント（黒）',6], ['guitar','ギター',6], ['wings','天使のつばさ',7], ['bat','コウモリのつばさ',7],
-    ['butterfly','チョウのはね',7], ['cape_g','黄金のマント',8], ['fairy','妖精のはね',8], ['jet','ジェットパック',9], ['dragon','ドラゴンのつばさ',10], ['ref_wings','きずなの翼',0]]},
+    ['butterfly','チョウのはね',7], ['cape_g','黄金のマント',8], ['fairy','妖精のはね',8], ['jet','ジェットパック',9], ['dragon','ドラゴンのつばさ',10], ['ref_wings','きずなの翼',0], ['a_wings','光の翼',0], ['a_sword','背負いの大剣',0], ['a_cape','伝説のマント',0]]},
   hand: {name: '手', items: [
     ['none','なし',0], ['pencil','えんぴつ',1], ['flag','はた',2], ['balloon','ふうせん',2], ['icecream','アイス',3], ['book','本',3], ['carrot','にんじん',3],
     ['heartb','ハートふうせん',4], ['umbrella','かさ',4], ['fish','さかな',4], ['torch','たいまつ',5], ['hammer','ハンマー',6], ['wand','魔法のステッキ',7],
     ['sword','剣',7], ['trophy','トロフィー',8], ['lightblade','光の剣',9], ['scepter','王のつえ',10]]},
   pet: {name: 'ペット', items: [
     ['none','なし',0], ['slime','スライム',3], ['bird','ことり',4], ['chick','ひよこ',4], ['ghostpet','おばけ',5], ['starpet','おほしさま',6], ['catpet','ネコ',6],
-    ['bee','ハチ',6], ['robot','ロボ',7], ['fairypet','ようせい',8], ['ufo','UFO',8], ['dragonpet','ちびドラゴン',9], ['phoenix','フェニックス',10], ['medalpet','メダルくん',0], ['trophypet','トロフィーくん',0], ['ref_buddy','なかよしくん',0]]},
+    ['bee','ハチ',6], ['robot','ロボ',7], ['fairypet','ようせい',8], ['ufo','UFO',8], ['dragonpet','ちびドラゴン',9], ['phoenix','フェニックス',10], ['medalpet','メダルくん',0], ['trophypet','トロフィーくん',0], ['ref_buddy','なかよしくん',0], ['a_dragon','ちび竜',0], ['a_phoenix','不死鳥',0]]},
   trail: {name: '軌跡', items: [
     ['none','なし',0], ['spark','キラキラ',2], ['stars','星',3], ['bubbles','あわ',3], ['notes','おんぷ',4], ['hearts','ハート',4], ['leaves','はっぱ',4],
-    ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10], ['confetti','紙吹雪',0], ['goldstar','金の流れ星',0], ['ribbon','リボン',0]]},
+    ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10], ['confetti','紙吹雪',0], ['goldstar','金の流れ星',0], ['ribbon','リボン',0], ['a_aurora','オーロラの軌跡',0], ['a_galaxy','銀河の軌跡',0]]},
   ride: {name: '乗り物', items: [
     ['none','トロッコ',0], ['wood','木のトロッコ',1], ['red','赤いトロッコ',2], ['kart','ゴーカート',3], ['tub','おふろ',4], ['taxi','タクシー',4],
-    ['police','パトカー',5], ['sports','スポーツカー',6], ['gold','黄金のトロッコ',7], ['f1','レーシングカー',8], ['rocket','ロケット',9], ['dragonride','ドラゴン',10]]},
+    ['police','パトカー',5], ['sports','スポーツカー',6], ['gold','黄金のトロッコ',7], ['f1','レーシングカー',8], ['rocket','ロケット',9], ['dragonride','ドラゴン',10], ['a_chariot','黄金の戦車',0]]},
   champ: {name: '対戦', special: true, items: [['none','つけない',0], ['medal','完走メダル',0], ['band_vs','熱血ハチマキ',0], ['flag_vs','応援フラッグ',0], ['aura','闘志のオーラ',0], ['champ','チャンピオン',0]]}
 };
 /* the champion skin changes color with the number of wins (only rounds with 5+ players count) */
@@ -2775,6 +2807,10 @@ const awardNeed = (cat, id) => AWARD_NEED[cat + ':' + id] || 0;
 /* invite rewards: friends who joined through your link and studied 30 minutes */
 const REF_NEED = {'head:ref_cap': 1, 'pet:ref_buddy': 3, 'trail:ribbon': 5, 'back:ref_wings': 10, 'color:ref': 20};
 const refNeed = (cat, id) => REF_NEED[cat + ':' + id] || 0;
+/* looks earned only through achievements (harder badge -> flashier look) */
+const ACH_ITEM = {'head:a_visor': 's7', 'pet:a_dragon': 'd50', 'head:a_halo': 'e50', 'ride:a_chariot': 'f50', 'back:a_wings': 'h100', 'trail:a_aurora': 'allc5',
+  'back:a_sword': 'foe5k', 'pet:a_phoenix': 's30', 'color:a_aurora': 'h300', 'head:a_crown': 'champ3', 'back:a_cape': 'h500', 'color:a_legend': 's100', 'trail:a_galaxy': 'h1000'};
+const achItem = (cat, id) => ACH_ITEM[cat + ':' + id] || '';
 /* every prize counts: the battle looks change color, titles go up, and each prize pays coins */
 const AWARD_COINS = 3000;
 const AWARD_TIERS = [[1,'ブロンズ','#cd7f32'], [5,'シルバー','#c9d0dc'], [10,'ゴールド','#ffcc1f'], [20,'プラチナ','#bff6ff'], [50,'レインボー','rainbow']];
@@ -2790,7 +2826,7 @@ const nextTier = w => CHAMP_TIERS.find(x => x[0] > w) || null;
   const nice = v => { if (v <= 0) return 0; const p = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v/p)*p; };
   for (const k in SHOP) for (const it of SHOP[k].items) it.price = nice(TIERW[it[2]]*K);
 })();
-const ALL_ITEMS = Object.entries(SHOP).reduce((a, [k, s]) => a + (s.special ? 0 : s.items.filter(i => !AWARD_NEED[k + ':' + i[0]] && !REF_NEED[k + ':' + i[0]]).length), 0);
+const ALL_ITEMS = Object.entries(SHOP).reduce((a, [k, s]) => a + (s.special ? 0 : s.items.filter(i => !AWARD_NEED[k + ':' + i[0]] && !REF_NEED[k + ':' + i[0]] && !ACH_ITEM[k + ':' + i[0]]).length), 0);
 const item = (cat, id) => SHOP[cat].items.find(i => i[0] === id) || SHOP[cat].items[0];
 const lookOf = (eq, wins = 0, awards = 0) => {
   const o = {}; for (const k in SHOP) o[k] = item(k, eq[k] || 'none')[0]; o.colorV = item('color', o.color)[3];
@@ -2809,6 +2845,8 @@ function bodyStyle(look, t){
   if (v.startsWith('champ:')) { const h = v.slice(6); return {col: h, glow: h, sheen: 1}; }
   switch (v) {
     case 'rainbow': return {col: hsl2hex(t*.08, 85, 58)};
+    case 'a_aurora': { const k = (Math.sin(t*.0015) + 1)/2, k2 = (Math.sin(t*.0023 + 1) + 1)/2; return {col: mix(mix('#3ef0c0', '#7a6bff', k), '#ff7ad9', k2*.5), glow: 'rgba(120,255,220,.9)', sheen: 1}; }
+    case 'a_legend': return {col: hsl2hex(42 + Math.sin(t*.003)*8, 95, 55), glow: hsl2hex(t*.12, 90, 65), sheen: 1};
     case 'ref': { const k = (Math.sin(t*.002) + 1)/2; return {col: mix('#ff8fc8', '#5cc8ff', k), glow: 'rgba(255,200,230,.8)', sheen: 1}; }
     case 'gold': return {col: '#e8b100', sheen: 1};
     case 'silver': return {col: '#c0c6d0', sheen: 1};
@@ -2897,8 +2935,8 @@ function drawBack(k, P, e){
     else { c.strokeStyle = scarfCol(k); c.lineWidth = 2; tail(); c.stroke(); }
     return;
   }
-  if (k.startsWith('cape') || k === 'champcape') {
-    const cc = k === 'champcape' ? [mix(col.length === 7 ? col : '#ffcc1f', '#000000', .22), '#ffd23f'] : {cape_r:['#c0263a','#e8475a'], cape_b:['#2346a8','#4a73e0'], cape_k:['#1d1528','#6a2fa8'], cape_g:['#e0a800','#fff1a8']}[k];
+  if (k.startsWith('cape') || k === 'champcape' || k === 'a_cape') {
+    const cc = k === 'a_cape' ? ['#3a0d5c', '#ffd23f'] : k === 'champcape' ? [mix(col.length === 7 ? col : '#ffcc1f', '#000000', .22), '#ffd23f'] : {cape_r:['#c0263a','#e8475a'], cape_b:['#2346a8','#4a73e0'], cape_k:['#1d1528','#6a2fa8'], cape_g:['#e0a800','#fff1a8']}[k];
     const sh = [P.neck[0] + bk[0]*.8, P.neck[1] + bk[1]*.8];
     const blow = moving ? 1 : 0, w = Math.sin(t*.02)*1.5*blow;
     const tip1 = [P.hip[0] + bk[0]*(4 + blow*7) + u[0]*(-2 + blow*3), P.hip[1] + bk[1]*(4 + blow*7) - u[1]*(2 - blow*3) + w];
@@ -2910,6 +2948,10 @@ function drawBack(k, P, e){
     c.fill(); ol();
     c.strokeStyle = cc[1]; c.lineWidth = .8; c.beginPath(); c.moveTo(sh[0], sh[1]); c.quadraticCurveTo(sh[0] + bk[0]*4, sh[1] + bk[1]*4 + w, (tip1[0] + tip2[0])/2, (tip1[1] + tip2[1])/2); c.stroke();
     if (k === 'cape_g') { c.fillStyle = '#fff'; c.fillRect(tip1[0] - 1, tip1[1] - 2, .8, .8); }
+    if (k === 'a_cape') { // the lining glows like a starry sky, gold trim at the hem
+      c.strokeStyle = '#ffd23f'; c.lineWidth = .9; c.beginPath(); c.moveTo(tip1[0], tip1[1]); c.lineTo(tip2[0], tip2[1]); c.stroke();
+      for (let i = 0; i < 4; i++) { const q = ((t*.0008) + i/4) % 1, x = lerp(sh[0], (tip1[0] + tip2[0])/2, q) + Math.sin(i*2.1)*1.2, y = lerp(sh[1], (tip1[1] + tip2[1])/2, q); c.globalAlpha *= Math.sin(q*Math.PI); star(x, y, .9, '#fff6c8'); c.globalAlpha /= Math.max(.001, Math.sin(q*Math.PI)); }
+    }
     if (k === 'champcape') { c.strokeStyle = '#ffd23f'; c.lineWidth = .7; c.beginPath(); c.moveTo(tip1[0], tip1[1]); c.lineTo(tip2[0], tip2[1]); c.stroke(); star((sh[0] + tip1[0] + tip2[0])/3, (sh[1] + tip1[1] + tip2[1])/3, 1.6, '#ffd23f'); }
     return;
   }
@@ -2926,6 +2968,14 @@ function drawBack(k, P, e){
     }
   };
   switch (k) {
+    case 'a_wings': { c.save(); const g = .7 + .3*Math.sin(t*.006);
+      wing(`rgba(255,250,220,${g})`, s => { c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-3*s, -12*s, -14*s, -10*s); c.quadraticCurveTo(-10*s, -7*s, -12*s, -4*s); c.quadraticCurveTo(-8*s, -4*s, -9*s, -1*s); c.quadraticCurveTo(-5*s, -1*s, 0, 0); }, '#fff2a8');
+      c.restore(); break; }
+    case 'a_sword': { c.save(); c.translate(base[0], base[1]); c.rotate(ang + 2.5);
+      c.fillStyle = '#6e452d'; c.fillRect(-.9, -2, 1.8, 5); c.fillStyle = '#c9a227'; c.fillRect(-3, 2.6, 6, 1.4); circ(0, -2.4, 1.1);
+      c.fillStyle = '#dfe6f0'; c.beginPath(); c.moveTo(-1.8, 4); c.lineTo(1.8, 4); c.lineTo(1.4, 17); c.lineTo(0, 19.5); c.lineTo(-1.4, 17); c.closePath(); c.fill(); ol(.5);
+      c.strokeStyle = 'rgba(120,200,255,.9)'; c.lineWidth = .5; c.beginPath(); c.moveTo(0, 5); c.lineTo(0, 17.5); c.stroke();
+      const k = (t*.0015) % 1; c.fillStyle = '#fff'; star(0, 5 + k*13, .9*Math.sin(k*Math.PI), '#fff'); c.restore(); break; }
     case 'ref_wings': wing('#ffb3d9', s => { c.beginPath(); c.moveTo(0, 0); c.bezierCurveTo(-3*s, -10*s, -12*s, -9*s, -10*s, -3*s); c.bezierCurveTo(-9*s, 0, -5*s, 1*s, 0, 0); }, 'rgba(150,210,255,.9)'); break;
     case 'pack': case 'pack_r': {
       const m = [mid[0] + bk[0]*2.8, mid[1] + bk[1]*2.8];
@@ -3036,6 +3086,17 @@ function drawHead(k, t, moving, col, ol){
       star(-.6, -7, 1.4, '#ffd23f'); star(1.6, -10.6, .9, '#ffd23f'); c.fillStyle = '#fff'; c.fillRect(-2.6, -5, .6, .6); break;
     case 'ref_cap': c.fillStyle = '#ff8fc8'; c.beginPath(); c.arc(0, -.6, 5, Math.PI, Math.PI*1.5); c.lineTo(0, -.6); c.closePath(); c.fill(); c.fillStyle = '#5cc8ff'; c.beginPath(); c.arc(0, -.6, 5, Math.PI*1.5, Math.PI*2); c.lineTo(0, -.6); c.closePath(); c.fill();
       c.beginPath(); c.arc(0, -.6, 5, Math.PI, Math.PI*2); ol(); c.fillStyle = '#5cc8ff'; rr(1, -1.6, 7.5, 1.6, .8); c.fill(); ol(.6); heart(-.6, -3.4, 1.3, '#fff'); break;
+    case 'a_visor': { const g = .6 + .4*Math.sin(t*.008);
+      c.fillStyle = '#20232d'; rr(-1, -2.6, 7, 3.2, 1.4); c.fill(); ol(.5);
+      c.fillStyle = `rgba(0,240,255,${g})`; rr(.2, -2, 5.4, 1.6, .8); c.fill(); c.fillStyle = '#fff'; c.fillRect(1, -1.8, 1.4, .5);
+      c.strokeStyle = '#20232d'; c.lineWidth = 1.1; c.beginPath(); c.arc(0, -.4, 4.9, Math.PI*1.05, Math.PI*1.6); c.stroke(); break; }
+    case 'a_halo': { const y = -8.6 + Math.sin(t*.004)*.5; c.save(); c.shadowColor = '#fff6a8'; c.shadowBlur = 5*glowScale; c.strokeStyle = '#ffe680'; c.lineWidth = 1.3; c.beginPath(); c.ellipse(0, y, 4.4, 1.4, 0, 0, 7); c.stroke(); c.restore();
+      c.strokeStyle = '#fffbe0'; c.lineWidth = .5; c.beginPath(); c.ellipse(0, y, 4.4, 1.4, 0, Math.PI, Math.PI*2); c.stroke(); break; }
+    case 'a_crown': { c.save(); c.shadowColor = '#ffd23f'; c.shadowBlur = 4*glowScale;
+      c.fillStyle = '#ffcc1f'; c.beginPath(); c.moveTo(-5, -3.4); c.lineTo(-5.6, -9); c.lineTo(-2.6, -6.4); c.lineTo(0, -10.4); c.lineTo(2.6, -6.4); c.lineTo(5.6, -9); c.lineTo(5, -3.4); c.closePath(); c.fill(); c.restore(); ol(.6);
+      c.fillStyle = '#b8860b'; c.fillRect(-5, -4.6, 10, 1.3);
+      for (const [x, cl] of [[-3.2, '#e8213f'], [0, '#2f7dff'], [3.2, '#2ecc71']]) { c.fillStyle = cl; circ(x, -3.9, .75); }
+      c.fillStyle = '#fff'; const k = (t*.002) % 1; star(-5 + k*10, -8 + Math.sin(k*6)*1, 1.1*Math.sin(k*Math.PI), '#fff'); break; }
     case 'king': c.fillStyle = '#e0b020'; c.beginPath(); c.arc(0, -.4, 5.4, Math.PI*.95, Math.PI*2.05); c.closePath(); c.fill(); ol(.6); c.fillStyle = '#b8860b'; c.fillRect(-5.2, -1.2, 10.4, 1.4); c.fillStyle = '#e8202a'; circ(0, -3.8, 1.1);
       { const w = moving ? Math.sin(t*.02)*1.2 : 0; c.fillStyle = '#c0263a'; c.beginPath(); c.moveTo(0, -5.2); c.quadraticCurveTo(-3, -10, -9, -8 + w); c.quadraticCurveTo(-4, -7.6 + w*.5, 0, -5.2); c.fill(); ol(.5); }
       c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(-1.2, -5); c.lineTo(0, -8); c.lineTo(1.2, -5); c.fill(); break;
@@ -3090,6 +3151,22 @@ function drawPet(k, x, y, t){
     case 'fairypet': { c.shadowColor = '#ffe9a8'; c.shadowBlur = 6*glowScale; c.fillStyle = '#fff6c8'; circ(0, 0, 2.2); c.shadowBlur = 0; const fl = Math.sin(t*.05); c.fillStyle = 'rgba(190,230,255,.85)'; c.beginPath(); c.ellipse(-2, -1.6, 1.4, 3 + fl*.5, -.6, 0, 7); c.ellipse(2, -1.6, 1.4, 3 + fl*.5, .6, 0, 7); c.fill(); if ((t % 500) < 250) { c.fillStyle = '#fff'; c.fillRect(-4, 3, .7, .7); c.fillRect(3, 4, .7, .7); } break; }
     case 'ufo': c.fillStyle = 'rgba(150,230,255,.8)'; c.beginPath(); c.ellipse(0, -1.6, 2.6, 2.4, 0, Math.PI, 0); c.fill(); c.fillStyle = '#9aa0b5'; c.beginPath(); c.ellipse(0, 0, 6, 1.8, 0, 0, 7); c.fill(); ol(); for (let i = 0; i < 3; i++) { c.fillStyle = (Math.floor(t/200) + i) % 3 ? '#ffd23f' : '#ff5252'; circ(-3 + i*3, .3, .6); } break;
     case 'dragonpet': { c.fillStyle = '#5fbf6a'; c.beginPath(); c.ellipse(0, 1, 3.6, 2.8, 0, 0, 7); c.fill(); ol(); circ(3, -1.6, 2.2); c.beginPath(); c.arc(3, -1.6, 2.2, 0, 7); ol(.5); const fl = Math.sin(t*.03)*1.5; c.fillStyle = '#3f9e4c'; c.beginPath(); c.moveTo(-1, -1); c.lineTo(-4, -5 - fl); c.lineTo(-5, -1 - fl*.5); c.closePath(); c.fill(); ol(.5); c.fillStyle = OL; circ(3.8, -2.2, .5); c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(2, -3.4); c.lineTo(2.4, -5); c.lineTo(3, -3.6); c.fill(); break; }
+    case 'a_dragon': { const fl = Math.sin(t*.02);
+      c.fillStyle = '#3fbf72'; c.beginPath(); c.moveTo(-1, -2); c.lineTo(-6, -7 - fl*2); c.lineTo(-3, -2); c.fill(); ol(.5);
+      c.beginPath(); c.ellipse(0, 0, 4.2, 3.2, 0, 0, 7); c.fill(); ol(.6);
+      c.beginPath(); c.arc(3.6, -2.6, 2.6, 0, 7); c.fill(); ol(.6);
+      c.fillStyle = '#ffe9a8'; c.beginPath(); c.ellipse(.6, 1, 2.4, 1.6, 0, 0, 7); c.fill();
+      c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(2.6, -4.6); c.lineTo(2.2, -6.6); c.lineTo(3.6, -4.9); c.fill(); c.beginPath(); c.moveTo(4.4, -4.8); c.lineTo(4.8, -6.8); c.lineTo(5.4, -4.6); c.fill();
+      c.fillStyle = OL; circ(4.6, -2.8, .55);
+      if ((t % 2400) < 500) { const k = (t % 2400)/500; c.globalAlpha *= 1 - k; c.fillStyle = '#ff9f43'; circ(7 + k*6, -2, 1 + k*1.5); c.fillStyle = '#ffd23f'; circ(6.5 + k*4, -2.2, .7 + k); c.globalAlpha /= Math.max(.001, 1 - k); }
+      break; }
+    case 'a_phoenix': { const fl = Math.sin(t*.025);
+      c.save(); c.shadowColor = '#ff7a1a'; c.shadowBlur = 5*glowScale;
+      for (const [cl, w0] of [['#ff5a1a', 1], ['#ffb020', .7]]) { c.fillStyle = cl; c.beginPath(); c.moveTo(-1, 0); c.quadraticCurveTo(-6, -6 - fl*3, -9*w0, -8*w0 - fl*2); c.quadraticCurveTo(-5, -2, -1, 1); c.fill(); }
+      c.fillStyle = '#ff7a1a'; c.beginPath(); c.ellipse(0, 0, 3.4, 2.4, -.2, 0, 7); c.fill(); c.beginPath(); c.arc(3, -1.8, 1.9, 0, 7); c.fill(); c.restore();
+      c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(4.6, -1.8); c.lineTo(6.4, -1.3); c.lineTo(4.6, -.9); c.fill(); c.fillStyle = OL; circ(3.5, -2.1, .45);
+      for (let i = 0; i < 4; i++) { const k = ((t*.0015) + i/4) % 1; c.globalAlpha *= 1 - k; c.fillStyle = i % 2 ? '#ffd23f' : '#ff5a1a'; circ(-3 - k*7, 1 + k*4 + Math.sin(i*3 + t*.01), .9*(1 - k) + .3); c.globalAlpha /= Math.max(.001, 1 - k); }
+      break; }
     case 'ref_buddy': { const sq = Math.abs(Math.sin(t*.005)); c.scale(1 + sq*.06, 1 - sq*.06);
       c.fillStyle = '#ff8fc8'; c.beginPath(); c.arc(-2, 0, 3.2, 0, 7); c.fill(); c.fillStyle = '#5cc8ff'; c.beginPath(); c.arc(2.4, 0, 3.2, 0, 7); c.fill();
       c.beginPath(); c.arc(-2, 0, 3.2, 0, 7); ol(.5); c.beginPath(); c.arc(2.4, 0, 3.2, 0, 7); ol(.5); eyes(-3, -.6, .4); eyes(1.4, -.6, .4); heart(.2, -5, 1.4, '#ff3b8a'); break; }
@@ -3121,6 +3198,11 @@ function drawTrail(kind, sample, look){
       c.shadowColor = '#7fdfff'; c.shadowBlur = 5*glowScale; c.strokeStyle = '#e6fbff'; c.lineWidth = 1; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(...q) : c.moveTo(...q)); c.globalAlpha = .9; c.stroke(); c.shadowBlur = 0; break; }
     case 'rainbow': { const cols = ['#ff4d4d','#ff9f1a','#ffe14d','#4dd26b','#4da6ff','#9d6bff'], pts = []; for (let k = 0; k <= 16; k++) pts.push(sample(k, .022));
       for (let i = 0; i < cols.length; i++) { c.strokeStyle = cols[i]; c.lineWidth = 1.25; c.lineCap = 'butt'; for (let k = 0; k < 16; k++) { c.globalAlpha = .85*(1 - k/16); c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 15 + i*1.2); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 15 + i*1.2); c.stroke(); } } break; }
+    case 'a_aurora': { const pts = []; for (let k = 0; k <= 16; k++) pts.push(sample(k, .028));
+      for (let k = 0; k < 16; k++) { const a = 1 - k/16; c.globalAlpha = a*.55; c.lineCap = 'round';
+        for (let b = 0; b < 3; b++) { c.strokeStyle = ['#3ef0c0', '#7a6bff', '#ff7ad9'][b]; c.lineWidth = 2.4*a + .5; const o = (b - 1)*2.2 + Math.sin(k*.6 + now*.006 + b)*1.5; c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 13 + o); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 13 + o + Math.sin((k + 1)*.6 + now*.006 + b)*.4); c.stroke(); } } break; }
+    case 'a_galaxy': parts(14, .035, (p, k, a) => { const x = p.x - 3 + Math.sin(k*2.7 + now*.003)*4, y = p.y - 11 + Math.cos(k*1.9)*5;
+        c.fillStyle = `hsla(${250 + k*8}, 80%, 60%, .35)`; circ(x, y, 3.2*a + 1); star(x, y, 1 + a*1.6, k % 3 ? '#ffffff' : '#bfa8ff'); }); break;
     case 'ribbon': { const pts = []; for (let k = 0; k <= 14; k++) pts.push(sample(k, .03)); for (let k = 0; k < 14; k++) { const a = 1 - k/14; c.globalAlpha = a*.9; c.lineCap = 'round';
         for (const [col, off] of [['#ff8fc8', -1.2], ['#5cc8ff', 1.2]]) { c.strokeStyle = col; c.lineWidth = 1.4*a + .4; const w1 = Math.sin(k*.9 + now*.008)*2*(off > 0 ? 1 : -1); c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 12 + off + w1); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 12 + off + Math.sin((k + 1)*.9 + now*.008)*2*(off > 0 ? 1 : -1)); c.stroke(); } } break; }
     case 'confetti': parts(14, .035, (p, k, a) => { c.save(); c.translate(p.x - 3 + Math.sin(k*3.3)*4, p.y - 10 + Math.cos(k*2.1)*5 + (1 - a)*6); c.rotate(k + now*.006); c.fillStyle = ['#ff5a4e','#ffd23f','#3fbf72','#4aa3f5','#c56bff'][k % 5]; c.fillRect(-1.2, -.7, 2.4, 1.4); c.restore(); }); break;
@@ -3181,7 +3263,7 @@ const RIDE_SEAT = {
   none: {pose: 'cart', dy: -6, front: 1}, wood: {pose: 'cart', dy: -6, front: 1}, red: {pose: 'cart', dy: -6, front: 1}, gold: {pose: 'cart', dy: -6, front: 1},
   taxi: {pose: 'car', dy: -6, front: 1}, police: {pose: 'car', dy: -6, front: 1}, sports: {pose: 'car', dy: -5.5, front: 1},
   kart: {pose: 'kart', dy: -4, front: 1}, f1: {pose: 'kart', dy: -4.5, front: 1}, tub: {pose: 'tub', dy: -3.5, dx: -4, front: 1},
-  rocket: {pose: 'straddle', dy: -7.5, front: 0}, dragonride: {pose: 'straddle', dy: -8.5, front: 0}
+  rocket: {pose: 'straddle', dy: -7.5, front: 0}, dragonride: {pose: 'straddle', dy: -8.5, front: 0}, a_chariot: {pose: 'cart', dy: -6, front: 1}
 };
 function drawHero(x, y, o, look){
   if (o.mode === 'sleep') return drawSleep(x, y, o.t, look);
@@ -3404,17 +3486,17 @@ function ui(){
 /* ---------- shop ---------- */
 const pv = $('pv'), pctx = pv.getContext('2d');
 let shopCat = 'color', trial = null;
-const owned = (cat, id) => id === 'none' || (refNeed(cat, id) ? (bank.refCount || 0) >= refNeed(cat, id) : false) || (cat === 'champ' && id === 'champ' ? (bank.champ || 0) >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
+const owned = (cat, id) => id === 'none' || (achItem(cat, id) ? (bank.ach || []).includes(achItem(cat, id)) : false) || (refNeed(cat, id) ? (bank.refCount || 0) >= refNeed(cat, id) : false) || (cat === 'champ' && id === 'champ' ? (bank.champ || 0) >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
 function shopRender(){
   const wl = wallet();
   $('sbal').textContent = num(wl);
   $('stabs').innerHTML = Object.keys(SHOP).map(k => `<button data-cat="${k}" class="${k === shopCat ? 'on' : ''}">${SHOP[k].name}</button>`).join('');
-  const have = Object.keys(SHOP).reduce((a, k) => a + (SHOP[k].special ? 0 : SHOP[k].items.filter(i => !awardNeed(k, i[0]) && !refNeed(k, i[0]) && owned(k, i[0])).length), 0);
+  const have = Object.keys(SHOP).reduce((a, k) => a + (SHOP[k].special ? 0 : SHOP[k].items.filter(i => !awardNeed(k, i[0]) && !refNeed(k, i[0]) && !achItem(k, i[0]) && owned(k, i[0])).length), 0);
   $('scomp').textContent = `コンプリート ${have} / ${ALL_ITEMS}`;
   $('scat').textContent = `${SHOP[shopCat].name}：${SHOP[shopCat].items.filter(i => owned(shopCat, i[0])).length} / ${SHOP[shopCat].items.length}`;
   $('sitems').innerHTML = SHOP[shopCat].items.map(it => {
     const [id, name, , col] = it;
-    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' && id === 'champ' ? '<em>優勝で解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : refNeed(shopCat, id) ? `<em>💌招待${refNeed(shopCat, id)}人で解放</em>` : `<em>${num(it.price)} コイン</em>`;
+    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' && id === 'champ' ? '<em>優勝で解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : refNeed(shopCat, id) ? `<em>💌招待${refNeed(shopCat, id)}人で解放</em>` : achItem(shopCat, id) ? `<em>🏅実績で解放</em>` : `<em>${num(it.price)} コイン</em>`;
     const swc = {rainbow:'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)', gold:'linear-gradient(135deg,#fff1a8,#e8b100)', silver:'linear-gradient(135deg,#fff,#a8b0bd)', ice:'linear-gradient(135deg,#fff,#9fe3ff)', lava:'linear-gradient(135deg,#ffd23f,#e8402a)', neon:'#39ff88', ghost:'rgba(230,238,255,.6)', shadow:'linear-gradient(135deg,#a259ff,#1d1528)', galaxy:'linear-gradient(135deg,#7a5cff,#1d1b4a)'}[col] || col;
     const ct = tierOf(Math.max(1, bank.champ || 0)), sw = shopCat === 'color' ? `<i style="background:${swc}"></i>` : shopCat === 'champ' && id === 'champ' ? `<i style="background:${ct[2] === 'rainbow' ? 'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)' : ct[2]}"></i>` : '';
     return `<button data-id="${id}" class="${trial[shopCat] === id ? 'sel' : ''}">${sw}<span>${name}</span>${tag}</button>`;
@@ -3422,6 +3504,7 @@ function shopRender(){
   if (shopCat === 'champ') { const w = bank.champ || 0, t = tierOf(Math.max(1, w)), nx = nextTier(w); const n = bank.vsAwards || 0, ti = pickTier(AWARD_TITLES, n), nti = nextOf(AWARD_TITLES, n), at2 = pickTier(AWARD_TIERS, n), nat = nextOf(AWARD_TIERS, n);
     $('scat').textContent = `参加賞 ${n}回` + (ti ? `「${ti[1]}」` : '') + `・メダルの色 ${at2 ? at2[1] : 'ブロンズ'}` + (nat ? `（あと${nat[0] - n}回で${nat[1]}）` : '') + (nti ? `・次の称号「${nti[1]}」まであと${nti[0] - n}回` : '') + `・優勝 ${w}回` + (w ? `（${t[1]}${nx ? `・あと${nx[0] - w}回で${nx[1]}` : ''}）` : '') + `・参加賞1回ごとに${num(AWARD_COINS)}コイン`; }
   const id = trial[shopCat] || 'none', it = item(shopCat, id), a = $('sact');
+  if (achItem(shopCat, id) && !owned(shopCat, id)) { const ad = typeof ACH !== 'undefined' ? ACH.find(x => x[0] === achItem(shopCat, id)) : null; a.textContent = ad ? `実績「${ad[2]}」（${ad[3]}）で使えるようになります` : '実績で使えるようになります'; a.disabled = true; return; }
   if (refNeed(shopCat, id) && !owned(shopCat, id)) { a.textContent = `招待した友だちが${refNeed(shopCat, id)}人になると使えます（いま${bank.refCount || 0}人）`; a.disabled = true; return; }
   if ((shopCat === 'champ' && id === 'champ' || awardNeed(shopCat, id)) && !owned(shopCat, id)) { a.textContent = id === 'champ' ? '5人以上の全クリレースで優勝すると使えます' : `レースで8時間ラインを${awardNeed(shopCat, id)}回こえると使えます（いま${bank.vsAwards || 0}回）`; a.disabled = true; return; }
   if ((bank.eq[shopCat] || 'none') === id) { a.textContent = '装備中'; a.disabled = true; }
@@ -3734,6 +3817,17 @@ function memberT(e){
   let v = e.acc + (e.run ? (Date.now() - e.t0)*(e.mult || 1) : 0); if (e.ft) v = Math.min(v, e.ft);
   return Math.min((NST - e.base)*STAGE, v/1000);
 }
+/* where a member is for today's race: if they have not started today yet, they begin from half
+   of the stage they reached on their last day (the same rule as our own day change) */
+function memberNow(e){
+  if (e.d === st.d) return {...memberStage(e), today: true};
+  if (e.night) return {T: 0, si: e.base || 0, s: 0, v: 0, today: false, yReach: null};   // already slept: base is the new start
+  const end = dayEndOf(e.d), live = e.run ? Math.max(0, Math.min(end, Date.now()) - (e.t0 || 0))*(e.mult || 1) : 0;
+  const T = Math.min((NST - (e.base || 0))*STAGE, ((e.acc || 0) + live)/1000);
+  if (T <= 0) return {T: 0, si: e.base || 0, s: 0, v: 0, today: false, yReach: null};
+  const reached = Math.min(NST, (e.base || 0) + Math.floor(T/STAGE) + 1);
+  return {T: 0, si: Math.max(1, Math.floor(reached/2)) - 1, s: 0, v: 0, today: false, yReach: reached - 1};
+}
 function memberStage(e){ const T = memberT(e), k = Math.min(NST - 1 - e.base, Math.floor(T/STAGE)); return {T, si: e.base + k, s: T >= (NST - e.base)*STAGE ? STAGE : T - k*STAGE, v: +(e.dr || '')[e.base + k] || 0}; }
 function vsRender(){
   $('vsOff').hidden = !!fb.room; $('vsOn').hidden = !fb.room;
@@ -3747,11 +3841,11 @@ function vsRender(){
   const rows = list.map(([k, e]) => {
     const me = k === mine;
     if (me) e = {n: fb.name || 'ななし', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night};
-    const today = e.d === st.d, ms = today ? memberStage(e) : {T: 0, si: e.base || 0, s: 0, v: 0};
+    const today = e.d === st.d, ms = memberNow(e);
     const done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
-    const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : done >= NST ? '全クリ！' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
+    const status = !today ? (ms.yReach != null ? '今日はまだ（前回の続きから）' : '今日はまだ') : e.night ? 'おやすみ中' : done >= NST ? '全クリ！' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
     const rm = rms[k] || 0, line = 8*3600e3;
-    return {me, k, today, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
+    return {me, k, today, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))}${today ? '' : 'から'} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · ${today ? '今日 ' + fmtHM(ms.T*1000) : ms.yReach != null ? '前回は' + stageName(ms.yReach) + 'まで' : 'まだ始めていません'}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   const race = board && board.race, last = board && board.last;
   $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'})}から）・${rows.length}人` : '全クリレース';
@@ -3860,6 +3954,7 @@ setInterval(() => { if (fb.room) vsRender(); }, 5000);
 const lookFromEntry = e => { try { const lk = JSON.parse(e.lk || '{}'); return lk.eq ? lookOf(lk.eq, lk.w || 0, lk.a || 0) : lookOf(lk); } catch (er) { return lookOf({}); } };
 function setSpec(k){
   spec = k && room && room[k] ? k : null;
+  if (spec && !bank.watched) { bank.watched = 1; saveBank(); }
   $('specb').hidden = !spec; document.querySelector('.stage').classList.toggle('watching', !!spec); lastDraw = 0; specTxt = '';
   if (spec) { const r = $('cv').getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) window.scrollTo({top: 0, behavior: 'smooth'}); }
   vsRender();
@@ -3935,6 +4030,8 @@ function mergeSave(R){
     owned: [...new Set([...(Lb.owned || []), ...(Rb.owned || [])])],
     ach: [...new Set([...(Lb.ach || []), ...(Rb.ach || [])])],
     misLog: (() => { const o = {...(Rb.misLog || {})}; for (const [d, l] of Object.entries(Lb.misLog || {})) o[d] = [...new Set([...(o[d] || []), ...l])]; return o; })(),
+    cv: (() => { const o = {...(Rb.cv || {})}; for (const [k, v] of Object.entries(Lb.cv || {})) o[k] = Math.max(o[k] || 0, v); return o; })(),
+    foes: Math.max(Lb.foes || 0, Rb.foes || 0), cheers: Math.max(Lb.cheers || 0, Rb.cheers || 0), watched: Math.max(Lb.watched || 0, Rb.watched || 0), fpUsed: Math.max(Lb.fpUsed || 0, Rb.fpUsed || 0),
     totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
     ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
     wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
@@ -4100,6 +4197,7 @@ function showTab(t){
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   if (t === 'mis') misRender();
   if (t === 'vs') { try { vsRender(); } catch (e) {} rankRender(); }
+  if (t === 'home') raceRender();
 }
 $('nav').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { showTab(b.dataset.t); window.scrollTo({top: 0}); } };
 
@@ -4115,7 +4213,7 @@ addEventListener('resize', () => { if (thUser === false && !landShort()) thUser 
 autoTheater();
 function fpLabel(){ $('fpv2').textContent = fpOn ? '一人称（自分の目線）' : '横から見る'; }
 $('fpv2').onclick = () => { $('fpv').click(); fpLabel(); };
-$('fpv').addEventListener('click', fpLabel); fpLabel();
+$('fpv').addEventListener('click', () => { fpLabel(); if (fpOn && !bank.fpUsed) { bank.fpUsed = 1; saveBank(); } }); fpLabel();
 setInterval(() => {
   if (!document.body.classList.contains('theater')) return;
   const ms = studyMs(); $('tt2').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
@@ -4144,6 +4242,10 @@ function statsOnFinish(sm){
   }
   bank.best = Math.max(bank.best || 0, sm.ms);
   if (sm.all) bank.allcN = (bank.allcN || 0) + 1;
+  try { // courses cleared and enemies defeated today (st is still today's day here)
+    const cv = {...(bank.cv || {})}; for (let i = 0; i < sm.stages; i++) { const v = vIn(st, st.base + i); if (v >= 3) cv[v] = (cv[v] || 0) + 1; }
+    bank.cv = cv; bank.foes = (bank.foes || 0) + stompsToday();
+  } catch (e) {}
   const wk = weekKey(sm.d);
   bank.wk = bank.wk && bank.wk.k === wk ? {k: wk, ms: bank.wk.ms + sm.ms} : {k: wk, ms: sm.ms};
 }
@@ -4211,37 +4313,101 @@ $('misl').onclick = e => { const b = e.target.closest('[data-mis]'); if (b) clai
 const ownedCount = () => Object.entries(SHOP).reduce((a, [k, s2]) => a + (s2.special ? 0 : s2.items.filter(i => i[0] !== 'none' && !AWARD_NEED[k + ':' + i[0]] && !REF_NEED[k + ':' + i[0]] && bank.owned.includes(k + ':' + i[0])).length), 0);
 const misDoneN = () => Object.values(bank.misLog || {}).reduce((a, x) => a + x.length, 0);
 const hrs = () => ((bank.totalMs || 0) + todayMs())/3600e3;
+/* rarity like many games: bronze -> silver -> gold -> platinum -> legend */
+const TIER = {b: ['ブロンズ', '#cd7f32'], s: ['シルバー', '#b9c3d0'], g: ['ゴールド', '#ffcc1f'], p: ['プラチナ', '#7fe7ff'], l: ['レジェンド', '#ff6bcb']};
+const dayBest = () => Math.max(bank.best || 0, todayMs())/3600e3;
+const cvN = v => ((bank.cv || {})[v] || 0) + courseClears(v);
+const foesN = () => (bank.foes || 0) + stompsToday();
+const allcN = () => (bank.allcN || 0) + (st.allAt ? 1 : 0);
+const daysN = () => (bank.days || 0) + (todayMs() >= 60000 && bank.lastDay !== st.d ? 1 : 0);
+const mis3N = () => Object.values(bank.misLog || {}).filter(l => l.length >= 3).length;
+const coinsN = () => (bank.earned || 0) + dayCoins(st);
+const A = (id, ic, nm, ds, f, rw, t) => [id, ic, nm, ds, f, rw, t];
 const ACH = [
-  ['first', '📗', 'はじめの一歩', '1分勉強する', () => [Math.min(1, hrs()*60), 1], 200],
-  ['h10', '⏱', '10時間', '合計10時間', () => [hrs(), 10], 500],
-  ['h50', '⌛', '50時間', '合計50時間', () => [hrs(), 50], 1500],
-  ['h100', '🏛', '100時間', '合計100時間', () => [hrs(), 100], 3000],
-  ['h300', '👑', '300時間', '合計300時間', () => [hrs(), 300], 8000],
-  ['d4', '💪', '1日4時間', '1日で4時間', () => [Math.max(bank.best || 0, todayMs())/3600e3, 4], 600],
-  ['d8', '🦾', '1日8時間', '1日で8時間', () => [Math.max(bank.best || 0, todayMs())/3600e3, 8], 1500],
-  ['s3', '🔥', '3日連続', '3日続けて勉強', () => [curStreak(), 3], 500],
-  ['s7', '🔥', '7日連続', '7日続けて勉強', () => [curStreak(), 7], 1500],
-  ['s30', '☄️', '30日連続', '30日続けて勉強', () => [curStreak(), 30], 6000],
-  ['days10', '🗓', '10日', '10日勉強した', () => [(bank.days || 0) + (todayMs() >= 60000 && bank.lastDay !== st.d ? 1 : 0), 10], 800],
-  ['allc', '🏁', '全クリ', '1日で72ステージ', () => [(bank.allcN || 0) + (st.allAt ? 1 : 0), 1], 2000],
-  ['allc5', '🌟', '全クリ5回', '全クリを5回', () => [(bank.allcN || 0) + (st.allAt ? 1 : 0), 5], 6000],
-  ['shop10', '🛍', 'おしゃれ', 'アイテム10個', () => [ownedCount(), 10], 500],
-  ['shop50', '🧺', 'コレクター', 'アイテム50個', () => [ownedCount(), 50], 2500],
-  ['mis10', '🎯', 'ミッション10', 'ミッション10個', () => [misDoneN(), 10], 600],
-  ['mis50', '🏹', 'ミッション50', 'ミッション50個', () => [misDoneN(), 50], 2500],
-  ['champ', '🏆', '初優勝', 'レースで優勝', () => [bank.champ || 0, 1], 1500],
-  ['award', '🎖', '完走', '参加賞をもらう', () => [bank.vsAwards || 0, 1], 800],
-  ['ref', '💌', 'なかま', '友だちを招待', () => [bank.refCount || 0, 1], 800]
+  // study time
+  A('first', '📗', 'はじめの一歩', '1分勉強する', () => [Math.min(1, hrs()*60), 1], 200, 'b'),
+  A('h10', '⏱', '10時間', '合計10時間', () => [hrs(), 10], 500, 'b'),
+  A('h25', '⏱', '25時間', '合計25時間', () => [hrs(), 25], 900, 's'),
+  A('h50', '⌛', '50時間', '合計50時間', () => [hrs(), 50], 1500, 's'),
+  A('h100', '🏛', '100時間', '合計100時間', () => [hrs(), 100], 3000, 'g'),
+  A('h200', '🏯', '200時間', '合計200時間', () => [hrs(), 200], 5000, 'g'),
+  A('h300', '🗻', '300時間', '合計300時間', () => [hrs(), 300], 8000, 'p'),
+  A('h500', '🌋', '500時間', '合計500時間', () => [hrs(), 500], 12000, 'p'),
+  A('h1000', '🌌', '1000時間', '合計1000時間', () => [hrs(), 1000], 30000, 'l'),
+  // a single day
+  A('d2', '🕑', '2時間集中', '1日で2時間', () => [dayBest(), 2], 300, 'b'),
+  A('d4', '💪', '1日4時間', '1日で4時間', () => [dayBest(), 4], 600, 's'),
+  A('d6', '🔋', '1日6時間', '1日で6時間', () => [dayBest(), 6], 1000, 's'),
+  A('d8', '🦾', '1日8時間', '1日で8時間', () => [dayBest(), 8], 1500, 'g'),
+  A('d10', '⚡', '1日10時間', '1日で10時間', () => [dayBest(), 10], 3000, 'p'),
+  A('d12', '👁‍🗨', '12時間の鬼', '1日で12時間', () => [dayBest(), 12], 6000, 'l'),
+  // streaks and days
+  A('s3', '🔥', '3日連続', '3日続けて勉強', () => [curStreak(), 3], 500, 'b'),
+  A('s7', '🔥', '7日連続', '7日続けて勉強', () => [curStreak(), 7], 1500, 's'),
+  A('s14', '🔥', '14日連続', '14日続けて勉強', () => [curStreak(), 14], 3000, 'g'),
+  A('s30', '☄️', '30日連続', '30日続けて勉強', () => [curStreak(), 30], 6000, 'p'),
+  A('s60', '🌠', '60日連続', '60日続けて勉強', () => [curStreak(), 60], 12000, 'p'),
+  A('s100', '🏅', '100日連続', '100日続けて勉強', () => [curStreak(), 100], 25000, 'l'),
+  A('days10', '🗓', '10日', '10日勉強した', () => [daysN(), 10], 800, 'b'),
+  A('days30', '📆', '30日', '30日勉強した', () => [daysN(), 30], 2000, 's'),
+  A('days100', '🗂', '100日', '100日勉強した', () => [daysN(), 100], 6000, 'g'),
+  A('days200', '📚', '200日', '200日勉強した', () => [daysN(), 200], 12000, 'p'),
+  // stages and courses
+  A('allc', '🏁', '全クリ', '1日で72ステージ', () => [allcN(), 1], 2000, 'g'),
+  A('allc5', '🌟', '全クリ5回', '全クリを5回', () => [allcN(), 5], 6000, 'p'),
+  A('allc20', '💫', '全クリ20回', '全クリを20回', () => [allcN(), 20], 20000, 'l'),
+  A('d10c', '👟', 'てき使い', 'Dコースを10回クリア', () => [cvN(3), 10], 800, 'b'),
+  A('d50', '🐉', 'てき使いの達人', 'Dコースを50回クリア', () => [cvN(3), 50], 4000, 'g'),
+  A('e10c', '🧗', 'トレーサー', 'Eコースを10回クリア', () => [cvN(4), 10], 800, 'b'),
+  A('e50', '😇', 'パルクールの神', 'Eコースを50回クリア', () => [cvN(4), 50], 4000, 'g'),
+  A('f10c', '🛤', '鉄道員', 'Fコースを10回クリア', () => [cvN(5), 10], 800, 'b'),
+  A('f50', '🏎', 'レールの覇者', 'Fコースを50回クリア', () => [cvN(5), 50], 4000, 'g'),
+  A('foe100', '🥾', 'ふみつけ100', '敵を100体たおす', () => [foesN(), 100], 500, 'b'),
+  A('foe1k', '🦶', 'ふみつけ1000', '敵を1000体たおす', () => [foesN(), 1000], 2500, 's'),
+  A('foe5k', '🗡', '勇者', '敵を5000体たおす', () => [foesN(), 5000], 8000, 'p'),
+  // coins and looks
+  A('c10k', '🪙', '小金持ち', 'コインを合計1万枚', () => [coinsN(), 10000], 500, 'b'),
+  A('c100k', '💰', 'お金持ち', 'コインを合計10万枚', () => [coinsN(), 100000], 3000, 'g'),
+  A('c500k', '💎', '大富豪', 'コインを合計50万枚', () => [coinsN(), 500000], 10000, 'p'),
+  A('shop10', '🛍', 'おしゃれ', 'アイテム10個', () => [ownedCount(), 10], 500, 'b'),
+  A('shop30', '👗', 'おしゃれ上級', 'アイテム30個', () => [ownedCount(), 30], 1500, 's'),
+  A('shop60', '🧺', 'コレクター', 'アイテム60個', () => [ownedCount(), 60], 4000, 'g'),
+  A('shop100', '🏆', 'コンプリートの道', 'アイテム100個', () => [ownedCount(), 100], 10000, 'p'),
+  // missions
+  A('mis10', '🎯', 'ミッション10', 'ミッション10個', () => [misDoneN(), 10], 600, 'b'),
+  A('mis50', '🏹', 'ミッション50', 'ミッション50個', () => [misDoneN(), 50], 2500, 's'),
+  A('mis150', '🎖', 'ミッション150', 'ミッション150個', () => [misDoneN(), 150], 6000, 'g'),
+  A('mis3x10', '✅', 'パーフェクトデー', '3つ全部を10日', () => [mis3N(), 10], 3000, 'g'),
+  // friends and races
+  A('champ', '🏆', '初優勝', 'レースで優勝', () => [bank.champ || 0, 1], 1500, 's'),
+  A('champ3', '👑', '三冠王', 'レースで3回優勝', () => [bank.champ || 0, 3], 8000, 'p'),
+  A('award', '🎖', '完走', '参加賞をもらう', () => [bank.vsAwards || 0, 1], 800, 'b'),
+  A('award5', '🥇', '完走の常連', '参加賞を5回', () => [bank.vsAwards || 0, 5], 4000, 'g'),
+  A('ref', '💌', 'なかま', '友だちを1人招待', () => [bank.refCount || 0, 1], 800, 'b'),
+  A('ref5', '🤝', '人気者', '友だちを5人招待', () => [bank.refCount || 0, 5], 4000, 'g'),
+  A('cheer10', '📣', '応援団', 'スタンプを10回送る', () => [bank.cheers || 0, 10], 400, 'b'),
+  A('watch', '👀', 'のぞき見', '友だちの画面を見る', () => [bank.watched || 0, 1], 200, 'b'),
+  A('fp', '🥽', '主人公の目', '一人称視点を使う', () => [bank.fpUsed || 0, 1], 200, 'b')
 ];
+const achLook = id => { const k = Object.keys(ACH_ITEM).find(x => ACH_ITEM[x] === id); if (!k) return null; const [cat, iid] = k.split(':'); return {cat, name: item(cat, iid)[1]}; };
 function achRender(){
   const have = bank.ach || [];
   $('achn').textContent = `${have.length} / ${ACH.length}`;
-  $('achl').innerHTML = ACH.map(([id, ic, nm, ds, f, rw]) => { const ok = have.includes(id), [cu, nd] = f(); return `<div class="${ok ? '' : 'no'}"><i>${ic}</i><b>${nm}</b><small>${ok ? '解除ずみ' : ds}</small>${ok ? '' : `<div class="pbar"><i style="width:${Math.min(100, cu/nd*100)}%"></i></div>`}<small>🪙${num(rw)}</small></div>`; }).join('');
+  const order = ['l', 'p', 'g', 's', 'b'];
+  $('achl').innerHTML = ACH.slice().sort((a, b) => (have.includes(b[0]) - have.includes(a[0])) || (order.indexOf(a[6]) - order.indexOf(b[6]))).map(([id, ic, nm, ds, f, rw, t]) => {
+    const ok = have.includes(id), [cu, nd] = f(), tr = TIER[t], lk = achLook(id);
+    return `<div class="${ok ? '' : 'no'} t-${t}" style="--tc:${tr[1]}"><em>${tr[0]}</em><i class="bi">${ic}</i><b>${nm}</b><small>${ok ? '解除ずみ' : ds}</small>${ok ? '' : `<div class="pbar"><i style="width:${Math.min(100, cu/nd*100)}%"></i></div>`}<small>🪙${num(rw)}</small>${lk ? `<small class="lk">🎁 ${lk.name}</small>` : ''}</div>`;
+  }).join('');
 }
 function achCheck(){
   const have = new Set(bank.ach || []), got = [];
-  for (const [id, , nm, , f, rw] of ACH) { if (have.has(id)) continue; const [cu, nd] = f(); if (cu >= nd) { have.add(id); got.push([nm, rw]); } }
-  if (got.length) { bank.ach = [...have]; saveBank(); ui(); sfx('world'); toast(`🏅 実績「${got.map(g => g[0]).join('・')}」解除！ +${num(got.reduce((a, g) => a + g[1], 0))}コイン`, 7000); try { acNow(); } catch (e) {} }
+  for (const [id, , nm, , f, rw] of ACH) { if (have.has(id)) continue; let r; try { r = f(); } catch (e) { continue; } if (r[0] >= r[1]) { have.add(id); got.push([nm, rw, achLook(id)]); } }
+  if (got.length) {
+    bank.ach = [...have]; saveBank(); ui(); sfx('world');
+    const looks = got.filter(g => g[2]).map(g => g[2].name);
+    toast(`🏅 実績「${got.map(g => g[0]).join('・')}」解除！ +${num(got.reduce((a, g) => a + g[1], 0))}コイン` + (looks.length ? `・限定の見た目「${looks.join('・')}」が使えるようになりました` : ''), 8000);
+    try { acNow(); } catch (e) {}
+  }
 }
 /* coins from missions and badges are computed from what was earned, so devices can never double count */
 function bonusCoins(){
@@ -4253,15 +4419,39 @@ function bonusCoins(){
   } catch (e) { return 0; }
 }
 function misBadge(){ try { const ms = todayMis(), got = misGot(st.d), n = ms.filter((m, i) => !got.includes(i) && misProgress(m) >= m.need).length; $('misdot').hidden = !n; $('misdot').textContent = n; } catch (e) {} }
-setInterval(() => { achCheck(); misBadge(); if (curTab === 'mis') { misRender(); achRender(); } if (curTab === 'vs') rankRender(); }, 3000);
+setInterval(() => { achCheck(); misBadge(); if (curTab === 'mis') { misRender(); achRender(); } if (curTab === 'vs') rankRender(); if (curTab === 'home') raceRender(); }, 3000);
 const _misRender = misRender; misRender = function(){ _misRender(); achRender(); };
 
 /* ---------- weekly ranking and cheers (room members) ---------- */
 const STAMPS = ['👍', '🔥', '💪', '👏', '📚', '☕'];
 let cheerSeen = 0; try { cheerSeen = +localStorage.getItem('quest-cheer') || 0; } catch (e) {}
 let cheerCool = 0;
+let rkMode = 'race', stampOpen = null;
+function raceRows(){
+  const mine = myKey(), list = Object.entries(room || {});
+  if (!list.find(([k]) => k === mine)) list.push([mine, null]);
+  return list.map(([k, e]) => {
+    const me = k === mine;
+    if (me) e = {n: fb.name || '自分', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, night: !!st.night};
+    const ms = memberNow(e), done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
+    const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : done >= NST ? '全クリ' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
+    return {k, me, today: ms.today, n: e.n, done, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
+  }).sort((a, b) => b.done - a.done);
+}
+const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}<span>${stageName(r.si)}${r.today ? ' ' + VAR[r.v] : 'から'} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
+function raceRender(){
+  const box = $('racebox'); box.hidden = !fb.room; if (!fb.room) return;
+  const rows = raceRows(), race = board && board.race;
+  $('raceh').textContent = race ? `第${race.no}回 全クリレース · ${rows.length}人` : `全クリレース · ${rows.length}人`;
+  $('racel').innerHTML = rows.map((r, i) => raceRow(r, i, false)).join('');
+}
 function rankRender(){
   const box = $('rkbox'); box.hidden = !fb.room; if (!fb.room) return;
+  document.querySelectorAll('#rkseg button').forEach(b => b.classList.toggle('on', b.dataset.rk === rkMode));
+  if (rkMode === 'race') {
+    $('rkl').innerHTML = raceRows().map((r, i) => raceRow(r, i, true)).join('') + `<p class="vsn" style="margin:8px 0 0">📣で応援スタンプを送れます（15秒に1回まで）。名前をタップするとその人の画面を見られます。</p>`;
+    return;
+  }
   const mine = myKey(), wk = weekKey(st.d), rows = [];
   for (const [k, e] of Object.entries(room || {})) {
     if (k === mine) continue;
@@ -4271,14 +4461,15 @@ function rankRender(){
   }
   rows.push({k: mine, n: fb.name || '自分', ms: weekMs(), me: true});
   rows.sort((a, b) => b.ms - a.ms);
-  const can = Date.now() > cheerCool;
-  $('rkl').innerHTML = rows.map((r, i) => `<div class="rk${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><span class="nm">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : esc(r.n)}${r.me ? '（自分）' : ''}</span><span class="tm">${fmtHM(r.ms)}</span></div>${r.me ? '' : `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${can ? '' : 'disabled'} aria-label="${esc(r.n)}に${s2}を送る">${s2}</button>`).join('')}</div>`}`).join('')
-    + `<p class="vsn" style="margin:8px 0 0">スタンプを押すと、その人の画面に届きます（15秒に1回まで）。</p>`;
+  $('rkl').innerHTML = rows.map((r, i) => `<div class="rk${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><span class="nm">${esc(r.n)}${r.me ? '（自分）' : ''}</span><span class="tm">${fmtHM(r.ms)}</span></div>`).join('')
+    + `<p class="vsn" style="margin:8px 0 0">月曜から今日までの勉強時間です。</p>`;
 }
+$('rkseg').onclick = e => { const b = e.target.closest('[data-rk]'); if (b) { rkMode = b.dataset.rk; rankRender(); } };
 $('rkl').onclick = e => {
+  const o = e.target.closest('[data-sto]'); if (o) { stampOpen = stampOpen === o.dataset.sto ? null : o.dataset.sto; rankRender(); return; }
   const b = e.target.closest('[data-st]'); if (!b || Date.now() < cheerCool) return;
-  myCheer = {to: b.dataset.to, k: +b.dataset.st, at: Date.now()}; cheerCool = Date.now() + 15000;
-  vsPush().catch(() => {}); sfx('coin'); toast(`${STAMPS[myCheer.k]} を送りました`, 2500); rankRender();
+  myCheer = {to: b.dataset.to, k: +b.dataset.st, at: Date.now()}; cheerCool = Date.now() + 15000; bank.cheers = (bank.cheers || 0) + 1; saveBank();
+  vsPush().catch(() => {}); sfx('coin'); toast(`${STAMPS[myCheer.k]} を送りました`, 2500); stampOpen = null; rankRender();
 };
 function cheerCheck(){
   if (!fb.room || !room) return;
