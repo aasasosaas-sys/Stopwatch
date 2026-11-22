@@ -2537,52 +2537,36 @@ $('sndb').onclick = () => { SND.on = !SND.on; saveSnd(); if (SND.on) audio(); if
 $('bgmb').onclick = () => { SND.bgm = !SND.bgm; saveSnd(); audio(); if (bgmBus) bgmBus.gain.value = SND.bgm ? .3 : 0; bgmKey = ''; soundUI(); };
 soundUI();
 
-/* ---------- 友だちと勝負 (Firebase: anonymous sign-in + Firestore REST, no SDK) ----------
-   A room is one document; every member writes only their own entry under m.<uid>.
+/* ---------- 友だちと勝負 (Supabase: three database functions, no SDK) ----------
+   Each member keeps one row per room and can only change it with a secret only their device knows.
    A member's position is a pure function of their study clock, so only a few numbers are shared
    and the ghost moves smoothly between polls. */
-const FB_CONFIG = {apiKey: '', projectId: ''};
-const FB_ON = !!(FB_CONFIG.apiKey && FB_CONFIG.projectId);
+const SB = {url: 'https://umbhnuthgduedqwummes.supabase.co', key: 'sb_publishable_oziI--e4MEe-ajxMZhW6iQ_6pm_ONA7'};
+const FB_ON = true;
 let fb = {}; try { fb = JSON.parse(localStorage.getItem('quest-fb') || '{}'); } catch (e) {}
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+if (!fb.uid || !/^[0-9a-f-]{36}$/.test(fb.uid)) { const h = rnd(16); fb.uid = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`; fb.secret = rnd(24); }
 const saveFb = () => { try { localStorage.setItem('quest-fb', JSON.stringify(fb)); } catch (e) {} };
+saveFb();
 let room = null, vsPollT = 0, vsPushT = null, vsErr = '';
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const fsBase = () => `https://firestore.googleapis.com/v1/projects/${FB_CONFIG.projectId}/databases/(default)/documents/rooms/`;
-async function fbToken(){
-  if (fb.idToken && Date.now() < fb.exp) return fb.idToken;
-  let r;
-  if (fb.refresh) r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FB_CONFIG.apiKey}`, {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(fb.refresh)});
-  if (!r || !r.ok) r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FB_CONFIG.apiKey}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({returnSecureToken: true})});
-  if (!r.ok) throw new Error('auth ' + r.status);
-  const j = await r.json();
-  fb.idToken = j.idToken || j.id_token; fb.refresh = j.refreshToken || j.refresh_token; fb.uid = j.localId || j.user_id;
-  fb.exp = Date.now() + ((+(j.expiresIn || j.expires_in) || 3600) - 120)*1000; saveFb();
-  return fb.idToken;
+async function rpc(name, args){
+  const r = await fetch(`${SB.url}/rest/v1/rpc/${name}`, {method: 'POST', headers: {'Content-Type': 'application/json', apikey: SB.key}, body: JSON.stringify(args)});
+  if (!r.ok) throw new Error(name + ' ' + r.status);
+  const t = await r.text(); return t ? JSON.parse(t) : null;
 }
-const enc1 = v => typeof v === 'boolean' ? {booleanValue: v} : typeof v === 'number' ? (Number.isInteger(v) ? {integerValue: String(v)} : {doubleValue: v}) : {stringValue: String(v)};
-const dec1 = v => 'booleanValue' in v ? v.booleanValue : 'integerValue' in v ? +v.integerValue : 'doubleValue' in v ? v.doubleValue : v.stringValue ?? '';
-const myKey = () => 'u' + fb.uid;
-function myEntry(){
-  const o = {n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
-    base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify(bank.eq)};
-  const fields = {}; for (const k in o) fields[k] = enc1(o[k]);
-  return fields;
-}
+const myKey = () => fb.uid;
+const myEntry = () => ({n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
+  base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify(bank.eq)});
 async function vsPush(leave){
-  if (!FB_ON || !fb.room) return;
-  const tok = await fbToken(), key = myKey();
-  const body = leave ? {fields: {m: {mapValue: {fields: {}}}}} : {fields: {m: {mapValue: {fields: {[key]: {mapValue: {fields: myEntry()}}}}}}};
-  const r = await fetch(fsBase() + fb.room + '?updateMask.fieldPaths=m.' + key, {method: 'PATCH', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + tok}, body: JSON.stringify(body)});
-  if (!r.ok) throw new Error('write ' + r.status);
+  if (!fb.room) return;
+  if (leave) return rpc('quest_leave', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret});
+  return rpc('quest_upsert', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret, p_data: myEntry()});
 }
 async function vsPull(){
-  if (!FB_ON || !fb.room) return;
-  const tok = await fbToken();
-  const r = await fetch(fsBase() + fb.room, {headers: {Authorization: 'Bearer ' + tok}});
-  if (r.status === 404) { room = {}; return; }
-  if (!r.ok) throw new Error('read ' + r.status);
-  const j = await r.json(), m = ((j.fields || {}).m || {}).mapValue || {}, out = {};
-  for (const [k, v] of Object.entries(m.fields || {})) { const e = {}; for (const [f, fv] of Object.entries((v.mapValue || {}).fields || {})) e[f] = dec1(fv); if (Date.now() - (e.up || 0) < 36*3600e3) out[k] = e; }
+  if (!fb.room) return;
+  const rows = await rpc('quest_room', {p_room: fb.room}) || [], out = {};
+  for (const r of rows) if (r && r.data && typeof r.data === 'object') out[r.member_id] = {...r.data, n: String(r.data.n || 'ななし').slice(0, 10), base: Math.max(0, Math.min(NST - 1, +r.data.base || 0)), dr: String(r.data.dr || '').slice(0, NST)};
   room = out; vsErr = '';
 }
 function vsQueue(){ if (!FB_ON || !fb.room || vsPushT) return; vsPushT = setTimeout(() => { vsPushT = null; vsPush().catch(e => { vsErr = '送信できませんでした'; }); }, 3000); }
@@ -2600,7 +2584,7 @@ function memberT(e){
 function memberStage(e){ const T = memberT(e), k = Math.min(NST - 1 - e.base, Math.floor(T/STAGE)); return {T, si: e.base + k, s: T >= (NST - e.base)*STAGE ? STAGE : T - k*STAGE, v: +(e.dr || '')[e.base + k] || 0}; }
 function vsRender(){
   $('vsOff').hidden = !!fb.room; $('vsOn').hidden = !fb.room;
-  $('vsNote').hidden = FB_ON; $('vsForm').hidden = !FB_ON;
+  $('vsNote').hidden = true; $('vsForm').hidden = false;
   if (!fb.room) return;
   $('vsCode').textContent = fb.room;
   const mine = myKey(), list = Object.entries(room || {});
