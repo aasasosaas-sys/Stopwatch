@@ -33,6 +33,15 @@ button,select{font:inherit;color:inherit;cursor:pointer;border:0}
 canvas{display:block;width:100%;height:100%}
 .fpv{position:absolute;right:8px;bottom:8px;z-index:3;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(20,16,40,.55);color:#fff}
 .fpv.on{background:#ff7a3d}
+.stage.watching .hud{display:none}
+.specb{display:flex;align-items:center;gap:8px;margin-top:8px;background:var(--card);border-radius:14px;padding:8px 8px 8px 14px;font-size:12px;font-weight:600}
+.specb[hidden]{display:none}
+.specb span{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.specb b,.specb small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.specb b{font-size:13px}.specb small{font-size:11px;opacity:.85;font-weight:500}
+.specb button{flex-shrink:0;background:#ff7a3d;color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700}
+.specn{background:none;padding:0;font:inherit;font-weight:inherit;color:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+.specn.on{color:var(--acc)}
 .hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
   padding:10px 14px;color:#fff;font-weight:800;font-size:clamp(12px,2.6vw,18px);letter-spacing:.04em;
   text-shadow:0 2px 0 rgba(30,20,60,.55);pointer-events:none;font-variant-numeric:tabular-nums}
@@ -190,6 +199,7 @@ canvas{display:block;width:100%;height:100%}
     <div class="banner" id="ban"><b id="banb">STAGE CLEAR!</b><span id="bans"></span></div>
   </div>
 
+  <div class="specb" id="specb" hidden><span><b id="specn"></b><small id="spect"></small></span><button id="specx">✕ 自分にもどる</button></div>
   <div class="panel">
     <div>
       <div class="lbl">今日の勉強時間</div>
@@ -3603,6 +3613,7 @@ async function rpc(name, args){
   if (!r.ok) throw new Error(name + ' ' + r.status);
   const t = await r.text(); return t ? JSON.parse(t) : null;
 }
+let spec = null, specTxt = '';   // the friend being watched (declared early: vsRender runs at startup)
 const myKey = () => fb.uid;
 const myEntry = () => ({n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
   base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: bank.champ || 0, a: bank.vsAwards || 0}),
@@ -3662,7 +3673,7 @@ function vsRender(){
     const done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
     const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : done >= NST ? '全クリ！' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
     const rm = rms[k] || 0, line = 8*3600e3;
-    return {me, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
+    return {me, k, today, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   const race = board && board.race, last = board && board.last;
   $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'})}から）・${rows.length}人` : '全クリレース';
@@ -3672,11 +3683,13 @@ function vsRender(){
   $('vsHost').innerHTML = !ri ? '' : ri.host === mine
     ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small>`
     : `${ri.public ? '公開部屋（だれでも入れます）' : 'プライベート部屋（コードを知っている人だけ）'}<br><small>ホスト：${esc(hostName)}</small>`;
-  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${esc(r.name)}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
+  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${r.me || !r.today ? esc(r.name) : `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.name)} 👀</button>`}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
   $('vsStat').textContent = vsErr || (rows.length < 5 ? `一番に全クリした人が優勝。チャンピオンスキンは5人以上のときだけもらえます（あと${5 - rows.length}人）。` : '一番に全クリした人が優勝して、チャンピオンスキンがもらえます。') + ' レースが終わったとき、レース中に8時間以上勉強していた人には参加賞（2人以上のレース）。';
 }
 /* ghosts: every friend who is studying today runs in your stage at their own place in their stage */
+let ghostHits = [];   // where each friend's name tag was drawn (for tapping)
 function drawGhosts(si, cam){
+  ghostHits = [];
   if (!fb.room || !room) return;
   const mine = myKey();
   for (const [k, e] of Object.entries(room)) {
@@ -3694,13 +3707,13 @@ function drawGhosts(si, cam){
       const left = x < 8, ex = left ? 4 : VW - 4, ey = Math.max(30, Math.min(VH - 30, Y(o.y) - 16)), lbl = (left ? '◀ ' : '') + tag + (left ? '' : ' ▶');
       c.font = 'bold 6px -apple-system,"Hiragino Sans",sans-serif';
       const tw = c.measureText(lbl).width + 8, bx = left ? ex : ex - tw;
-      c.fillStyle = 'rgba(20,16,40,.62)'; rr(bx, ey - 6, tw, 11, 4); c.fill();
+      c.fillStyle = 'rgba(20,16,40,.62)'; rr(bx, ey - 6, tw, 11, 4); c.fill(); ghostHits.push({k, x: bx, y: ey - 6, w: tw, h: 11});
       c.fillStyle = '#fff'; c.textAlign = left ? 'left' : 'right'; c.fillText(lbl, left ? ex + 4 : ex - 4, ey + 2); c.textAlign = 'left';
       continue;
     }
     c.globalAlpha = .5; drawHero(x, Y(o.y), o, {...look, pet: 'none', trail: 'none'}); c.globalAlpha = 1;
     c.font = 'bold 5.5px -apple-system,"Hiragino Sans",sans-serif'; c.textAlign = 'center';
-    const tw = c.measureText(tag).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill();
+    const tw = c.measureText(tag).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill(); ghostHits.push({k, x: x - 14, y: Y(o.y) - 42, w: 28, h: 44});
     c.fillStyle = '#fff'; c.fillText(tag, x, Y(o.y) - 34.3); c.textAlign = 'left';
   }
 }
@@ -3759,6 +3772,56 @@ $('vsName').value = fb.name || '';
 vsRender();
 if (FB_ON && fb.room) { vsPull().then(vsRender).catch(() => {}); vsPush().catch(() => {}); }
 setInterval(() => { if (fb.room) vsRender(); }, 5000);
+
+/* ---------- watching a friend: tap their name to see where they are in their own stage ---------- */
+const lookFromEntry = e => { try { const lk = JSON.parse(e.lk || '{}'); return lk.eq ? lookOf(lk.eq, lk.w || 0, lk.a || 0) : lookOf(lk); } catch (er) { return lookOf({}); } };
+function setSpec(k){
+  spec = k && room && room[k] ? k : null;
+  $('specb').hidden = !spec; document.querySelector('.stage').classList.toggle('watching', !!spec); lastDraw = 0; specTxt = '';
+  if (spec) { const r = $('cv').getBoundingClientRect(); if (r.top < 0 || r.bottom > innerHeight) window.scrollTo({top: 0, behavior: 'smooth'}); }
+  vsRender();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-spec]'); if (b) setSpec(spec === b.dataset.spec ? null : b.dataset.spec); });
+$('specx').onclick = () => setSpec(null);
+$('cv').addEventListener('click', e => {   // tapping a ghost or its name tag on the stage
+  const r = $('cv').getBoundingClientRect(), x = (e.clientX - r.left)/r.width*VW, y = (e.clientY - r.top)/r.height*VH;
+  const h = ghostHits.find(g => x >= g.x - 4 && x <= g.x + g.w + 4 && y >= g.y - 4 && y <= g.y + g.h + 4);
+  if (h) setSpec(h.k);
+});
+/* draws the friend's stage in place of ours; returns false when there is no one to watch */
+function drawSpectate(){
+  const e = spec && room && room[spec];
+  if (!e || e.d !== st.d) { if (spec) setSpec(null); return false; }
+  const ms = memberStage(e), look = lookFromEntry(e);
+  L = getStage(ms.si, ms.v); const TH = L.TH, END = INTRO + RUNT;
+  const s = Math.min(ms.s, END + 6); curS = s;
+  const winT = s >= END ? s - END : -1, hero = heroAtIn(L, s);
+  let cam = (hero.cx != null ? hero.cx : hero.x) - VW*.34; cam = Math.max(0, Math.min(cam, L.endCol*T - VW));
+  const o = airPose(L, s); o.t = now;
+  if (e.night) o.mode = 'sleep';
+  else if (winT >= 0) { o.mode = 'win'; o.flip = 0; o.rot = 0; }
+  else if (s < INTRO || (!e.run && !hero.air && hero.g.j === 0)) o.mode = 'idle';
+  const moving = e.run && !e.night && winT < 0 && s > INTRO + .3;
+  if (fpOn) drawFP(TH, s, look);
+  else {
+    drawSky(TH, s/STAGE); drawFar(TH, cam); drawHills(TH, cam);
+    const d0 = lowerX(L.decos, cam - 40), d1 = lowerX(L.decos, cam + VW + 40);
+    for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, true);
+    drawGoal(cam, winT); drawSigns(cam); drawPitFill(TH, cam); drawGround(TH, cam); drawRails(TH, cam);
+    drawObstacles(TH, cam); drawWalls(TH, cam); drawPlats(TH, cam); drawGimmicks(TH, cam); drawXObjs(TH, cam);
+    drawBlocks(cam); drawCoins(cam); drawEnemies(TH, cam, false, null); drawDust(cam, hero);
+    const hx = hero.x - cam, hy = Y(hero.y);
+    if (look.trail !== 'none' && moving) drawTrail(look.trail, (k, dt) => { const q = airPose(L, Math.max(INTRO, s - k*dt)); return {x: q.x - cam, y: Y(q.y), o: q}; }, look);
+    if (look.pet !== 'none') { const pp = heroAtIn(L, Math.max(INTRO, s - (moving ? .35 : 0))); drawPet(look, pp.x - 14 - cam, Y(pp.y) - 30, now); }
+    drawHero(hx, hy, o, look);
+    for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, false);
+    drawWeather(TH);
+  }
+  const txt = `${stageName(ms.si)} ${VAR[ms.v]} ${TH.name} · ${e.night ? 'おやすみ中' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中'} · 今日 ${fmtHM(ms.T*1000)}`;
+  if (txt !== specTxt) { specTxt = txt; $('specn').textContent = `👀 ${e.n} を見ています`; $('spect').textContent = txt; }
+  $('ttl').classList.remove('on'); $('ban').classList.remove('on');
+  return true;
+}
 
 /* ---------- account: ID + password, save data kept on the server ----------
    The password is only sent when signing up or logging in; after that the device keeps a session token. */
@@ -4083,6 +4146,7 @@ function frameBody(){
   const tea = rest === 'tea', cleaning = r && r.kind === 'tea' && wakeE >= 0 && wakeE < r.F;
   const stretching = r && r.kind === 'sleep' && wakeE >= 0 && wakeE < r.F;
   const hx = hero.x - cam, gy = Y(hero.y);
+  if (spec && drawSpectate()) { bgmTick(st.run ? 'stage' : null, L.w); sPrev = null; if (!$('shop').hidden) drawPreview(); if (!$('sleep').hidden) drawNight(); return; }
   if (fpOn) drawFP(TH, s, look);
   else {
   drawSky(TH, s/STAGE);
