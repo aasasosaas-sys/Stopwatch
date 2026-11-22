@@ -4497,7 +4497,7 @@ showTab('home');
 /* ---------- weekly event (Monday to Sunday, a different theme every week) ---------- */
 const EVENTS = [
   {k: 'study', ic: '📖', name: '集中ウィーク', desc: '今週の勉強時間を積み上げよう', unit: '時間', tiers: [[5, 1000], [10, 2000], [20, 4000]], cur: () => weekMs()/3600e3},
-  {k: 'course', ic: '🎢', name: 'コース祭り', desc: 'D・E・Fコースを今週たくさんクリアしよう', unit: '回', tiers: [[6, 1000], [15, 2000], [30, 4000]], cur: () => weekC().n},
+  {k: 'course', ic: '🎢', name: 'コース祭り', desc: 'D・E・Fコースを今週たくさんクリアしよう', unit: '回', tiers: [[12, 1000], [30, 2000], [60, 4000]], cur: () => weekC().n},
   {k: 'foes', ic: '⚔️', name: '討伐ウィーク', desc: '今週、敵をたくさんたおそう', unit: '体', tiers: [[150, 1000], [400, 2000], [900, 4000]], cur: () => weekC().foes},
   {k: 'room', ic: '🤝', name: '協力ウィーク', desc: '部屋のみんなの勉強時間を合わせて目標を目指そう（部屋に入っていないときは自分の時間）', unit: '時間', tiers: [[20, 1000], [50, 2000], [100, 4000]], cur: () => roomWeekMs()/3600e3}
 ];
