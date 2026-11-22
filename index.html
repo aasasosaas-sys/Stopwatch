@@ -103,6 +103,7 @@ canvas{display:block;width:100%;height:100%}
 .vsroom b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vsroom small{color:var(--sub);font-size:12px}
 .vsroom small .on{color:var(--go);font-weight:600}
+.ok8{color:var(--go)!important;font-weight:600}
 .cup{font-size:12px;color:#c98a12;font-weight:700}
 .vsr small{color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums;display:block;margin-top:4px}
 .dev .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
@@ -1812,10 +1813,12 @@ const SHOP = {
   trail: {name: '軌跡', items: [
     ['none','なし',0], ['spark','キラキラ',2], ['stars','星',3], ['bubbles','あわ',3], ['notes','おんぷ',4], ['hearts','ハート',4], ['leaves','はっぱ',4],
     ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10]]},
-  champ: {name: '優勝', special: true, items: [['none','つけない',0], ['champ','チャンピオン',0]]}
+  champ: {name: '対戦', special: true, items: [['none','つけない',0], ['medal','完走メダル',0], ['band_vs','熱血ハチマキ',0], ['flag_vs','応援フラッグ',0], ['aura','闘志のオーラ',0], ['champ','チャンピオン',0]]}
 };
 /* the champion skin changes color with the number of wins (only rounds with 5+ players count) */
 const CHAMP_TIERS = [[1,'ブロンズ','#cd7f32'], [2,'シルバー','#c9d0dc'], [3,'ゴールド','#ffcc1f'], [5,'エメラルド','#2ecc71'], [7,'ルビー','#e8213f'], [10,'サファイア','#2f7dff'], [15,'アメジスト','#9b51e0'], [20,'ダイヤモンド','#bff6ff'], [30,'レジェンド','rainbow']];
+/* participation prizes needed for each battle look (a prize = 8 hours of study in a finished race) */
+const AWARD_NEED = {medal: 1, band_vs: 3, flag_vs: 5, aura: 10};
 const tierOf = w => { let t = null; for (const x of CHAMP_TIERS) if (w >= x[0]) t = x; return t; };
 const nextTier = w => CHAMP_TIERS.find(x => x[0] > w) || null;
 (() => {
@@ -1830,6 +1833,9 @@ const lookOf = (eq, wins = 0) => {
   const o = {}; for (const k in SHOP) o[k] = item(k, eq[k] || 'none')[0]; o.colorV = item('color', o.color)[3];
   const t = o.champ === 'champ' && wins >= 1 ? tierOf(wins) : null;
   if (t) { o.champT = t; o.colorV = t[2] === 'rainbow' ? 'rainbow' : 'champ:' + t[2]; o.head = 'laurel'; o.back = 'champcape'; }
+  if (o.champ === 'band_vs') o.head = 'band_g';
+  if (o.champ === 'flag_vs') o.hand = 'flag_vs';
+  if (o.champ === 'medal' || o.champ === 'aura') o.vsfx = o.champ;
   return o;
 };
 
@@ -1866,6 +1872,15 @@ function stick(P, look, o){
   const ol = (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); };
   c.lineCap = 'round'; c.lineJoin = 'round';
   const A0 = c.globalAlpha;
+  if (look.vsfx === 'aura') { // flames of grit rising around the body
+    const cx3 = (P.hip[0] + P.neck[0])/2, cy3 = (P.hip[1] + P.neck[1])/2 - 2;
+    const g = c.createRadialGradient(cx3, cy3, 2, cx3, cy3, 17); g.addColorStop(0, 'rgba(255,190,60,.55)'); g.addColorStop(1, 'rgba(255,90,20,0)');
+    c.fillStyle = g; c.beginPath(); c.ellipse(cx3, cy3, 13, 18, 0, 0, 7); c.fill();
+    for (let i = 0; i < 9; i++) { const k = ((t*.0018) + i/9) % 1, a = i*.75; const fx = cx3 + Math.sin(a)*9, fy = P.hip[1] + 8 - k*30;
+      c.globalAlpha = A0*.85*(1 - k); c.fillStyle = i % 3 === 0 ? '#ffe680' : i % 2 ? '#ff6a1a' : '#ffb020';
+      c.beginPath(); c.moveTo(fx - 3*(1 - k) - .8, fy); c.quadraticCurveTo(fx, fy - 9*(1 - k) - 3, fx + 3*(1 - k) + .8, fy); c.quadraticCurveTo(fx, fy + 2, fx - 3*(1 - k) - .8, fy); c.fill(); }
+    c.globalAlpha = A0;
+  }
   drawBack(look.back, P, {u, f, bk, ang, t, moving, air, col, ol});
   // body
   if (bs.alpha) c.globalAlpha = A0*bs.alpha;
@@ -1885,6 +1900,11 @@ function stick(P, look, o){
   }
   c.shadowBlur = 0; c.globalAlpha = A0;
   if (bs.sheen) { c.fillStyle = 'rgba(255,255,255,.75)'; circ(P.head[0] - 1.5, P.head[1] - 1.6, 1.1); if (look.colorV === 'galaxy') { c.fillStyle = '#fff'; c.fillRect(P.head[0] + 1.5, P.head[1] + 1, .6, .6); c.fillRect(P.hip[0] + 1, P.hip[1] - 4, .6, .6); } }
+  if (look.vsfx === 'medal') { // finisher's medal on the chest
+    const mx = P.neck[0]*.55 + P.hip[0]*.45 + f[0]*1.6, my = P.neck[1]*.55 + P.hip[1]*.45 + f[1]*1.6;
+    c.strokeStyle = '#e8202a'; c.lineWidth = .9; c.beginPath(); c.moveTo(P.neck[0] - 1, P.neck[1]); c.lineTo(mx, my - 1.8); c.lineTo(P.neck[0] + 1.6, P.neck[1]); c.stroke();
+    c.fillStyle = '#ffcc1f'; circ(mx, my, 2.1); c.strokeStyle = '#b8860b'; c.lineWidth = .5; c.beginPath(); c.arc(mx, my, 2.1, 0, 7); c.stroke(); star(mx, my, 1.1, '#fff6c8');
+  }
   if (look.back.startsWith('scarf')) { c.fillStyle = scarfCol(look.back, 0); c.beginPath(); c.ellipse(P.neck[0] + u[0]*.6, P.neck[1] + u[1]*.6, 2.6, 1.5, ang, 0, 7); c.fill(); ol(.6); }
   // head
   c.save(); c.translate(P.head[0], P.head[1]); c.rotate(ang);
@@ -2008,8 +2028,8 @@ function drawHead(k, t, moving, col, ol){
       const cc = {cap_b:'#2f6bff', cap_r:'#e8202a', cap_k:'#2a2a33'}[k];
       c.fillStyle = cc; c.beginPath(); c.arc(0, -.6, 5, Math.PI, Math.PI*2); c.closePath(); c.fill(); ol();
       rr(1, -1.6, 7.5, 1.6, .8); c.fill(); ol(.6); c.fillStyle = '#fff'; circ(0, -5.4, .9); break; }
-    case 'band_r': case 'band_w': {
-      const cc = k === 'band_r' ? '#e8202a' : '#ffffff', w = moving ? Math.sin(t*.025)*1.2 : 0;
+    case 'band_r': case 'band_w': case 'band_g': {
+      const cc = k === 'band_r' ? '#e8202a' : k === 'band_g' ? '#ffcc1f' : '#ffffff', w = moving ? Math.sin(t*.025)*1.2 : 0;
       c.strokeStyle = cc; c.lineWidth = 1.2;
       c.beginPath(); c.moveTo(-4.4, -2.4); c.quadraticCurveTo(-8, -3 + w, -10, -1.5 + w*1.5); c.moveTo(-4.4, -2.2); c.quadraticCurveTo(-7.5, -.5 + w, -9.5, .8 + w); c.stroke();
       c.fillStyle = cc; c.save(); c.beginPath(); c.arc(0, 0, 5.4, 0, 7); c.clip(); c.fillRect(-6, -3.6, 12, 2.2); c.restore();
@@ -2056,7 +2076,7 @@ function drawHead(k, t, moving, col, ol){
 function drawHand(k, el, hd, t, moving, ol, bodyAng){
   if (k === 'none') return;
   const dir = Math.atan2(hd[1] - el[1], hd[0] - el[0]);
-  const upright = ['flag','balloon','heartb','umbrella','torch','icecream','trophy','cup','cards'].includes(k);
+  const upright = ['flag','flag_vs','balloon','heartb','umbrella','torch','icecream','trophy','cup','cards'].includes(k);
   c.save(); c.translate(hd[0], hd[1]);
   if (!upright) c.rotate(dir - 1.75);
   switch (k) {
@@ -2072,6 +2092,7 @@ function drawHand(k, el, hd, t, moving, ol, bodyAng){
     case 'book': c.rotate(1.75 - dir); c.fillStyle = '#2f6bff'; rr(-1, -3, 5, 6, .6); c.fill(); ol(.5); c.fillStyle = '#fff'; c.fillRect(3.4, -2.6, .6, 5.2); break;
     case 'fish': c.fillStyle = '#4aa3f5'; c.beginPath(); c.ellipse(5, 0, 4.4, 2, 0, 0, 7); c.fill(); c.beginPath(); c.moveTo(.8, 0); c.lineTo(-1.2, -1.8); c.lineTo(-1.2, 1.8); c.fill(); c.fillStyle = '#fff'; circ(7.6, -.4, .6); break;
     case 'carrot': c.fillStyle = '#ff8a2a'; c.beginPath(); c.moveTo(0, -1.4); c.lineTo(8, 0); c.lineTo(0, 1.4); c.fill(); c.fillStyle = '#3fae4f'; c.beginPath(); c.moveTo(0, 0); c.lineTo(-2.6, -1.6); c.lineTo(-2.2, 0); c.lineTo(-2.6, 1.6); c.fill(); break;
+    case 'flag_vs': { const w = Math.sin(t*.016)*1.8; c.fillStyle = '#ddd'; c.fillRect(-.4, -16, .9, 17); c.fillStyle = '#ff7a1a'; c.beginPath(); c.moveTo(.5, -16); c.quadraticCurveTo(5, -16 + w, 10, -14 + w); c.quadraticCurveTo(5, -11, .5, -10.5); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 4px sans-serif'; c.fillText('V', 3.2, -12.4 + w*.5); break; }
     case 'flag': { const w = Math.sin(t*.012)*1.4; c.fillStyle = '#ddd'; c.fillRect(-.4, -14, .9, 15); c.fillStyle = '#ff5a4e'; c.beginPath(); c.moveTo(.5, -14); c.quadraticCurveTo(4, -14 + w, 7.5, -12.5 + w); c.quadraticCurveTo(4, -10.5, .5, -10); c.fill(); break; }
     case 'balloon': case 'heartb': { const bx = -3 + Math.sin(t*.003)*1.5, by = -20 + Math.cos(t*.004)*1; c.strokeStyle = '#ddd'; c.lineWidth = .4; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(bx + 2, by/2, bx, by + 4); c.stroke();
       if (k === 'balloon') { c.fillStyle = '#ff4d6a'; c.beginPath(); c.ellipse(bx, by, 3.6, 4.4, 0, 0, 7); c.fill(); ol(.5); c.fillStyle = 'rgba(255,255,255,.6)'; circ(bx - 1.2, by - 1.6, .8); } else { heart(bx, by, 3.4, '#ff3b8a'); } break; }
@@ -2355,7 +2376,7 @@ function ui(){
 /* ---------- shop ---------- */
 const pv = $('pv'), pctx = pv.getContext('2d');
 let shopCat = 'color', trial = null;
-const owned = (cat, id) => id === 'none' || (cat === 'champ' ? (bank.champ || 0) >= 1 : bank.owned.includes(cat + ':' + id));
+const owned = (cat, id) => id === 'none' || (cat === 'champ' ? (id === 'champ' ? (bank.champ || 0) >= 1 : (bank.vsAwards || 0) >= (AWARD_NEED[id] || 1e9)) : bank.owned.includes(cat + ':' + id));
 function shopRender(){
   const wl = wallet();
   $('sbal').textContent = num(wl);
@@ -2365,14 +2386,14 @@ function shopRender(){
   $('scat').textContent = `${SHOP[shopCat].name}：${SHOP[shopCat].items.filter(i => owned(shopCat, i[0])).length} / ${SHOP[shopCat].items.length}`;
   $('sitems').innerHTML = SHOP[shopCat].items.map(it => {
     const [id, name, , col] = it;
-    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' ? '<em>優勝で解放</em>' : `<em>${num(it.price)} コイン</em>`;
+    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' ? `<em>${id === 'champ' ? '優勝で解放' : `参加賞${AWARD_NEED[id]}回で解放`}</em>` : `<em>${num(it.price)} コイン</em>`;
     const swc = {rainbow:'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)', gold:'linear-gradient(135deg,#fff1a8,#e8b100)', silver:'linear-gradient(135deg,#fff,#a8b0bd)', ice:'linear-gradient(135deg,#fff,#9fe3ff)', lava:'linear-gradient(135deg,#ffd23f,#e8402a)', neon:'#39ff88', ghost:'rgba(230,238,255,.6)', shadow:'linear-gradient(135deg,#a259ff,#1d1528)', galaxy:'linear-gradient(135deg,#7a5cff,#1d1b4a)'}[col] || col;
     const ct = tierOf(Math.max(1, bank.champ || 0)), sw = shopCat === 'color' ? `<i style="background:${swc}"></i>` : shopCat === 'champ' && id === 'champ' ? `<i style="background:${ct[2] === 'rainbow' ? 'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)' : ct[2]}"></i>` : '';
     return `<button data-id="${id}" class="${trial[shopCat] === id ? 'sel' : ''}">${sw}<span>${name}</span>${tag}</button>`;
   }).join('');
-  if (shopCat === 'champ') { const w = bank.champ || 0, t = tierOf(Math.max(1, w)), nx = nextTier(w); $('scat').textContent = w ? `優勝 ${w}回・いまの色：${t[1]}` + (nx ? `（あと${nx[0] - w}回で${nx[1]}）` : '') : '5人以上の3日間勝負で優勝すると解放'; }
+  if (shopCat === 'champ') { const w = bank.champ || 0, t = tierOf(Math.max(1, w)), nx = nextTier(w); $('scat').textContent = `参加賞 ${bank.vsAwards || 0}回・優勝 ${w}回` + (w ? `（${t[1]}${nx ? `・あと${nx[0] - w}回で${nx[1]}` : ''}）` : ''); }
   const id = trial[shopCat] || 'none', it = item(shopCat, id), a = $('sact');
-  if (shopCat === 'champ' && id === 'champ' && !owned('champ', 'champ')) { a.textContent = '5人以上の勝負で優勝すると使えます'; a.disabled = true; return; }
+  if (shopCat === 'champ' && id !== 'none' && !owned('champ', id)) { a.textContent = id === 'champ' ? '5人以上の全クリレースで優勝すると使えます' : `レースで8時間ラインを${AWARD_NEED[id]}回こえると使えます（いま${bank.vsAwards || 0}回）`; a.disabled = true; return; }
   if ((bank.eq[shopCat] || 'none') === id) { a.textContent = '装備中'; a.disabled = true; }
   else if (owned(shopCat, id)) { a.textContent = '装備する'; a.disabled = false; }
   else if (wl >= it.price) { a.textContent = `${num(it.price)} コインで買って装備する`; a.disabled = false; }
@@ -2619,7 +2640,7 @@ async function rpc(name, args){
 }
 const myKey = () => fb.uid;
 const myEntry = () => ({n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
-  base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: bank.champ || 0}),
+  base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: bank.champ || 0}),
   allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0});
 async function vsPush(leave){
   if (!fb.room) return;
@@ -2634,6 +2655,12 @@ async function vsPull(){
   try {
     board = await rpc('quest_board', {p_room: fb.room});
     const w = await rpc('quest_wins', {p_member: fb.uid});
+    const aw = await rpc('quest_awards', {p_member: fb.uid});
+    if (typeof aw === 'number' && aw > (bank.vsAwards || 0)) {
+      const before = bank.vsAwards || 0; bank.vsAwards = aw; saveBank();
+      const got = Object.entries(AWARD_NEED).filter(([k, n]) => n > before && n <= aw).map(([k]) => item('champ', k)[1]);
+      toast(`🎖 参加賞！ レースで8時間ラインをこえました（${aw}回目）` + (got.length ? `。「${got.join('・')}」が使えるようになりました` : ''), 9000); sfx('clear');
+    }
     if (typeof w === 'number' && w > (bank.champ || 0)) { bank.champ = w; saveBank(); toast(`🏆 優勝！ チャンピオンスキン（${tierOf(w)[1]}）が使えるようになりました。ショップの「優勝」から装備できます`, 9000); sfx('world'); }
   } catch (e) {}
 }
@@ -2657,7 +2684,8 @@ function vsRender(){
   if (!fb.room) return;
   $('vsCode').textContent = fb.room;
   const mine = myKey(), list = Object.entries(room || {}), wins = {};
-  for (const m of (board && board.members) || []) wins[m.id] = m.wins;
+  const rms = {}, aws = {};
+  for (const m of (board && board.members) || []) { wins[m.id] = m.wins; rms[m.id] = m.race_ms || 0; aws[m.id] = m.awards || 0; }
   if (!list.find(([k]) => k === mine)) list.push([mine, null]);
   const rows = list.map(([k, e]) => {
     const me = k === mine;
@@ -2665,13 +2693,14 @@ function vsRender(){
     const today = e.d === st.d, ms = today ? memberStage(e) : {T: 0, si: e.base || 0, s: 0, v: 0};
     const done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
     const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : done >= NST ? '全クリ！' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
-    return {me, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, status, run: today && e.run};
+    const rm = rms[k] || 0, line = 8*3600e3;
+    return {me, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · 今日 ${fmtHM(ms.T*1000)}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   const race = board && board.race, last = board && board.last;
   $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'})}から）・${rows.length}人` : '全クリレース';
-  $('vsLast').textContent = last && last.winner ? `前回（第${last.no}回）の優勝：${last.winner}（${last.participants}人）` + (last.participants >= 5 ? '・チャンピオンスキン獲得！' : '・5人未満だったのでスキンはなし') : '';
-  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${esc(r.name)}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small></div>`).join('');
-  $('vsStat').textContent = vsErr || (rows.length < 5 ? `一番に全クリした人が優勝。チャンピオンスキンは5人以上のときだけもらえます（あと${5 - rows.length}人）。` : '一番に全クリした人が優勝して、チャンピオンスキンがもらえます。');
+  $('vsLast').textContent = last && last.winner ? `前回（第${last.no}回）の優勝：${last.winner}（${last.participants}人）` + (last.participants >= 5 ? '・チャンピオンスキン獲得！' : '・5人未満だったのでスキンはなし') + (last.awarded ? `・参加賞 ${last.awarded}人` : '') : '';
+  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${esc(r.name)}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
+  $('vsStat').textContent = vsErr || (rows.length < 5 ? `一番に全クリした人が優勝。チャンピオンスキンは5人以上のときだけもらえます（あと${5 - rows.length}人）。` : '一番に全クリした人が優勝して、チャンピオンスキンがもらえます。') + ' レースが終わったとき、レース中に8時間以上勉強していた人には参加賞（2人以上のレース）。';
 }
 /* ghosts: every friend who is studying today runs in your stage at their own place in their stage */
 function drawGhosts(si, cam){
@@ -2775,7 +2804,7 @@ function mergeSave(R){
   const newerBank = (R.at || 0) > (+localStorage.getItem('quest-saved') || 0) ? Rb : Lb;
   const b = {...Lb, ...newerBank,
     earned: Math.max(Lb.earned || 0, Rb.earned || 0), spent: Math.max(Lb.spent || 0, Rb.spent || 0),
-    champ: Math.max(Lb.champ || 0, Rb.champ || 0),
+    champ: Math.max(Lb.champ || 0, Rb.champ || 0), vsAwards: Math.max(Lb.vsAwards || 0, Rb.vsAwards || 0),
     owned: [...new Set([...(Lb.owned || []), ...(Rb.owned || [])])],
     eq: {...(newerBank.eq || Lb.eq)}};
   let s = Ls;
