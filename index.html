@@ -2294,9 +2294,11 @@ let fpOn = false; try { fpOn = localStorage.getItem('quest-fp') === '1'; } catch
 const FP_F = 130, FP_HALF = 46, FP_FAR = 760;
 function drawFP(TH, s, look){
   const h = heroAtIn(L, s), o = airPose(L, s), hx = h.cx != null ? h.cx : h.x;
-  const eye = h.y + (L.cart ? 30 : 26), HZ = 92, CX = VW/2;
+  // view bobbing like a first-person game: a small up-down and side sway in step with the feet
+  const walking = o.mode === 'run' && !L.cart, bob = walking ? {x: Math.sin(o.ph)*1.8, y: Math.abs(Math.cos(o.ph))*2.4} : {x: 0, y: 0};
+  const eye = h.y + (L.cart ? 30 : 26) + bob.y, HZ = 92, CX = VW/2;
   const P = (z, wy) => { const k = FP_F/Math.max(2, z); return {k, y: HZ + (eye - wy)*k}; };
-  c.save();
+  c.save(); c.translate(bob.x*.6, 0);
   if (o.flip) { c.translate(CX, VH/2); c.rotate(-o.flip*.5*Math.sin(o.flip/2)); c.translate(-CX, -VH/2); }   // a gentle roll during flips
   if (o.rot) { c.translate(CX, VH/2); c.rotate(o.rot*.35); c.translate(-CX, -VH/2); }
   // sky and the far landscape, slowly sliding
@@ -2384,7 +2386,7 @@ function drawFP(TH, s, look){
   }
   flush(-1e9);
   c.restore();
-  drawFPHands(o, look);
+  drawFPHands(o, look, bob);
 }
 /* height of the rails at world x (minecart course), or null over a gap */
 function railAt(x){
@@ -2397,38 +2399,34 @@ function railAt(x){
   }
   return null;
 }
-function drawFPHands(o, look){
-  const col = bodyStyle(look, now).col, ph = o.ph || 0;
-  // chunky arms with round mitten hands (same color as the body)
-  const sh = shade(col);
-  const arm = (x0, y0, x1, y1) => {
-    { const d0 = Math.hypot(x1 - x0, y1 - y0) || 1, AL = 34; x0 = x1 + (x0 - x1)/d0*AL; y0 = y1 + (y0 - y1)/d0*AL; }   // keep the forearm short
-    const dx = x1 - x0, dy = y1 - y0, ln = Math.hypot(dx, dy) || 1, nx = -dy/ln, ny = dx/ln, w0 = 15, w1 = 9.5;
-    c.beginPath(); c.moveTo(x0 + nx*w0, y0 + ny*w0); c.lineTo(x1 + nx*w1, y1 + ny*w1); c.lineTo(x1 - nx*w1, y1 - ny*w1); c.lineTo(x0 - nx*w0, y0 - ny*w0); c.closePath();
-    c.fillStyle = col; c.fill(); c.strokeStyle = OL; c.lineWidth = 1.4; c.stroke();
-    c.fillStyle = 'rgba(255,255,255,.18)'; c.beginPath(); c.moveTo(x0 + nx*w0*.6, y0 + ny*w0*.6); c.lineTo(x1 + nx*w1*.6, y1 + ny*w1*.6); c.lineTo(x1 + nx*w1*.15, y1 + ny*w1*.15); c.lineTo(x0 + nx*w0*.15, y0 + ny*w0*.15); c.fill();
-    const hx2 = x1 + dx/ln*4, hy2 = y1 + dy/ln*4;
-    c.fillStyle = col; c.beginPath(); c.arc(hx2, hy2, 12, 0, 7); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.4; c.stroke();
-    c.fillStyle = sh; c.beginPath(); c.arc(hx2 - nx*9, hy2 - ny*9, 4.5, 0, 7); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.1; c.stroke();   // thumb
-    c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.arc(hx2 - 3, hy2 - 4, 3.2, 0, 7); c.fill();
-  };
-  const L0 = VW*.22, R0 = VW*.78;
-  if (o.cart) {
-    c.fillStyle = '#5d6170'; rr(VW*.08, VH - 22, VW*.84, 30, 6); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.2; c.stroke();
-    c.fillStyle = '#8a8fa0'; rr(VW*.06, VH - 26, VW*.88, 7, 3); c.fill(); c.stroke();
-    const b = Math.sin(now*.03)*1.2;
-    arm(L0 - 30, VH + 20, VW*.3, VH - 24 + b); arm(R0 + 30, VH + 20, VW*.7, VH - 24 - b);
-    return;
+/* the hero's right arm, like a block-game first-person hand: it always comes in from the
+   bottom-right corner (never floating), sways with the steps, lags in jumps and swings to throw.
+   Drawn as the stick figure's own thick rounded line, with whatever it holds from the shop. */
+function drawFPHands(o, look, bob){
+  const bs = bodyStyle(look, now), col = bs.col, S = 5;
+  let sh = [VW + 26, VH + 34], el, hd;   // shoulder is off screen
+  const rest = (dx, dy) => { el = [VW*.88 + dx*.4, VH - 8 + dy*.4]; hd = [VW*.76 + dx, VH - 26 + dy]; };
+  if (o.cart) { // the front edge of the vehicle, with the hand resting on it
+    c.fillStyle = '#5d6170'; rr(VW*.1, VH - 16, VW*.8, 26, 6); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = '#8a8fa0'; rr(VW*.08, VH - 21, VW*.84, 7, 3); c.fill(); c.stroke();
+    rest(-10, 6 + Math.sin(now*.03)*1);
   }
-  if (o.mode === 'hang' || o.mode === 'reach' || o.mode === 'climb') { // just the two hands gripping overhead
-    const u = o.mode === 'climb' ? (o.cu || 0) : 0, y = lerp(20, VH - 24, u);
-    for (const f of [-.12, .12]) { const x = CXm(f); c.fillStyle = col; c.beginPath(); c.arc(x, y, 12, 0, 7); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.4; c.stroke();
-      c.fillStyle = sh; c.beginPath(); c.arc(x + (f < 0 ? 8 : -8), y + 6, 4.5, 0, 7); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.1; c.stroke(); c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.arc(x - 3, y - 4, 3.2, 0, 7); c.fill(); }
-    return;
-  }
-  if (o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'wall') { arm(L0 - 30, VH + 20, VW*.2, VH - 34); arm(R0 + 30, VH + 20, VW*.8, VH - 34); return; }
-  if (o.mode === 'run') { const a = Math.sin(ph), b = Math.cos(ph); arm(L0 - 20, VH + 24, L0 + a*10, VH - 16 - Math.max(0, a)*12 + b*2); arm(R0 + 20, VH + 24, R0 + a*10, VH - 16 - Math.max(0, -a)*12 - b*2); return; }
-  arm(L0 - 20, VH + 24, L0, VH - 18); arm(R0 + 20, VH + 24, R0, VH - 18);
+  else if (o.mode === 'hang' || o.mode === 'reach') { el = [VW*.86, VH*.42]; hd = [VW*.74, -24]; }   // reaching up out of the top of the view to the bar
+  else if (o.mode === 'climb') { const u = o.cu || 0; el = [VW*.86, lerp(VH*.42, VH - 8, u)]; hd = [VW*.74, lerp(-24, VH - 26, u)]; }
+  else if (o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'wall') rest(4, o.vy > 0 ? 14 : -4);   // the hand lags behind the jump
+  else if (o.mode === 'run') rest(bob.x*3 + Math.sin(o.ph)*4, -bob.y*3 + Math.cos(o.ph*2)*2);
+  else rest(0, Math.sin(now*.0025)*1.5);
+  if (o.carry) { el = [VW*.86, VH*.55]; hd = [VW*.7, VH*.28]; }
+  if (o.throwK != null) { const k = o.throwK, sw = Math.sin(k*Math.PI); el = [VW*.86 - sw*10, lerp(VH*.5, VH - 6, k)]; hd = [lerp(VW*.72, VW*.58, sw), lerp(VH*.25, VH - 22, k)]; }
+  c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+  if (bs.glow) { c.shadowColor = bs.glow; c.shadowBlur = 5*glowScale*S*.4; }
+  const line = (w, st) => { c.strokeStyle = st; c.lineWidth = w; c.beginPath(); c.moveTo(sh[0], sh[1]); c.lineTo(el[0], el[1]); c.lineTo(hd[0], hd[1]); c.stroke(); };
+  line(3.9*S, 'rgba(43,35,64,.85)'); c.shadowBlur = 0;
+  line(2.5*S, col);
+  c.strokeStyle = 'rgba(255,255,255,.22)'; c.lineWidth = .8*S; c.beginPath(); c.moveTo(el[0] - 3, el[1] - 2); c.lineTo(hd[0] - 3, hd[1] - 2); c.stroke();
+  // held item (from the shop), drawn at the same scale as the arm
+  if (look.hand && look.hand !== 'none' && hd[1] > 0) { c.save(); c.translate(hd[0], hd[1]); c.scale(S*.75, S*.75); drawHand(look.hand, [(el[0] - hd[0])/(S*.75), (el[1] - hd[1])/(S*.75)], [0, 0], now, o.mode === 'run', (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); }, 0); c.restore(); }
+  c.restore();
 }
 const CXm = f => VW*(.5 + f);
 
