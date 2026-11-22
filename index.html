@@ -3394,10 +3394,11 @@ const dayEndOf = d => { const [y, m, dd] = String(d).split('-').map(Number); con
 function rollover(){
   if (st.d === dayKey()) return null;
   if (!st.acc && !st.run && !st.ff) { st = fresh(st.base, st.night); save(); return null; }
-  const end = dayEndOf(st.d), keepRun = st.run && !st.ff;
+  const end = dayEndOf(st.d), keepRun = st.run && !st.ff, wasNight = st.night;
   if (st.ff) { st.acc = st.ff.target; st.mult = st.ff.prev || 1; st.ff = null; st.run = false; }
   else if (st.run) { st.acc = Math.min(dayLen(st)*1000, st.acc + Math.max(0, Math.min(end, Date.now()) - st.t0)*(st.mult || 1)); st.run = false; st.stopAt = end; }
   const sm = finishDay();
+  if (wasNight && !keepRun) { st.night = wasNight; save(); }   // already asleep at the inn: the scene just carries on
   if (keepRun) { const t0 = Math.max(end, new Date().setHours(0, 0, 0, 0)); st.night = null; st.run = true; st.t0 = t0; st.act = t0; st.stopAt = t0; save(); }
   return sm;
 }
@@ -3476,7 +3477,7 @@ function ui(){
   }
   $('wl').textContent = num(wallet());
   const hint = $('hint');
-  hint.textContent = st.night ? `おやすみ中…「開始」で ${stageName(st.base)} から新しい一日` : '「開始」を押して勉強スタート。キャラが自動で進みます';
+  hint.textContent = st.night ? (st.acc > 0 ? `おやすみ中…「開始」で続きから。0時になると進んだ半分（${daySummary(st).nextName}）から新しい一日` : `おやすみ中…「開始」で ${stageName(st.base)} から新しい一日`) : '「開始」を押して勉強スタート。キャラが自動で進みます';
   hint.classList.toggle('off', st.night ? nightPhase((Date.now() - st.night.at)/1000).i < 4 : (st.run || ms > 0));
   cells.forEach((el, i) => {
     const f = i < st.base ? 1 : i < si || (all && i === si) ? 1 : i === si ? s/STAGE : 0;
@@ -3825,7 +3826,6 @@ function memberT(e){
    of the stage they reached on their last day (the same rule as our own day change) */
 function memberNow(e){
   if (e.d === st.d) return {...memberStage(e), today: true};
-  if (e.night) return {T: 0, si: e.base || 0, s: 0, v: 0, today: false, yReach: null};   // already slept: base is the new start
   const end = dayEndOf(e.d), live = e.run ? Math.max(0, Math.min(end, Date.now()) - (e.t0 || 0))*(e.mult || 1) : 0;
   const T = Math.min((NST - (e.base || 0))*STAGE, ((e.acc || 0) + live)/1000);
   if (T <= 0) return {T: 0, si: e.base || 0, s: 0, v: 0, today: false, yReach: null};
@@ -4543,8 +4543,8 @@ function showSummary(sm, mode){
   $('smh').textContent = mode === 'confirm' ? '今日のきろく' : mode === 'done' ? 'おやすみなさい' : '前回のきろく';
   $('sm1').textContent = sm.stages; $('sm2').textContent = num(sm.coins); $('sm3').textContent = fmtHM(sm.ms);
   const where = sm.all ? `${sm.from} から最後まで、ぜんぶクリアしました！` : sm.stages ? `${sm.from} から ${sm.reached} まで進みました。` : sm.ms ? `ステージ ${sm.reached} の途中まで進みました。` : 'まだステージを進めていません。';
-  $('smp').textContent = mode === 'confirm' ? `${where}「おやすみなさい」で今日を終えると、みんなで旅館に泊まります。次は ${sm.nextName} から再開です（進んだステージの半分から）。`
-    : mode === 'done' ? `${where}コイン ${num(sm.coins)} 枚を財布に入れました。次は ${sm.nextName} から。みんなで旅館へ行きます。`
+  $('smp').textContent = mode === 'confirm' ? `${where}「おやすみなさい」でみんなと旅館に泊まります。0時になったら、進んだステージの半分（${sm.nextName}）から新しい一日です。それまでに「開始」を押せば続きから勉強できます。`
+    : mode === 'done' ? `${where}コイン ${num(sm.coins)} 枚は財布に入っています。0時になったら ${sm.nextName} から新しい一日（それまでに「開始」を押すと続きから）。みんなで旅館へ行きます。`
     : `${where}コイン ${num(sm.coins)} 枚は財布に入っています。次は ${sm.nextName} から再開です。`;
   $('smbtn').hidden = mode !== 'confirm'; $('smclose').hidden = mode === 'confirm';
   $('smclose').textContent = mode === 'done' ? '旅館へ' : 'とじる';
@@ -4557,7 +4557,15 @@ $('sleepb').onclick = () => {
   ui();
 };
 $('smback').onclick = () => { $('sleep').hidden = true; };
-$('smok').onclick = () => { const sm = finishDay(); st.act = Date.now(); save(); showSummary(sm, 'done'); sfx('night'); ui(); acNow(); };
+/* 寝る only sends everyone to the inn. The day itself (and the halving) ends at 0:00, so sleeping twice never halves twice. */
+function sleepNow(){
+  if (st.run) { commit(); st.run = false; }
+  const sm = daySummary(st);
+  if (!st.night) st.night = {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)};
+  st.stopAt = Date.now(); st.act = Date.now(); save();
+  return sm;
+}
+$('smok').onclick = () => { const sm = sleepNow(); showSummary(sm, 'done'); sfx('night'); ui(); acNow(); };
 $('smclose').onclick = () => { $('sleep').hidden = true; if (st.night && $('smclose').textContent === '旅館へ') { st.night.at = Date.now(); save(); } ui(); };
 function drawNight(){
   withCtx(sv, sctx, 64, vw => {
