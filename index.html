@@ -94,6 +94,15 @@ canvas{display:block;width:100%;height:100%}
 .vst{display:flex;justify-content:space-between;gap:8px;font-size:15px;margin-bottom:6px}
 .vst span{color:var(--sub);font-size:13px}
 .vst span.on{color:var(--go);font-weight:600}
+.pill.pri{background:var(--acc);color:#fff;font-weight:600}
+.chk{display:flex;align-items:center;gap:6px;margin-top:8px}
+.vscode{margin-top:10px;color:var(--sub);font-size:13px}
+.vscode summary{cursor:pointer}
+.vsroom{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.vsroom div{flex:1;min-width:0}
+.vsroom b{display:block;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vsroom small{color:var(--sub);font-size:12px}
+.vsroom small .on{color:var(--go);font-weight:600}
 .cup{font-size:12px;color:#c98a12;font-weight:700}
 .vsr small{color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums;display:block;margin-top:4px}
 .dev .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
@@ -198,10 +207,15 @@ canvas{display:block;width:100%;height:100%}
       <div id="vsOff">
         <p id="vsNote" class="vsn">準備中です（サーバーの設定が終わると使えるようになります）。</p>
         <div id="vsForm">
-          <p class="vsn">同じ部屋コードを入れた友だちと、同じステージで一緒に走ります。</p>
+          <p class="vsn">ニックネームを決めて部屋に入ると、部屋のみんなと同じステージで全クリを競えます。</p>
           <div class="row"><input type="text" id="vsName" maxlength="10" placeholder="ニックネーム" aria-label="ニックネーム"></div>
-          <div class="row"><input type="text" id="vsRoom" maxlength="8" placeholder="部屋コード（例：AB12C）" aria-label="部屋コード" autocapitalize="characters"><button class="pill" id="vsJoin">参加</button></div>
-          <div class="row"><button class="pill" id="vsNew">新しい部屋を作る</button><span id="vsStat2" class="vsn"></span></div>
+          <div class="row"><button class="pill pri" id="vsAuto">おまかせで入る</button><button class="pill" id="vsFind">部屋を探す</button><button class="pill" id="vsNew">新しい部屋を作る</button></div>
+          <label class="vsn chk"><input type="checkbox" id="vsPub" checked> 作る部屋を「部屋を探す」に出す（だれでも入れる）</label>
+          <div id="vsRooms" hidden></div>
+          <p id="vsStat2" class="vsn" style="color:var(--acc)"></p>
+          <details class="vscode"><summary>部屋コードで入る（友だちだけの部屋）</summary>
+            <div class="row"><input type="text" id="vsRoom" maxlength="8" placeholder="部屋コード（例：AB12C）" aria-label="部屋コード" autocapitalize="characters"><button class="pill" id="vsJoin">参加</button></div>
+          </details>
         </div>
       </div>
       <div id="vsOn" hidden>
@@ -2705,7 +2719,32 @@ async function vsJoin(code){
   catch (e) { fb.room = ''; saveFb(); $('vsStat2').textContent = 'つながりませんでした。少ししてからもう一度ためしてください'; vsRender(); }
 }
 $('vsJoin').onclick = () => vsJoin($('vsRoom').value);
-$('vsNew').onclick = () => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random()*a.length)]; $('vsRoom').value = s; vsJoin(s); };
+const newCode = () => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random()*a.length)]; return s; };
+const needName = () => { if ($('vsName').value.trim()) return true; $('vsStat2').textContent = '先にニックネームを入れてください'; $('vsName').focus(); return false; };
+async function vsCreate(pub){
+  const code = newCode(); $('vsRoom').value = code;
+  await vsJoin(code);
+  if (fb.room === code) { try { await rpc('quest_room_meta', {p_room: code, p_member: fb.uid, p_secret: fb.secret, p_public: pub, p_title: `${(fb.name || '').slice(0, 10)}の部屋`}); } catch (e) {} }
+}
+$('vsNew').onclick = () => { if (needName()) vsCreate($('vsPub').checked); };
+/* rooms anyone can join, busiest first */
+async function vsList(){
+  $('vsStat2').textContent = '部屋を探しています…';
+  try { const list = await rpc('quest_rooms_open', {}) || []; $('vsStat2').textContent = ''; return list; }
+  catch (e) { $('vsStat2').textContent = 'つながりませんでした。電波を確認してください'; return null; }
+}
+$('vsFind').onclick = async () => {
+  const list = await vsList(); if (!list) return;
+  const box = $('vsRooms'); box.hidden = false;
+  box.innerHTML = list.length ? list.map(r => `<div class="vsroom"><div><b>${esc(r.title)}</b><small>${r.members}人${r.studying ? `・<span class="on">勉強中 ${r.studying}人</span>` : ''}${r.race ? `・第${r.race}回レース` : ''}</small></div><button class="pill" data-room="${esc(r.room)}">入る</button></div>`).join('')
+    : '<p class="vsn">いま入れる部屋はありません。「新しい部屋を作る」で作ってみよう。</p>';
+};
+$('vsRooms').onclick = e => { const b = e.target.closest('[data-room]'); if (b && needName()) vsJoin(b.dataset.room); };
+$('vsAuto').onclick = async () => {
+  if (!needName()) return;
+  const list = await vsList(); if (!list) return;
+  if (list.length) vsJoin(list[0].room); else vsCreate(true);   // nobody around: open a new public room
+};
 $('vsLeave').onclick = async () => { try { await vsPush(true); } catch (e) {} fb.room = ''; room = null; saveFb(); vsRender(); };
 $('vsCopy').onclick = async () => { try { await navigator.clipboard.writeText(fb.room); $('vsCopy').textContent = 'コピーしました'; } catch (e) { $('vsCopy').textContent = fb.room; } setTimeout(() => { $('vsCopy').textContent = 'コードをコピー'; }, 1500); };
 $('vsName').value = fb.name || '';
