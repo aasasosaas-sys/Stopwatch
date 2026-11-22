@@ -300,7 +300,7 @@ canvas{display:block;width:100%;height:100%}
 <div class="sheet" id="lot" hidden>
   <div class="sh-in sum" role="dialog" aria-label="今日のステージ抽選">
     <h2>今日のステージ抽選</h2>
-    <p id="lotp">全216ステージの中から、今日の72ステージを選んでいます…</p>
+    <p id="lotp">全432ステージの中から、今日の72ステージを選んでいます…</p>
     <div class="lotg" id="lotg"></div>
     <p>各ワールドの1〜6面に、A・B・Cのどれが出るかを毎朝ランダムで決めます。</p>
     <button class="act" id="lotok" disabled>OK</button>
@@ -374,7 +374,9 @@ const THEMES = [
    decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', foes:['knight', 'ghost', 'bat'], sun:'moon', boost:{firebar:1.5, cannon:1.4}}
 ];
 const FLYERS = ['bird','bat','cloudy','ufo','ghost'];
-const VAR = 'ABC';
+const VAR = 'ABCDEF';
+const NVAR = 6;
+const COURSE_NAME = {3: 'てきコース', 4: 'パルクールコース', 5: 'トロッココース'};
 const stageName = si => `${Math.floor(si/6) + 1}-${si % 6 + 1}`;
 
 /* ---------- stage generation ----------
@@ -388,7 +390,10 @@ function build(si, v = 0){
   const G = [], ICE = [], segs = [], coins = [], blocks = [], enemies = [], stumps = [], plats = [], decos = [];
   const spikes = [], springs = [], bridges = [], movers = [], ropes = [], cannons = [], bullets = [], lifts = [], bars = [], gates = [];
   const saws = [], lasers = [], crushers = [], rocks = [], walls = [];
-  const hell = w >= 3 && sn === 4;
+  const course = v >= 3 ? 'DEF'[v - 3] : '';
+  const RS = course === 'F' ? 165 : 75;   // planning speed: the minecart goes about twice as fast
+  const hell = !course && w >= 3 && sn === 4;
+  const carries = [], bwalls = [], redirs = [], bars2 = [], rails = [], stones = [], cfoes = [], buttons = [], xcoins = [], gaps = [];
   let col = 0, h = 2, px = 2*T, hp = 2*T, est = 0, iceOn = false;
   const flat = (n, deco = true) => {
     for (let i = 0; i < n; i++, col++) {
@@ -397,7 +402,7 @@ function build(si, v = 0){
     }
   };
   const push = s => { segs.push(s); est += s.d; return s; };
-  const runTo = x => { if (x > px + .01) { push({j:0, x0:px, x1:x, h0:hp, h1:hp, d:(x - px)/75}); px = x; } };
+  const runTo = x => { if (x > px + .01) { push({j:0, x0:px, x1:x, h0:hp, h1:hp, d:(x - px)/RS}); px = x; } };
   const jdur = s => (s.k === 'kick' ? .26 : s.k === 'air' || s.k === 'grab' ? .2 + .05*Math.sqrt(Math.abs(s.h1 - s.h0) + s.A) : .22 + .06*Math.sqrt(s.A) + .002*Math.abs(s.x1 - s.x0))*GR;
   const jump = (x0, x1, h1, A, k) => {
     x0 = Math.max(x0, px); runTo(x0);
@@ -674,7 +679,158 @@ function build(si, v = 0){
     crusher(){ const c0 = col; flat(9); crushers.push({x: (c0+4)*T, y: h*T}); },
     rocks(){ const c0 = col; flat(8); for (let i = 0; i < 3; i++) rocks.push({x: (c0+2+i*2)*T + 8, y: h*T, i}); },
     coins(){ const c0 = col; flat(6); lineCoins(c0 + 1, 4, h*T); },
-    rest(){ flat(ri(2, D > .5 ? 3 : 5)); }
+    rest(){ flat(ri(2, D > .5 ? 3 : 5)); },
+
+    /* ===== D course: use the enemies ===== */
+    // bounce across a pit on a row of flying enemies
+    chain(){
+      flat(2);
+      const n = ri(2, D > .5 ? 4 : 3), gp = 4, w2 = n*gp + 2, c0 = col, base = h*T;
+      const type = TH.foes.find(f => FLYERS.includes(f)) || 'bird';
+      for (let i = 0; i < w2; i++) G[col+i] = 0;
+      col += w2;
+      let x = c0*T - 3;
+      for (let i = 0; i < n; i++) {
+        const xm = (c0 + 2 + i*gp)*T, ey = base + (i % 2)*10 + (i === n - 1 ? 6 : 0);
+        arcCoins(jump(x, xm, ey + 26, i ? 12 : 16, 'e'), 1);
+        enemies.push({xm, y: ey, range: 0, type, fly: true}); x = xm;
+      }
+      arcCoins(jump(x, (c0 + w2)*T + 8, base, 24, 'flip'), 2);
+      flat(3);
+    },
+    // stomp a walker, pick it up and throw it at a brick wall that blocks the way
+    shell(){
+      const c0 = col; flat(17);
+      const type = TH.foes.find(f => !FLYERS.includes(f)) || 'blob', xs = (c0 + 3)*T + 8, xw = (c0 + 12)*T;
+      const st1 = jump(xs - 34, xs, hp + 9, 16, 'e');
+      jump(xs, xs + 4, h*T, 10);
+      const gs = special({j:0, k:'grab', x0: xs + 4, x1: xs + 6, h1: hp, d: .35});
+      runTo(xw - 64);
+      const ts = special({j:0, k:'throw', x0: xw - 64, x1: xw - 60, h1: hp, d: .3});
+      const bw = {x: xw, y: h*T, n: 3};
+      bwalls.push(bw);
+      carries.push({type, xs, ys: h*T, range: 3*T, st: st1, gs, ts, xt: xw + 6, yt: h*T + 20, w: bw});
+      lineCoins(c0 + 13, 3, h*T);
+    },
+    // carry an enemy over a cliff, throw it in mid-air and use it as a stepping stone
+    airthrow(){
+      const c0 = col; flat(8);
+      const type = TH.foes.find(f => !FLYERS.includes(f)) || 'blob', xs = (c0 + 2)*T + 8;
+      const st1 = jump(xs - 34, xs, hp + 9, 16, 'e');
+      jump(xs, xs + 4, h*T, 10);
+      const gs = special({j:0, k:'grab', x0: xs + 4, x1: xs + 6, h1: hp, d: .35});
+      const w2 = ri(10, 12), x0 = col*T - 4, x1 = (col + w2)*T + 8;
+      for (let i = 0; i < w2; i++) G[col+i] = 0;
+      col += w2;
+      const xa = x0 + 40, ya = hp + 40;
+      jump(x0, xa, ya, 12, 'air');
+      const xp = xa + 58, yp = ya - 12;
+      const j2 = jump(xa, xp, yp + 9, 4, 'e');
+      arcCoins(jump(xp, x1, h*T, 30, 'dj'), 3);
+      carries.push({type, xs, ys: h*T, range: 2*T, st: st1, gs, ts: j2, air: 1, xt: xp, yt: yp});
+      flat(3);
+    },
+    // put a block down: the enemy bumps into it, turns round and steps on the switch that opens the gate
+    redirect(){
+      const c0 = col; flat(19);
+      const type = TH.foes.find(f => !FLYERS.includes(f)) || 'blob';
+      const xb = (c0 + 3)*T, xsw = (c0 + 11)*T + 8, xg = (c0 + 15)*T + 2, vE = 30;
+      runTo(xb - 14);
+      const ps = special({j:0, k:'place', x0: xb - 14, x1: xb - 12, h1: hp, d: .45});
+      const hop = jump(xb - 12, xb + 7, hp + T, 12);
+      const walkT = (xsw - (xb + 16))/vE;
+      special({j:0, k:'wait', x0: xb + 7, x1: xb + 9, h1: hp, d: walkT + .65 - hop.d + .1});
+      jump(xb + 9, xb + 2*T + 4, h*T, 10, 'drop');
+      jump(xsw - 26, xsw + 26, hp, 26, 'hop');
+      const gt = {sx: xsw, x: xg, y: h*T, hgt: 3*T, seg: null};
+      gates.push(gt);
+      redirs.push({type, xb, y: h*T, xsw, vE, walkT, ps, gate: gt});
+      lineCoins(c0 + 16, 2, h*T);
+    },
+
+    /* ===== E course: real parkour ===== */
+    // jump to the edge of a tall wall, hang on and climb up
+    climb(){
+      if (h > 3) return F.height();
+      flat(3);
+      const k = ri(4, D > .5 ? 6 : 5), e = col*T, top = (h + k)*T;
+      jump(e - 36, e - 5, top - 22, 14, 'reach');
+      special({j:6, k:'mantle', x0: e - 5, x1: e + 8, h1: top, d: .6});
+      h += k; const c0 = col; flat(ri(4, 6)); lineCoins(c0 + 1, 3, h*T);
+      h -= k; jump(col*T - 2, col*T + 46, h*T, 16, 'flip');
+      flat(3);
+    },
+    // kick off the wall, double jump back to it and climb over the top
+    kickclimb(){
+      if (h > 2) return F.height();
+      flat(4);
+      const e = col*T, k = 6, top = (h + k)*T, h0 = hp;
+      jump(e - 46, e - 6, h0 + 44, 8, 'air');
+      jump(e - 6, e - 32, h0 + 62, 6, 'kick');
+      jump(e - 32, e - 5, top - 22, 8, 'reach');
+      special({j:6, k:'mantle', x0: e - 5, x1: e + 8, h1: top, d: .6});
+      h += k; const c0 = col; flat(ri(4, 5)); lineCoins(c0 + 1, 3, h*T);
+      h -= k; jump(col*T - 2, col*T + 56, h*T, 18, 'flip');
+      flat(3);
+    },
+    // three jumps in a row across a huge gap
+    triple(){
+      flat(2);
+      const w2 = ri(11, 13), x0 = col*T - 3, x1 = (col + w2)*T + 6;
+      for (let i = 0; i < w2; i++) G[col+i] = 0;
+      col += w2;
+      const xa = x0 + (x1 - x0)*.27, xb = x0 + (x1 - x0)*.56;
+      arcCoins(jump(x0, xa, hp + 30, 14, 'air'), 2);
+      arcCoins(jump(xa, xb, hp + 48, 14, 'dj'), 2);
+      arcCoins(jump(xb, x1, h*T, 32, 'tj'), 3);
+      flat(3);
+    },
+    // a lift shoots up and stops dead: the hero flies on, catches a high ledge and climbs it
+    liftlaunch(){
+      if (h > 2) return F.height();
+      flat(2);
+      const c0 = col; G[col] = h; G[col+1] = h; col += 2;
+      const lx = c0*T, k = 3;
+      const s = special({j:3, k:'lift', x0: lx + 16, x1: lx + 16, h1: hp + k*T, d: .5});
+      lifts.push({x: lx, y0: h*T, y1: (h + k)*T, seg: s, fast: 1});
+      G[col] = 0; G[col+1] = 0; col += 2;
+      const e = col*T, top = (h + 7)*T;
+      jump(lx + 16, e - 5, top - 22, 26, 'launch');
+      special({j:6, k:'mantle', x0: e - 5, x1: e + 8, h1: top, d: .6});
+      h += 7; const ct = col; flat(ri(4, 5)); lineCoins(ct + 1, 3, h*T);
+      h -= 7; jump(col*T - 2, col*T + 60, h*T, 18, 'flip');
+      flat(3);
+    },
+    // giant swing round a high bar, let go, catch the next bar and flip off
+    giant(){
+      flat(2);
+      const n = 14, c0 = col;
+      for (let i = 0; i < n; i++) G[col+i] = 0;
+      col += n;
+      const ax1 = (c0 + 4)*T, ay1 = h*T + HANG + 34, ax2 = (c0 + 10)*T, ay2 = ay1 + 14;
+      bars2.push({x: ax1, y: ay1}, {x: ax2, y: ay2});
+      jump(c0*T - 26, ax1, ay1 - HANG, 14, 'grab');
+      special({j:9, k:'giant', x0: ax1, x1: ax1, h1: ay1 - HANG, ax: ax1, ay: ay1, a0: -.5, a1: Math.PI*2 + .35, d: 1.5});
+      arcCoins(jump(ax1, ax2, ay2 - HANG, 18, 'flip'), 2);
+      special({j:9, k:'giant', x0: ax2, x1: ax2, h1: ay2 - HANG, ax: ax2, ay: ay2, a0: -.4, a1: .7, d: .6});
+      arcCoins(jump(ax2, (c0 + n)*T + 8, h*T, 26, 'flip'), 2);
+      flat(3);
+    },
+    // land exactly on top of thin poles over a pit
+    poles(){
+      flat(2);
+      const n = ri(3, 4), gp = 3, w2 = n*gp + 2, c0 = col;
+      for (let i = 0; i < w2; i++) G[col+i] = 0;
+      col += w2;
+      let x = c0*T - 3;
+      for (let i = 0; i < n; i++) {
+        const pc = c0 + 1 + i*gp, hh = Math.min(7, h + ri(0, 3)), xm = pc*T + 8;
+        walls.push({x: pc*T + 3, w: 10, y0: 0, y1: hh*T});
+        arcCoins(jump(x, xm, hh*T, 16, 'pole'), 1); x = xm;
+      }
+      jump(x, (c0 + w2)*T + 8, h*T, 18);
+      flat(3);
+    }
   };
 
   // what each world can use; later worlds unlock more gimmicks and pack them tighter
@@ -698,6 +854,16 @@ function build(si, v = 0){
     if (w >= 6) W.push(['ropes2', 2]);
     if (w >= 7) W.push(['springs3', 2]);
   }
+  if (course === 'D') {
+    W.length = 0;
+    W.push(['enemy', 4], ['enemy2', 3.5], ['chain', 2.6], ['shell', 2.2], ['airthrow', 1.8], ['redirect', 1.5], ['pit', 1.5], ['block', 1.5], ['coins', 1], ['rest', Math.max(.3, 1.6 - 2*D)]);
+    if (w >= 2) W.push(['spikes', 1]);
+  } else if (course === 'E') {
+    W.length = 0;
+    W.push(['climb', 3], ['triple', 2.2], ['poles', 2.2], ['kickclimb', 1.6], ['wallkick', 1.4], ['ledge', 1], ['pit', 1.2], ['coins', .8], ['rest', Math.max(.3, 1.4 - 2*D)]);
+    if (w >= 1) W.push(['liftlaunch', 1.7], ['chimney', 1]);
+    if (w >= 2) W.push(['giant', 1.8]);
+  }
   const NEW = {1:['bigpit','bridge'], 2:['spring','spikes'], 3:['ride','wallkick'], 4:['swing'], 5:['cannon','lift','rocks'], 6:['firebar','saw','ropes2'], 7:['springs3','diag'], 8:['gate','laser','crusher']}[w] || [];
   for (const e of W) {
     if (TH.boost && TH.boost[e[0]]) e[1] *= TH.boost[e[0]];
@@ -706,6 +872,76 @@ function build(si, v = 0){
   }
   const total = W.reduce((a,b) => a + b[1], 0);
 
+  let goalX, houseX;
+  if (course === 'F') {
+    /* ===== F course: minecart on rails ===== */
+    const cartRun = x => { if (x > px + .01) { const x0 = px; push({j:0, k:'cart', x0:px, x1:x, h0:hp, h1:hp, d:(x - px)/RS}); rails.push({k:'f', x0, x1:x, y0:hp, y1:hp}); px = x; } };
+    const slope = (len, dy) => { const x0 = px; push({j:7, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp + dy, d: len/RS}); rails.push({k:'s', x0, x1: px + len, y0: hp, y1: hp + dy}); px += len; hp += dy; };
+    const railCoins = (x0, n, gap = 22) => { for (let i = 0; i < n; i++) coins.push({x: x0 + i*gap, y: hp + 16}); };
+    const C = {
+      straight(){ const n = ri(6, 11); railCoins(px + 30, ri(3, 5)); cartRun(px + n*T); },
+      hill(){
+        const up = hp < 5*T ? ri(2, 3)*T : -ri(2, 3)*T;
+        slope(ri(5, 7)*T, up); railCoins(px + 10, 3); cartRun(px + ri(3, 5)*T); slope(ri(5, 7)*T, -up); cartRun(px + 2*T);
+      },
+      drop(){
+        if (hp < 5*T) { slope(6*T, 3*T); cartRun(px + 3*T); }
+        const dy = -(hp - 2*T); railCoins(px + 20, 4, 26); slope(ri(5, 6)*T, dy); cartRun(px + 4*T);
+      },
+      gap(){
+        cartRun(px + 2*T);
+        const len = ri(4, D > .4 ? 7 : 5)*T, dy = R() < .5 ? 0 : (hp > 3*T && R() < .5 ? -T : T);
+        gaps.push([px, px + len]);
+        arcCoins(jump(px, px + len, hp + dy, 22 + len/12, 'cjump'), 3);
+        cartRun(px + 3*T);
+      },
+      loop(){
+        if (hp > 4*T) { slope(5*T, 2*T - hp); }
+        cartRun(px + 3*T);
+        const Rr = 34, W2 = 2*T, s = special({j:8, k:'loop', x0: px, x1: px + W2, h1: hp, R: Rr, d: (2*Math.PI*Rr + W2)/190});
+        rails.push({k:'loop', x0: s.x0, W: W2, y0: s.h0, R: Rr});
+        for (const th of [Math.PI*.5, Math.PI, Math.PI*1.5]) coins.push({x: s.x0 + Rr*Math.sin(th) + W2*th/(2*Math.PI), y: s.h0 + Rr*(1 - Math.cos(th)) + 14, seg: s, th});
+        cartRun(px + 4*T);
+      },
+      foe(){
+        cartRun(px + 3*T);
+        const fly = R() < .4, type = fly ? (TH.foes.find(f => FLYERS.includes(f)) || 'bird') : (TH.foes.find(f => !FLYERS.includes(f)) || 'blob');
+        const xe = px + ri(6, 8)*T, f = {x: xe, y: hp + (fly ? 22 : 0), type, fly};
+        cfoes.push(f); stones.push({tgt: f, xe, kind: 'foe'});
+        cartRun(xe + 3*T);
+      },
+      button(){
+        cartRun(px + 4*T);
+        const x0 = px, len = 4*T, by = hp + 46;
+        const bt = {x: x0 - 6, y: by, y0: hp}, br = {x0, x1: x0 + len, y: hp};
+        buttons.push(bt); stones.push({tgt: bt, xe: x0, kind: 'button', br});
+        gaps.push([x0, x0 + len]);
+        const s0 = px; push({j:0, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp, d: len/RS}); px += len;
+        rails.push({k:'b', x0: s0, x1: px, y0: hp, y1: hp, br});
+        cartRun(px + 3*T);
+      }
+    };
+    const CW = [['straight', .8], ['hill', 2], ['drop', 1], ['gap', 2.4], ['loop', 1.3], ['foe', 2.4], ['button', 1.5]];
+    const ctot = CW.reduce((a, b) => a + b[1], 0);
+    cartRun(10*T);
+    decos.push({x: 4*T, y: 2*T, k: 'start'});
+    let lastC = '';
+    while (est < RUNT - 4) {
+      let r = R()*ctot, k = 'straight';
+      for (const [n, wt] of CW) { if ((r -= wt) < 0) { k = n; break; } }
+      if (k === lastC && k !== 'gap' && k !== 'foe') continue;
+      lastC = k; C[k]();
+    }
+    if (hp !== 2*T) slope(6*T, 2*T - hp);
+    cartRun(px + 5*T);
+    goalX = px + T + 8;
+    cartRun(goalX);
+    const endX = goalX + 21*T;
+    rails.push({k:'deck', x0: goalX - 3*T, x1: endX, y0: hp, y1: hp});   // station platform at the goal
+    col = Math.ceil(endX/T) + 1; h = 1;
+    for (let i = 0; i <= col + 2; i++) G[i] = 0;   // no ground: the rails run high above everything
+    houseX = (col - 14)*T;
+  } else {
   flat(10);
   decos.push({x: 4*T, y: h*T, k: 'start'});
   let last = '';
@@ -720,10 +956,11 @@ function build(si, v = 0){
   }
   down();
   flat(5, false);
-  const goalX = (col + 1)*T + 8;
+  goalX = (col + 1)*T + 8;
   flat(22, false);
   runTo(goalX);
-  const houseX = (col - 14)*T;
+  houseX = (col - 14)*T;
+  }
 
   // runs share whatever time the fixed moves leave
   let runLen = 0, fixed = 0;
@@ -732,26 +969,51 @@ function build(si, v = 0){
   let t = INTRO;
   for (const s of segs) { if (!s.fx) s.d = (s.x1 - s.x0)/V; s.t0 = t; t += s.d; }
 
-  decos.sort((a, b) => a.x - b.x); coins.sort((a, b) => a.x - b.x); bridges.sort((a, b) => a.x - b.x); blocks.sort((a, b) => a.x - b.x);
-  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col};
+  decos.sort((a, b) => a.x - b.x); coins.sort((a, b) => a.x - b.x); rails.sort((a, b) => a.x0 - b.x0); bridges.sort((a, b) => a.x - b.x); blocks.sort((a, b) => a.x - b.x);
+  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col, course, cart: course === 'F', carries, bwalls, redirs, bars2, rails, stones, cfoes, buttons, xcoins};
   const tAt = x => timeAtIn(L, x);
-  for (const o of coins) o.t = tAt(o.x);
+  for (const o of coins) o.t = o.seg ? o.seg.t0 + o.seg.d*o.th/(2*Math.PI) : tAt(o.x);
+  const throwIv = [], carryIv = [];
+  for (const o of carries) {
+    o.tS = o.st.t0 + o.st.d; o.tG = o.gs.t0 + .18; o.tT = o.air ? o.ts.t0 : o.ts.t0 + .12; o.tH = o.air ? o.ts.t0 + o.ts.d : o.tT + .38;
+    if (o.w) o.w.t = o.tH;
+    carryIv.push([o.tG, o.tT]); throwIv.push([o.tT - .04, o.tT + .26]);
+  }
+  for (const o of redirs) { o.tP = o.ps.t0 + .3; o.tHit = o.tP + .25; o.tSw = o.tHit + o.walkT; o.gate.t = o.tSw + .1; }
+  for (const o of stones) {
+    const ta = tAt(o.xe);
+    o.t1 = o.kind === 'button' ? ta - 1.0 : ta - .5; o.t0 = o.t1 - .42;
+    o.tgt.t = o.t1; if (o.br) o.br.t = o.t1 + .05;
+    if (o.kind === 'foe') xcoins.push({t: o.t1 + .45, f: o.tgt});
+    throwIv.push([o.t0 - .06, o.t0 + .24]);
+  }
+  L.throwIv = throwIv; L.carryIv = carryIv;
   for (const o of blocks) if (o.q) o.t = tAt(o.hx);
   for (const o of enemies) o.t = tAt(o.xm);
   for (const o of bridges) o.t = tAt(o.x + 8) + .3;
   for (const o of bars) o.t = tAt(o.x);
   for (const o of bullets) { o.tj = o.seg.t0 + o.seg.d/2; o.tf = o.tj - (o.xc - o.xj)/70; }
-  for (const o of gates) o.t = o.seg.t0 + o.seg.d;
+  for (const o of gates) if (o.seg) o.t = o.seg.t0 + o.seg.d;
   for (const o of saws) { o.tj = o.seg.t0 + o.seg.d/2; o.tf = o.tj - (o.x0 - o.xj)/60; }
   for (const o of lasers) o.t = tAt(o.x);
   for (const o of crushers) o.t = tAt(o.x + 16);
   for (const o of rocks) o.t = tAt(o.x) + .35 + o.i*.12;
   L.landings = segs.filter(s => s.j === 1 && !['e','air','kick','grab'].includes(s.k)).map(s => ({x: s.x1, y: s.h1, t: s.t0 + s.d}));
   L.airFx = segs.filter(s => s.k === 'dj' || s.k === 'kick').map(s => ({x: s.x0, y: s.h0, t: s.t0, k: s.k, dir: s.x1 < s.x0 ? 1 : -1}));
-  L.coinTimes = blocks.filter(b => b.q).map(b => b.t).concat(coins.map(o => o.t)).sort((a,b) => a - b);
+  if (course) {
+    if (course === 'D') for (const e of enemies) xcoins.push({t: e.t + .3, e});   // stomped enemies drop a coin
+    const have = coins.length + xcoins.length, target = 535;   // keep the coin rate in line with A-C
+    if (have > target) { const keep = (target - xcoins.length)/coins.length; let acc = 0; L.coins = coins.filter(() => (acc += keep) >= 1 ? (acc -= 1, true) : false); }
+  }
+  L.coinTimes = blocks.filter(b => b.q).map(b => b.t).concat(L.coins.map(o => o.t), xcoins.map(o => o.t)).sort((a,b) => a - b);
   L.total = L.coinTimes.length;
   L.signs = [];
-  for (let m = 1; m <= 9; m++) {
+  if (L.cart) for (let m = 1; m <= 9; m++) { // minute signs stand on the track
+    let x = heroAtIn(L, m*60).x, g = segAtX(L, x);
+    for (let k = 0; k < 40 && g.j !== 0; k++) { x += T; g = segAtX(L, x); }
+    L.signs.push({x, y: g.h0, m});
+  }
+  else for (let m = 1; m <= 9; m++) {
     let cl = Math.floor(heroAtIn(L, m*60).x/T);
     for (let k = 0; k < 14 && (!G[cl] || stumps.some(st => cl === st.col || cl === st.col + 1) || spikes.some(sp => cl >= sp.col && cl < sp.col + sp.n) || springs.some(sp => cl === sp.x/T)); k++) cl++;
     L.signs.push({x: cl*T + 8, y: G[cl]*T, m});
@@ -767,6 +1029,10 @@ function heroAtIn(L, s){
   if (s < S[0].t0) s = S[0].t0;
   const g = segAtT(L, s), u = Math.max(0, Math.min(1, (s - g.t0)/g.d));
   if (g.j === 4) { const ph = -g.th*Math.cos(Math.PI*u); return {x: g.ax + g.R*Math.sin(ph), y: g.ay - g.R*Math.cos(ph) - HANG, air: true, g, u, ph}; }
+  if (g.j === 9) { const e = u*u*(3 - 2*u); return {x: g.ax, y: g.ay - HANG, air: true, g, u, ph: g.a0 + (g.a1 - g.a0)*e}; }
+  if (g.j === 8) { const th = 2*Math.PI*u; return {x: g.x0 + g.R*Math.sin(th) + (g.x1 - g.x0)*u, cx: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + g.R*(1 - Math.cos(th)), air: false, g, u, tilt: th}; }
+  if (g.j === 6) { const a = Math.min(1, u/.62), e = a*a*(3 - 2*a), b = Math.max(0, (u - .45)/.55); return {x: g.x0 + (g.x1 - g.x0)*b, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
+  if (g.j === 7) { const e = u*u*(3 - 2*u); return {x: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u, tilt: Math.atan((g.h1 - g.h0)*6*u*(1 - u)/(g.x1 - g.x0))}; }
   const x = g.x0 + (g.x1 - g.x0)*u;
   if (g.j === 3 || g.j === 5) { const e = u*u*(3 - 2*u); return {x, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
   if (g.j === 0) return {x, y: g.h0, air: false, g, u};
@@ -1603,6 +1869,241 @@ function drawConfetti(winT){
 }
 let curS = 0;
 
+/* ---------- drawing: courses D / E / F ---------- */
+const ease3 = k => k*k*(3 - 2*k);
+const clamp01 = k => Math.max(0, Math.min(1, k));
+function brick(x, y, w, h, col){
+  c.fillStyle = col || '#c8643c'; rr(x, y, w, h, 1.5); c.fill(); c.strokeStyle = OL; c.lineWidth = .8; c.stroke();
+  c.strokeStyle = 'rgba(60,20,10,.35)'; c.lineWidth = .6; c.beginPath(); c.moveTo(x + 1, y + h/2); c.lineTo(x + w - 1, y + h/2); c.moveTo(x + w/2, y + 1); c.lineTo(x + w/2, y + h/2); c.moveTo(x + w/4, y + h/2); c.lineTo(x + w/4, y + h - 1); c.moveTo(x + w*.75, y + h/2); c.lineTo(x + w*.75, y + h - 1); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.3)'; c.fillRect(x + 1.5, y + 1.2, w - 3, 1);
+}
+/* the hero's hands, roughly, at stage time s (for carried enemies and thrown stones) */
+function handAt(s){ const h = heroAtIn(L, s); return {x: h.x + 2, y: h.y + (L.cart ? 26 : 28)}; }
+
+function drawRails(TH, cam){
+  if (!L.cart) return;
+  const s = curS, x0v = cam - 40, x1v = cam + VW + 40, gy = VH + 2;
+  const post = (x, yt) => { c.fillStyle = '#7a5230'; c.fillRect(x - 1.2, yt + 2, 2.4, gy - yt - 2); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(x + .4, yt + 2, .8, gy - yt - 2); };
+  const track = (pts, open = 1) => {
+    // ties
+    c.fillStyle = '#6b4526';
+    for (let i = 0; i < pts.length; i += 2) { const p = pts[i]; c.fillRect(p[0] - 2, p[1] + .5, 4, 2.6); }
+    c.lineCap = 'round';
+    c.strokeStyle = '#3b3f4c'; c.lineWidth = 2.6; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+    c.strokeStyle = '#c9ced8'; c.lineWidth = 1; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1] - .5) : c.moveTo(p[0], p[1] - .5)); c.stroke();
+  };
+  for (const r of L.rails) {
+    if (r.k === 'loop') {
+      if (r.x0 + r.W + r.R < x0v || r.x0 - r.R > x1v) continue;
+      const pts = []; for (let k = 0; k <= 48; k++) { const th = k/48*Math.PI*2, u = k/48; pts.push([r.x0 + r.R*Math.sin(th) + r.W*u - cam, Y(r.y0 + r.R*(1 - Math.cos(th))) + 1]); }
+      const cx = r.x0 + r.W/2 - cam, top = Y(r.y0 + 2*r.R);
+      c.fillStyle = '#7a5230'; c.fillRect(cx - 2, top, 4, gy - top);
+      c.strokeStyle = '#3b3f4c'; c.lineWidth = 3.4; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+      c.strokeStyle = '#ffd23f'; c.lineWidth = 1; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+      continue;
+    }
+    if (r.x1 < x0v || r.x0 > x1v) continue;
+    if (r.k === 'deck') { // wooden station platform under the goal
+      const xa = r.x0 - cam, xb = Math.min(r.x1, x1v) - cam, y = Y(r.y0) + 1;
+      for (let x = Math.ceil(r.x0/24)*24; x <= Math.min(r.x1, x1v); x += 24) { c.fillStyle = '#7a5230'; c.fillRect(x - cam - 2, y + 4, 4, gy - y - 4); }
+      c.fillStyle = '#b5793e'; rr(xa, y, xb - xa, 6, 1.5); c.fill(); c.strokeStyle = OL; c.lineWidth = .8; c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(xa + 1, y + 1, xb - xa - 2, 1);
+      c.strokeStyle = 'rgba(90,50,20,.6)'; c.lineWidth = .5; for (let x = Math.ceil(r.x0/10)*10; x < Math.min(r.x1, x1v); x += 10) { c.beginPath(); c.moveTo(x - cam, y + 1); c.lineTo(x - cam, y + 6); c.stroke(); }
+      continue;
+    }
+    if (r.k === 'b') { // drawbridge: stands up until the button is hit, then swings down
+      const k = ease3(clamp01((s - r.br.t)/.5)), ang = (1 - k)*1.25, hx = r.x0 - cam, hy = Y(r.y0) + 1, len = r.x1 - r.x0;
+      post(hx, hy); post(r.x1 - cam, hy);
+      c.save(); c.translate(hx, hy); c.rotate(-ang);
+      c.fillStyle = '#9a6a3a'; rr(0, -1, len, 5, 1.5); c.fill(); c.strokeStyle = OL; c.lineWidth = .8; c.stroke();
+      c.fillStyle = '#6b4526'; for (let q = 6; q < len; q += 10) c.fillRect(q, -.5, 1.4, 4);
+      c.strokeStyle = '#3b3f4c'; c.lineWidth = 2; c.beginPath(); c.moveTo(0, -1.5); c.lineTo(len, -1.5); c.stroke();
+      c.restore();
+      if (k < 1) { c.strokeStyle = 'rgba(80,60,40,.8)'; c.lineWidth = .6; c.beginPath(); c.moveTo(hx, hy - 36); c.lineTo(hx + Math.cos(ang)*len, hy - Math.sin(ang)*len); c.stroke(); c.fillStyle = '#6e7488'; c.fillRect(hx - 1.5, hy - 38, 3, 38); }
+      continue;
+    }
+    const a = Math.max(r.x0, x0v), b = Math.min(r.x1, x1v), pts = [];
+    const yAt = x => { const u = (x - r.x0)/(r.x1 - r.x0 || 1); return r.y0 + (r.y1 - r.y0)*ease3(clamp01(u)); };
+    for (let x = Math.floor(a/6)*6; x <= b + 6; x += 6) pts.push([x - cam, Y(yAt(Math.min(x, r.x1))) + 1]);
+    for (let x = Math.ceil(a/32)*32; x <= b; x += 32) post(x - cam, Y(yAt(x)) + 1);
+    track(pts);
+  }
+}
+
+function drawRide(k, t, wx){
+  // origin: where the wheels touch the rail. y up is negative.
+  const wheel = (x, r = 3, col = '#2a2a33') => { c.fillStyle = col; circ(x, -r, r); c.strokeStyle = OL; c.lineWidth = .7; c.beginPath(); c.arc(x, -r, r, 0, 7); c.stroke(); c.strokeStyle = '#c9ced8'; c.lineWidth = .6; const a = -wx/r; c.beginPath(); c.moveTo(x + Math.cos(a)*r*.7, -r + Math.sin(a)*r*.7); c.lineTo(x - Math.cos(a)*r*.7, -r - Math.sin(a)*r*.7); c.stroke(); };
+  const ol = (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); };
+  const cartBox = (fill, rim, deco) => {
+    wheel(-8); wheel(8);
+    c.fillStyle = fill; c.beginPath(); c.moveTo(-13, -14); c.lineTo(13, -14); c.lineTo(10.5, -4); c.lineTo(-10.5, -4); c.closePath(); c.fill(); ol();
+    c.fillStyle = rim; rr(-14, -15.5, 28, 3, 1); c.fill(); ol(.7);
+    if (deco) deco();
+  };
+  switch (k) {
+    case 'wood': cartBox('#a8743f', '#7a5230', () => { c.strokeStyle = '#7a5230'; c.lineWidth = .6; for (const y of [-11, -7.5]) { c.beginPath(); c.moveTo(-12, y); c.lineTo(12, y); c.stroke(); } }); break;
+    case 'red': cartBox('#e8202a', '#8e1f1f', () => { c.fillStyle = '#ffd23f'; star(0, -9, 2.4, '#ffd23f'); }); break;
+    case 'gold': cartBox('#f5c518', '#b8860b', () => { c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(-9, -12, 5, 1.2); const k2 = (t*.003) % 1; star(-6 + k2*14, -10, 1.4*Math.sin(k2*Math.PI), '#fff'); }); break;
+    case 'kart':
+      wheel(-9, 3.4); wheel(9, 3.4);
+      c.fillStyle = '#ff7a00'; rr(-13, -9, 26, 4.5, 2); c.fill(); ol();
+      c.fillStyle = '#2a2a33'; rr(-8, -15, 4, 7, 1.5); c.fill(); ol(.6);
+      c.strokeStyle = '#2a2a33'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(6, -9); c.lineTo(8, -14); c.stroke(); c.fillStyle = '#2a2a33'; c.fillRect(6.5, -15, 4, 1.4);
+      c.fillStyle = '#fff'; c.font = 'bold 3.5px sans-serif'; c.fillText('7', -1.5, -5.6);
+      break;
+    case 'taxi': case 'police': {
+      wheel(-9, 3.2); wheel(9, 3.2);
+      const body = k === 'taxi' ? '#ffcc1f' : '#ffffff';
+      c.fillStyle = body; c.beginPath(); c.moveTo(-14, -5); c.lineTo(-14, -11); c.lineTo(-6, -12); c.lineTo(8, -12); c.lineTo(14, -9); c.lineTo(14, -5); c.closePath(); c.fill(); ol();
+      if (k === 'taxi') { for (let q = 0; q < 7; q++) { c.fillStyle = q % 2 ? '#2a2a33' : '#fff'; c.fillRect(-12 + q*3.4, -8.2, 3.4, 1.6); } c.fillStyle = '#fff'; rr(9, -15, 6, 3, 1); c.fill(); ol(.5); c.fillStyle = '#2a2a33'; c.font = 'bold 2.3px sans-serif'; c.fillText('TAXI', 9.3, -12.8); }
+      else { c.fillStyle = '#2a2a33'; c.fillRect(-14, -8, 28, 3); const on = Math.floor(t/180) % 2; c.fillStyle = on ? '#ff3030' : '#3060ff'; rr(9, -15.5, 3, 2.6, 1); c.fill(); c.fillStyle = on ? '#3060ff' : '#ff3030'; rr(12, -15.5, 3, 2.6, 1); c.fill(); c.globalAlpha *= .35; c.fillStyle = on ? '#ff3030' : '#3060ff'; circ(12, -14, 6); c.globalAlpha /= .35; }
+      c.fillStyle = '#fff6a8'; circ(13.3, -7, 1.1);
+      break;
+    }
+    case 'tub':
+      c.fillStyle = '#c9a227'; for (const x of [-9, 9]) { c.beginPath(); c.ellipse(x, -1.6, 1.8, 1.6, 0, 0, 7); c.fill(); }
+      c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(-14, -13); c.lineTo(14, -13); c.quadraticCurveTo(14, -3, 6, -3); c.lineTo(-6, -3); c.quadraticCurveTo(-14, -3, -14, -13); c.fill(); ol();
+      c.fillStyle = '#8fd3ff'; rr(-13, -14.2, 26, 2, 1); c.fill();
+      for (let q = 0; q < 4; q++) { const k2 = ((t*.0012) + q/4) % 1; c.globalAlpha = .8*(1 - k2); c.fillStyle = '#fff'; c.strokeStyle = '#8fd3ff'; c.lineWidth = .4; c.beginPath(); c.arc(-10 + q*6 + Math.sin(k2*6 + q)*2, -15 - k2*14, 1.2 + k2*1.5, 0, 7); c.fill(); c.stroke(); }
+      c.globalAlpha = 1;
+      break;
+    case 'sports':
+      wheel(-9, 3.3); wheel(10, 3.3);
+      c.fillStyle = '#e8202a'; c.beginPath(); c.moveTo(-15, -5); c.lineTo(-15, -9.5); c.lineTo(-11, -10.5); c.lineTo(-4, -11); c.lineTo(6, -10); c.quadraticCurveTo(15, -8.5, 16, -5); c.closePath(); c.fill(); ol();
+      c.fillStyle = '#2a2a33'; c.fillRect(-16, -14, 5, 1.6); c.fillRect(-14.5, -12.6, 1.2, 2.4);
+      c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(-8, -9.6, 12, 1);
+      c.fillStyle = '#fff6a8'; circ(15, -6.6, 1);
+      break;
+    case 'f1':
+      wheel(-9, 4); wheel(11, 3);
+      c.fillStyle = '#2f7dff'; c.beginPath(); c.moveTo(-14, -6); c.lineTo(-12, -10); c.lineTo(4, -10); c.lineTo(17, -6.5); c.lineTo(17, -5); c.lineTo(-14, -5); c.closePath(); c.fill(); ol();
+      c.fillStyle = '#2a2a33'; c.fillRect(-16, -15, 5, 2); c.fillRect(-14.4, -13, 1.4, 4); c.fillRect(14, -5, 5, 1.4);
+      c.fillStyle = '#fff'; c.fillRect(-2, -8.6, 10, 1);
+      break;
+    case 'rocket': {
+      const fl = 4 + Math.sin(t*.05)*1.5;
+      c.fillStyle = '#ff6a1a'; c.beginPath(); c.moveTo(-14, -9); c.lineTo(-14 - fl*2, -7); c.lineTo(-14, -5); c.fill(); c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(-14, -8.2); c.lineTo(-14 - fl, -7); c.lineTo(-14, -5.8); c.fill();
+      c.fillStyle = '#d8dde6'; c.beginPath(); c.moveTo(-14, -12); c.lineTo(8, -12); c.quadraticCurveTo(17, -9, 18, -7); c.quadraticCurveTo(17, -5, 8, -3); c.lineTo(-14, -3); c.closePath(); c.fill(); ol();
+      c.fillStyle = '#e8202a'; c.beginPath(); c.moveTo(-14, -12); c.lineTo(-17, -15); c.lineTo(-9, -12); c.fill(); c.beginPath(); c.moveTo(-14, -3); c.lineTo(-17, 0); c.lineTo(-9, -3); c.fill();
+      c.fillStyle = '#4aa3f5'; circ(9, -7.5, 1.8); ol(.5);
+      break;
+    }
+    case 'dragonride': {
+      const fl = Math.sin(t*.012);
+      c.fillStyle = '#3fbf72';
+      c.beginPath(); c.moveTo(-4, -12); c.lineTo(-14, -20 - fl*5); c.lineTo(-6, -15); c.lineTo(-10, -22 - fl*5); c.lineTo(2, -12); c.fill(); ol(.6);
+      c.beginPath(); c.ellipse(0, -8, 13, 5, 0, 0, 7); c.fill(); ol();
+      c.beginPath(); c.moveTo(-12, -8); c.quadraticCurveTo(-19, -9, -21, -4); c.quadraticCurveTo(-16, -6, -12, -6); c.fill(); ol(.6);
+      c.beginPath(); c.moveTo(10, -10); c.quadraticCurveTo(15, -17, 19, -15); c.lineTo(20, -12); c.quadraticCurveTo(16, -11, 13, -7); c.fill(); ol(.6);
+      c.fillStyle = OL; circ(18, -14, .7); c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(16, -17); c.lineTo(15, -20); c.lineTo(18, -17); c.fill();
+      c.fillStyle = '#2f8a50'; for (const x of [-6, 6]) { c.beginPath(); c.ellipse(x + Math.sin(t*.02 + x)*1, -2, 2, 2.2, 0, 0, 7); c.fill(); }
+      break;
+    }
+    default: cartBox('#8a8fa0', '#5d6170', () => { c.fillStyle = '#5d6170'; for (const x of [-9, -3, 3, 9]) circ(x, -12.4, .6); c.fillStyle = 'rgba(0,0,0,.15)'; c.fillRect(-10, -9, 20, 1); });
+  }
+}
+/* front part drawn over the hero's legs */
+function drawRideFront(k){
+  const ol = (w = .8) => { c.strokeStyle = OL; c.lineWidth = w; c.stroke(); };
+  switch (k) {
+    case 'kart': case 'rocket': case 'dragonride': case 'f1': return;
+    case 'taxi': case 'police': c.fillStyle = 'rgba(160,220,255,.55)'; c.beginPath(); c.moveTo(6, -12); c.lineTo(9, -17); c.lineTo(10, -12); c.fill(); return;
+    case 'sports': c.fillStyle = 'rgba(160,220,255,.6)'; c.beginPath(); c.moveTo(3, -10.5); c.lineTo(6, -15); c.lineTo(7, -10.2); c.fill(); ol(.4); return;
+  }
+}
+
+function drawXObjs(TH, cam){
+  const s = curS;
+  // high bars for giant swings
+  for (const b of L.bars2) {
+    const x = b.x - cam; if (x < -40 || x > VW + 40) continue;
+    const y = Y(b.y);
+    c.fillStyle = '#6e7488'; c.fillRect(x - 13, y - 1, 2.4, VH - y + 1); c.fillRect(x + 11, y - 1, 2.4, VH - y + 1);
+    c.strokeStyle = '#c9ced8'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(x - 12, y); c.lineTo(x + 12, y); c.stroke();
+    c.strokeStyle = OL; c.lineWidth = .5; c.beginPath(); c.moveTo(x - 12, y + 1); c.lineTo(x + 12, y + 1); c.stroke();
+  }
+  // brick walls broken by thrown enemies
+  for (const w of L.bwalls) {
+    const x = w.x - cam; if (x < -60 || x > VW + 60) continue;
+    const age = s - w.t;
+    for (let i = 0; i < w.n; i++) {
+      for (let j = 0; j < 2; j++) {
+        let bx = x + j*8, by = Y(w.y + (i + 1)*T) , a = 1, rot = 0;
+        if (age > 0) { const vx = (j ? 40 : 20) + i*10, vy = 50 + i*20 - j*10; bx += vx*age; by += -vy*age + 160*age*age; rot = age*(j ? 6 : -5); a = Math.max(0, 1 - age*1.1); }
+        if (a <= 0) continue;
+        c.save(); c.globalAlpha = a; c.translate(bx + 4, by + 8); c.rotate(rot); brick(-4, -8, 8, T, '#c8643c'); c.restore();
+      }
+    }
+    if (age > 0 && age < .4) { c.globalAlpha = 1 - age/.4; c.fillStyle = '#fff'; for (let k = 0; k < 6; k++) circ(x + 8 + Math.cos(k)*age*40, Y(w.y + 24) + Math.sin(k*1.7)*age*30, 3*(1 - age/.4)); c.globalAlpha = 1; }
+  }
+  // enemies that get picked up and thrown
+  for (const o of L.carries) {
+    if (o.xs - cam > VW + 80 || (o.xt - cam < -80 && s > o.tH + 1)) continue;
+    let x, y, mode = 'walk', rot = 0, a = 1;
+    if (s < o.tS) { const dx = Math.min(o.range, 14*(o.tS - s)); x = o.xs + dx; y = o.ys; mode = dx < o.range ? 'walk' : 'idle'; }
+    else if (s < o.tG) { x = o.xs; y = o.ys; mode = 'flat'; }
+    else if (s < o.tT) { const hp = handAt(s); x = hp.x; y = hp.y - 2; mode = 'flat'; rot = Math.sin(s*20)*.1; }
+    else if (s < o.tH) {
+      const h0 = handAt(o.tT), k = (s - o.tT)/(o.tH - o.tT);
+      x = lerp(h0.x, o.xt, k); y = lerp(h0.y, o.yt, k) + (o.air ? 14 : 8)*4*k*(1 - k); mode = 'flat'; rot = k*Math.PI*3;
+    } else {
+      const age = s - o.tH; if (age > 1.2) continue;
+      x = o.xt + (o.air ? 6 : -12)*age; y = o.yt + (o.air ? -120*age*age : 40*age - 140*age*age); mode = 'flat'; rot = Math.PI*3 + age*8; a = Math.max(0, 1 - age*.9);
+      if (age < .35) { c.globalAlpha = 1 - age/.35; for (let i = 0; i < 5; i++) { const an = i*1.25, r = 4 + age*30; star(o.xt - cam + Math.cos(an)*r, Y(o.yt) + Math.sin(an)*r, 2.2, '#fff27a'); } c.globalAlpha = 1; }
+    }
+    c.save(); c.globalAlpha = a; c.translate(x - cam, Y(y)); c.rotate(rot); drawFoe(o.type, 0, 0, mode, now*.012 + o.xs, TH.enemy, now); c.restore();
+  }
+  // placed block + enemy that turns round and steps on the switch
+  for (const o of L.redirs) {
+    const xb = o.xb - cam; if (xb > VW + 300 || o.xsw - cam < -60) continue;
+    if (s >= o.tP) { const k = clamp01((s - o.tP)/.15); c.save(); c.translate(xb + 8, Y(o.y) - 8); c.scale(k, k); brick(-8, -8, T, T, '#e09a3c'); c.restore(); }
+    let x, mode = 'walk', face = -1;
+    const xs0 = o.xsw + 3*T;
+    if (s < o.tHit) { x = Math.min(xs0, o.xb + 16 + o.vE*(o.tHit - s)); mode = x >= xs0 ? 'idle' : 'walk'; }
+    else { x = Math.min(o.xsw, o.xb + 16 + o.vE*(s - o.tHit)); face = 1; mode = x >= o.xsw ? 'idle' : 'walk'; }
+    if (s >= o.tHit && s < o.tHit + .4) { c.globalAlpha = 1 - (s - o.tHit)/.4; star(o.xb + 16 - cam, Y(o.y) - 10, 2.6, '#fff27a'); c.globalAlpha = 1; }
+    c.save(); c.translate(x - cam, Y(o.y)); if (face > 0) c.scale(-1, 1); drawFoe(o.type, 0, 0, mode, now*.012 + o.xb, TH.enemy, now); c.restore();
+  }
+  if (!L.cart) {
+    for (const xc of L.xcoins) { // coins popping out of stomped enemies
+      const age = s - (xc.t - .3); if (age < 0 || age > .65) continue;
+      const e = xc.e, x = e.xm - cam, y = Y(e.y + (e.fly ? 20 : 8)) - age*40 + age*age*30;
+      if (x < -20 || x > VW + 20) continue;
+      if (age < .3) coin(x, y, .8); else { const k = (age - .3)/.35; c.globalAlpha = 1 - k; star(x, y, 2.4, '#fff6a8'); c.globalAlpha = 1; }
+    }
+    return;
+  }
+  // minecart: buttons, enemies, stones, coins from enemies
+  for (const b of L.buttons) {
+    const x = b.x - cam; if (x < -30 || x > VW + 30) continue;
+    const hit = s >= b.t, y = Y(b.y);
+    c.fillStyle = '#6e7488'; c.fillRect(x - 1.2, y, 2.4, Y(b.y0) - y);
+    c.fillStyle = '#fff'; circ(x, y, 5.5); c.strokeStyle = OL; c.lineWidth = .8; c.beginPath(); c.arc(x, y, 5.5, 0, 7); c.stroke();
+    c.fillStyle = hit ? '#3fbf72' : '#e8202a'; circ(x, y, 3.8); c.fillStyle = '#fff'; circ(x, y, 1.6);
+    if (!hit) { c.fillStyle = '#e8202a'; c.font = 'bold 6px sans-serif'; c.textAlign = 'center'; c.fillText('!', x, y - 8 + Math.sin(now*.01)*1); c.textAlign = 'left'; }
+    else if (s - b.t < .5) { const k = (s - b.t)/.5; c.globalAlpha = 1 - k; for (let i = 0; i < 6; i++) star(x + Math.cos(i)*k*14, y + Math.sin(i)*k*14, 2, '#fff27a'); c.globalAlpha = 1; }
+  }
+  for (const f of L.cfoes) {
+    const x = f.x - cam; if (x < -40 || x > VW + 40) continue;
+    const age = s - f.t;
+    if (age < 0) drawFoe(f.type, x, Y(f.y), f.fly ? 'walk' : 'idle', now*.012 + f.x, TH.enemy, now);
+    else if (age < 1) { c.save(); c.globalAlpha = 1 - age; c.translate(x + age*50, Y(f.y + 60*age - 120*age*age) - 6); c.rotate(age*10); drawFoe(f.type, 0, 6, 'flat', 0, TH.enemy, now); c.restore(); }
+  }
+  for (const st2 of L.stones) {
+    if (s < st2.t0 - .05 || s > st2.t1 + .05) continue;
+    const k = clamp01((s - st2.t0)/(st2.t1 - st2.t0)), h0 = handAt(st2.t0 + .1), tx = st2.tgt.x, ty = st2.tgt.y + (st2.kind === 'button' ? 0 : 8);
+    const x = lerp(h0.x, tx, k) - cam, y = Y(lerp(h0.y, ty, k) + 14*4*k*(1 - k));
+    c.fillStyle = '#8a8d99'; circ(x, y, 2.2); c.strokeStyle = OL; c.lineWidth = .6; c.beginPath(); c.arc(x, y, 2.2, 0, 7); c.stroke();
+    c.fillStyle = 'rgba(255,255,255,.6)'; circ(x - .6, y - .7, .7);
+  }
+  for (const xc of L.xcoins) {
+    const t0 = xc.t - .45, age = s - t0; if (age < 0 || age > .75) continue;
+    const f = xc.f, hp = heroAtIn(L, s);
+    if (age < .45) { const k = age/.45; coin(lerp(f.x, hp.x, k) - cam, Y(lerp(f.y + 16, hp.y + 24, k) + 20*4*k*(1 - k)), .85); }
+    else { const k = (age - .45)/.3; c.globalAlpha = 1 - k; star(hp.x - cam, Y(hp.y + 26) - k*6, 2.4, '#fff6a8'); c.globalAlpha = 1; }
+  }
+}
+
 /* ---------- tea party & inn ---------- */
 function bubble(x, y, text){
   c.font = 'bold 6px -apple-system,"Hiragino Sans",sans-serif';
@@ -1848,6 +2349,9 @@ const SHOP = {
   trail: {name: '軌跡', items: [
     ['none','なし',0], ['spark','キラキラ',2], ['stars','星',3], ['bubbles','あわ',3], ['notes','おんぷ',4], ['hearts','ハート',4], ['leaves','はっぱ',4],
     ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10], ['confetti','紙吹雪',0], ['goldstar','金の流れ星',0], ['ribbon','リボン',0]]},
+  ride: {name: '乗り物', items: [
+    ['none','トロッコ',0], ['wood','木のトロッコ',1], ['red','赤いトロッコ',2], ['kart','ゴーカート',3], ['tub','おふろ',4], ['taxi','タクシー',4],
+    ['police','パトカー',5], ['sports','スポーツカー',6], ['gold','黄金のトロッコ',7], ['f1','レーシングカー',8], ['rocket','ロケット',9], ['dragonride','ドラゴン',10]]},
   champ: {name: '対戦', special: true, items: [['none','つけない',0], ['medal','完走メダル',0], ['band_vs','熱血ハチマキ',0], ['flag_vs','応援フラッグ',0], ['aura','闘志のオーラ',0], ['champ','チャンピオン',0]]}
 };
 /* the champion skin changes color with the number of wins (only rounds with 5+ players count) */
@@ -2242,7 +2746,13 @@ function pose(o){
   else if (o.mode === 'paddle') { lean = .15; hipY = -10.6; Lg = [[.35, .6], [-.35, .6]]; const sw = o.hit ? 1 : 0; A = [[lerp(.9, 2.2, sw), -.9], [-.6, .5]]; }
   else if (o.mode === 'hurry') { const p = o.ph; lean = .25; hipY = -10.4 - 1.3*Math.abs(Math.cos(p)); for (let i = 0; i < 2; i++) { const q = p + i*Math.PI; Lg[i] = [.9*Math.sin(q), .25 + 1.4*Math.max(0, Math.cos(q))]; A[i] = [2.6 + Math.sin(q*1.3)*.6, -.4]; } }
   else if (o.mode === 'stretch') { const k = Math.sin(t*.006); A = [[2.7 + k*.1, .1], [-2.7 - k*.1, -.1]]; Lg = [[.15, .05], [-.15, .05]]; hipY = -11.8; }
+  else if (o.mode === 'cart') { const b = Math.sin(t*.02)*.2; lean = .1; hipY = -10.6 + b; Lg = [[.35, .75], [-.2, .6]]; A = [[1.45, -.55], [1.2, -.45]]; }
+  else if (o.mode === 'place') { lean = .5; hipY = -8.2; Lg = [[1.0, 1.8], [-.35, 1.3]]; A = [[.75, .15], [.55, .1]]; }
+  else if (o.mode === 'reach') { lean = -.05; Lg = [[.5, .7], [.15, .4]]; A = [[Math.PI - .2, 0], [Math.PI + .05, 0]]; }
+  else if (o.mode === 'climb') { const u = o.cu || 0, b = Math.sin(u*Math.PI); lean = lerp(-.05, .55, u); hipY = lerp(-11.6, -9.6, u); Lg = [[lerp(.5, 1.7, u), lerp(.6, 2.3, u)], [lerp(.15, .5, u), lerp(.4, 1.1, u)]]; A = [[lerp(Math.PI - .2, .5, u), b*1.6], [lerp(Math.PI + .05, .3, u), b*1.4]]; }
   else { const b = Math.sin(t*.0025); hipY = -11.5 + b*.25; Lg = [[.12, .05], [-.12, .05]]; A = [[.18 + b*.04, -.35], [-.18, -.35]]; }
+  if (o.carry) A = [[Math.PI - .4, -.4], [Math.PI + .4, .4]];
+  if (o.throwK != null) { const k = o.throwK; A = [[lerp(Math.PI - .3, 1.3, k), -.3], [lerp(Math.PI + .3, .5, k), .2]]; }
   const hip = [0, hipY];
   const neck = [hip[0] + Math.sin(lean)*8.4, hip[1] - Math.cos(lean)*8.4];
   const head = [neck[0] + Math.sin(lean)*5.2, neck[1] - Math.cos(lean)*5.2];
@@ -2252,6 +2762,15 @@ function pose(o){
 }
 function drawHero(x, y, o, look){
   if (o.mode === 'sleep') return drawSleep(x, y, o.t, look);
+  if (o.cart) { // riding the minecart (or whatever vehicle was bought)
+    const rk = look.ride || 'none';
+    c.save(); c.translate(x, y); if (o.tilt) c.rotate(-o.tilt);
+    drawRide(rk, o.t, o.x || 0);
+    c.save(); c.translate(0, rk === 'kart' || rk === 'f1' || rk === 'rocket' || rk === 'dragonride' ? -3 : -5);
+    stick(pose(o.mode === 'run' || o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'ride' ? {...o, mode: 'cart'} : o), look, o);
+    c.restore(); drawRideFront(rk); c.restore();
+    return;
+  }
   c.save(); c.translate(x, y);
   if (o.sq) c.scale(1 + o.sq*.18, 1 - o.sq*.18);
   if (o.face < 0) c.scale(-1, 1);
@@ -2275,13 +2794,17 @@ function drawSleep(x, y, t, look){
 /* pose of the hero at stage time s (moving states only) */
 function airPose(Lx, s){
   const h = heroAtIn(Lx, s), g = h.g, o = {x: h.x, y: h.y, mode: 'run', ph: h.x/6.5, vy: h.vy, t: now, flip: 0, face: 1, rot: 0};
-  if (g.j === 0) { if (g.k === 'ride') o.mode = 'ride'; else if (Lx.ICE[Math.floor(h.x/T)]) o.mode = 'slide'; }
+  if (g.j === 0) { if (g.k === 'ride') o.mode = 'ride'; else if (g.k === 'place' || g.k === 'grab') o.mode = 'place'; else if (g.k === 'wait') o.mode = 'idle'; else if (Lx.ICE[Math.floor(h.x/T)]) o.mode = 'slide'; }
   else if (g.j === 3 || g.j === 5) o.mode = 'ride';
-  else if (g.j === 4) { o.mode = 'hang'; o.rot = -h.ph; }
+  else if (g.j === 4 || g.j === 9) { o.mode = 'hang'; o.rot = -h.ph; }
+  else if (g.j === 6) { o.mode = 'climb'; o.cu = h.u; }
+  else if (g.j === 7 || g.j === 8) o.mode = 'run';
   else {
     o.mode = 'jump';
     const gk = g.k;
-    if (gk === 'dj' || gk === 'spring' || gk === 'flip' || (g.A >= 40 && gk !== 'air')) { const k = Math.max(0, Math.min(1, (h.u - .08)/.75)); o.flip = k*k*(3 - 2*k)*Math.PI*2; if (k > 0 && k < 1) o.mode = 'tuck'; }
+    if (gk === 'tj') { const k = Math.max(0, Math.min(1, (h.u - .05)/.8)); o.flip = k*k*(3 - 2*k)*Math.PI*4; if (k > 0 && k < 1) o.mode = 'tuck'; }
+    else if (gk === 'reach' || gk === 'launch') { if (h.u > .7) o.mode = 'reach'; else if (gk === 'launch') o.mode = 'tuck'; }
+    else if (gk === 'dj' || gk === 'spring' || gk === 'flip' || (g.A >= 40 && gk !== 'air')) { const k = Math.max(0, Math.min(1, (h.u - .08)/.75)); o.flip = k*k*(3 - 2*k)*Math.PI*2; if (k > 0 && k < 1) o.mode = 'tuck'; }
     else if (gk === 'air' && g.A < 10 && h.u > .75) o.mode = 'wall';
     else if (gk === 'kick') {
       const dir = g.x1 < g.x0 ? -1 : 1;
@@ -2290,6 +2813,9 @@ function airPose(Lx, s){
       else { o.face = dir; o.mode = Math.abs(g.x1 - g.x0) > 30 ? 'tuck' : 'jump'; }
     }
   }
+  if (Lx.cart) { o.cart = true; o.flip = 0; o.tilt = h.tilt != null ? h.tilt : g.j === 1 ? Math.atan(h.vy/Math.max(1, g.x1 - g.x0))*.7 : 0; if (o.mode !== 'win') o.mode = 'cart'; }
+  if (Lx.carryIv) for (const [a, b] of Lx.carryIv) if (s >= a && s < b) { o.carry = true; break; }
+  if (Lx.throwIv) for (const [a, b] of Lx.throwIv) if (s >= a && s < b) { o.throwK = (s - a)/(b - a); break; }
   return o;
 }
 
@@ -2299,8 +2825,8 @@ function airPose(Lx, s){
 const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
 function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') || '{}').room || ''; } catch (e) { return ''; } }
 /* friends in the same room get the same stages each day */
-function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*3)); }
-const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*3));
+function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*NVAR)); }
+const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*NVAR));
 const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: Date.now()});
 const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
@@ -2504,6 +3030,16 @@ function drawPreview(){
     const g = c.createLinearGradient(0, 0, 0, 72); g.addColorStop(0, '#5cb8ff'); g.addColorStop(1, '#cdeeff');
     c.fillStyle = g; c.fillRect(0, 0, vw, 72);
     const off = (sec*V) % 16;
+    if (shopCat === 'ride') { // vehicles: show them rolling along a rail
+      const look = lookOf(trial || bank.eq, bank.champ || 0, bank.vsAwards || 0), V2 = 110, o2 = (sec*V2) % 10, ry = gy - 6;
+      c.fillStyle = '#c98a4b'; c.fillRect(0, gy + 4, vw, 20); c.fillStyle = '#5ccf4f'; c.fillRect(0, gy + 4, vw, 3);
+      c.fillStyle = '#7a5230'; for (let x = -((sec*V2) % 32); x < vw; x += 32) c.fillRect(x, ry + 2, 2.4, gy + 4 - ry);
+      c.fillStyle = '#6b4526'; for (let x = -o2; x < vw; x += 10) c.fillRect(x, ry + .5, 4, 2.6);
+      c.strokeStyle = '#3b3f4c'; c.lineWidth = 2.6; c.beginPath(); c.moveTo(0, ry + 1); c.lineTo(vw, ry + 1); c.stroke();
+      c.strokeStyle = '#c9ced8'; c.lineWidth = 1; c.beginPath(); c.moveTo(0, ry + .5); c.lineTo(vw, ry + .5); c.stroke();
+      drawHero(x0, ry, {mode: 'cart', cart: true, x: sec*V2, t: now, face: 1, tilt: Math.sin(sec*2)*.03, ph: 0}, look);
+      return;
+    }
     c.fillStyle = '#c98a4b'; c.fillRect(0, gy, vw, 20);
     c.fillStyle = '#5ccf4f'; c.fillRect(0, gy, vw, 4);
     c.fillStyle = '#a86b37'; for (let x = -off; x < vw; x += 16) { rr(x + 4, gy + 9, 3, 2, 1); c.fill(); }
@@ -2640,7 +3176,7 @@ const sfx = k => { if (SND.on && AC && SFX[k]) SFX[k](); };
 function sfxEvents(Lx){
   if (Lx.sfx) return Lx.sfx;
   const ev = [];
-  for (const s of Lx.segs) { if (s.j === 1) ev.push([s.t0, s.k === 'dj' ? 'dj' : s.k === 'spring' ? 'spring' : s.k === 'kick' ? 'kick' : 'jump']); if (s.j === 4) ev.push([s.t0, 'swing']); }
+  for (const s of Lx.segs) { if (s.j === 1) ev.push([s.t0, s.k === 'dj' ? 'dj' : s.k === 'spring' ? 'spring' : s.k === 'kick' ? 'kick' : 'jump']); if (s.j === 4 || s.j === 9) ev.push([s.t0, 'swing']); if (s.j === 8) ev.push([s.t0, 'spring']); if (s.j === 6) ev.push([s.t0 + .3, 'land']); }
   for (const l of Lx.landings) ev.push([l.t, 'land']);
   for (const o of Lx.coins) ev.push([o.t, 'coin']);
   for (const b of Lx.blocks) if (b.q) ev.push([b.t, 'block']);
@@ -2651,6 +3187,10 @@ function sfxEvents(Lx){
   for (const z of Lx.lasers) for (let n = -1; n <= 1; n++) ev.push([z.t + .6 + n*2.4, 'zap']);
   for (const sw of Lx.saws) ev.push([sw.tj - 1, 'saw']);
   for (const r of Lx.rocks) ev.push([r.t, 'slam']);
+  for (const o of Lx.carries || []) ev.push([o.tG, 'block'], [o.tT, 'kick'], [o.tH, o.w ? 'boom' : 'stomp']);
+  for (const o of Lx.redirs || []) ev.push([o.tP, 'block'], [o.tHit, 'kick']);
+  for (const o of Lx.stones || []) ev.push([o.t0, 'jump'], [o.t1, o.kind === 'button' ? 'gate' : 'stomp']);
+  for (const o of Lx.xcoins || []) ev.push([o.t, 'coin']);
   ev.push([INTRO + RUNT, Lx.sn === 5 ? 'world' : 'clear']);
   ev.sort((a, b) => a[0] - b[0]);
   return Lx.sfx = ev;
@@ -3129,15 +3669,15 @@ function showLottery(){
   st.drawSeen = true; save();
   const g = $('lotg');
   g.innerHTML = THEMES.map((th, w) => `<div><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-k="${w*6+i}">?</i>`).join('')}<em>${w+1}</em></div>`).join('');
-  const cellsL = [...g.querySelectorAll('i')], t0 = performance.now(), cols = ['#ff7a3d', '#3fbf72', '#4aa3f5'];
-  $('lotok').disabled = true; $('lotp').textContent = '全216ステージの中から、今日の72ステージを選んでいます…';
+  const cellsL = [...g.querySelectorAll('i')], t0 = performance.now(), cols = ['#ff7a3d', '#3fbf72', '#4aa3f5', '#c56bff', '#ff4f7a', '#8a6a3a'];
+  $('lotok').disabled = true; $('lotp').textContent = '全432ステージの中から、今日の72ステージを選んでいます…';
   $('lot').hidden = false;
   clearInterval(lotTimer);
   lotTimer = setInterval(() => {
     const e = (performance.now() - t0)/1000; let done = true;
     cellsL.forEach(el => {
       const k = +el.dataset.k, at = .5 + Math.floor(k/6)*.12 + (k % 6)*.03;
-      if (e < at) { done = false; el.textContent = VAR[Math.floor(Math.random()*3)]; el.className = ''; el.style.background = ''; }
+      if (e < at) { done = false; el.textContent = VAR[Math.floor(Math.random()*NVAR)]; el.className = ''; el.style.background = ''; }
       else if (!el.classList.contains('set')) { const v = vIn(st, k); el.textContent = VAR[v]; el.className = 'set'; el.style.background = cols[v]; if (k % 6 === 5) sfx('coin'); }
     });
     if (done) { clearInterval(lotTimer); $('lotok').disabled = false; $('lotp').textContent = '今日のステージが決まりました！ この72ステージをクリアしていこう。'; sfx('clear'); }
@@ -3192,7 +3732,7 @@ function frameBody(){
   const TH = L.TH, END = INTRO + RUNT;
   const winT = s >= END ? s - END : -1;
   const hero = heroAtIn(L, s);
-  let cam = hero.x - VW*.34;
+  let cam = (hero.cx != null ? hero.cx : hero.x) - VW*.34;
   cam = Math.max(0, Math.min(cam, L.endCol*T - VW));
   const r = st.resume, wakeE = r ? Tt - r.T0 : -1;
   const tea = rest === 'tea', cleaning = r && r.kind === 'tea' && wakeE >= 0 && wakeE < r.F;
@@ -3207,10 +3747,12 @@ function frameBody(){
   drawSigns(cam);
   drawPitFill(TH, cam);
   drawGround(TH, cam);
+  drawRails(TH, cam);
   drawObstacles(TH, cam);
   drawWalls(TH, cam);
   drawPlats(TH, cam);
   drawGimmicks(TH, cam);
+  drawXObjs(TH, cam);
   drawBlocks(cam);
   drawCoins(cam);
   drawEnemies(TH, cam, rest === 'sleep', (tea || cleaning) ? (x => x > hx - 12 && x < hx + 110) : null);
@@ -3244,7 +3786,7 @@ function frameBody(){
   // overlays
   const showTitle = !all && s < 2.8 && (st.run || Tt > 0) && !rest && !cleaning;
   $('ttl').classList.toggle('on', showTitle);
-  if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageLabel(st, si); $('ttln').textContent = TH.name + (L.hell ? '　─ 壁キック地獄 ─' : L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
+  if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageLabel(st, si); $('ttln').textContent = TH.name + (L.course ? `　─ ${COURSE_NAME[L.v]} ─` : L.hell ? '　─ 壁キック地獄 ─' : L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
   $('ban').classList.toggle('on', winT >= 0);
   if (winT >= 0) {
     $('banb').textContent = all ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
