@@ -104,6 +104,11 @@ canvas{display:block;width:100%;height:100%}
 .vsroom small{color:var(--sub);font-size:12px}
 .vsroom small .on{color:var(--go);font-weight:600}
 .ok8{color:var(--go)!important;font-weight:600}
+.vshost{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--card);font-size:13px;line-height:1.5}
+.vshost .seg{display:flex;gap:6px;margin-top:6px}
+.vshost .seg button{flex:1;background:var(--bg);border-radius:999px;padding:8px 0;font-size:13px}
+.vshost .seg button.on{background:var(--acc);color:#fff;font-weight:600}
+.vshost small{color:var(--sub)}
 .cup{font-size:12px;color:#c98a12;font-weight:700}
 .vsr small{color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums;display:block;margin-top:4px}
 .dev .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
@@ -223,6 +228,7 @@ canvas{display:block;width:100%;height:100%}
         <div class="row"><span>部屋コード <b id="vsCode"></b></span><button class="pill" id="vsCopy">コードをコピー</button><button class="pill" id="vsLeave" style="margin-left:auto">抜ける</button></div>
         <p id="vsRound" class="vsn" style="color:var(--fg);font-weight:600"></p>
         <p id="vsLast" class="vsn"></p>
+        <div id="vsHost" class="vshost"></div>
         <div id="vsList"></div>
         <p id="vsStat" class="vsn"></p>
       </div>
@@ -2673,6 +2679,7 @@ async function vsPull(){
   room = out; vsErr = '';
   try {
     board = await rpc('quest_board', {p_room: fb.room});
+    roomInfo = await rpc('quest_room_info', {p_room: fb.room});
     const w = await rpc('quest_wins', {p_member: fb.uid});
     const aw = await rpc('quest_awards', {p_member: fb.uid});
     if (typeof aw === 'number' && aw > (bank.vsAwards || 0)) {
@@ -2685,7 +2692,7 @@ async function vsPull(){
     if (typeof w === 'number' && w > (bank.champ || 0)) { bank.champ = w; saveBank(); toast(`🏆 優勝！ チャンピオンスキン（${tierOf(w)[1]}）が使えるようになりました。ショップの「優勝」から装備できます`, 9000); sfx('world'); }
   } catch (e) {}
 }
-let board = null;
+let board = null, roomInfo = null;
 function vsQueue(){ if (!FB_ON || !fb.room || vsPushT) return; vsPushT = setTimeout(() => { vsPushT = null; vsPush().catch(e => { vsErr = '送信できませんでした'; }); }, 3000); }
 setInterval(() => {
   if (!FB_ON || !fb.room || document.visibilityState !== 'visible') return;
@@ -2720,6 +2727,11 @@ function vsRender(){
   const race = board && board.race, last = board && board.last;
   $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'})}から）・${rows.length}人` : '全クリレース';
   $('vsLast').textContent = last && last.winner ? `前回（第${last.no}回）の優勝：${last.winner}（${last.participants}人）` + (last.participants >= 5 ? '・チャンピオンスキン獲得！' : '・5人未満だったのでスキンはなし') + (last.awarded ? `・参加賞 ${last.awarded}人` : '') : '';
+  // public / private: only the host can switch it
+  const ri = roomInfo, hostName = ri && ri.host ? (ri.host === mine ? (fb.name || '自分') : ((room || {})[ri.host] || {}).n || '？') : '';
+  $('vsHost').innerHTML = !ri ? '' : ri.host === mine
+    ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small>`
+    : `${ri.public ? '公開部屋（だれでも入れます）' : 'プライベート部屋（コードを知っている人だけ）'}<br><small>ホスト：${esc(hostName)}</small>`;
   $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${esc(r.name)}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
   $('vsStat').textContent = vsErr || (rows.length < 5 ? `一番に全クリした人が優勝。チャンピオンスキンは5人以上のときだけもらえます（あと${5 - rows.length}人）。` : '一番に全クリした人が優勝して、チャンピオンスキンがもらえます。') + ' レースが終わったとき、レース中に8時間以上勉強していた人には参加賞（2人以上のレース）。';
 }
@@ -2788,6 +2800,12 @@ $('vsFind').onclick = async () => {
   const box = $('vsRooms'); box.hidden = false;
   box.innerHTML = list.length ? list.map(r => `<div class="vsroom"><div><b>${esc(r.title)}</b><small>${r.members}人${r.studying ? `・<span class="on">勉強中 ${r.studying}人</span>` : ''}${r.race ? `・第${r.race}回レース` : ''}</small></div><button class="pill" data-room="${esc(r.room)}">入る</button></div>`).join('')
     : '<p class="vsn">いま入れる部屋はありません。「新しい部屋を作る」で作ってみよう。</p>';
+};
+$('vsHost').onclick = async e => {
+  const b = e.target.closest('[data-pub]'); if (!b || !roomInfo) return;
+  const pub = b.dataset.pub === '1'; if (pub === roomInfo.public) return;
+  try { await rpc('quest_room_meta', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret, p_public: pub, p_title: ''}); roomInfo.public = pub; vsRender(); toast(pub ? '公開部屋にしました。「部屋を探す」に出ます' : 'プライベート部屋にしました。部屋コードを知っている人だけ入れます'); }
+  catch (er) { toast('変更できませんでした。ホストだけが変えられます'); }
 };
 $('vsRooms').onclick = e => { const b = e.target.closest('[data-room]'); if (b && needName()) vsJoin(b.dataset.room); };
 $('vsAuto').onclick = async () => {
