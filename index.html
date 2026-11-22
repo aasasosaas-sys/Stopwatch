@@ -2294,9 +2294,9 @@ function airPose(Lx, s){
 }
 
 /* ---------- study day ----------
-   A day runs until "寝る" is pressed (or 4:00 the next morning).
+   A day runs until "寝る" is pressed or the clock reaches 0:00.
    The next day starts from half the stage number reached (rounded down). */
-const dayKey = () => { const d = new Date(Date.now() - 4*3600e3); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
+const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
 function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') || '{}').room || ''; } catch (e) { return ''; } }
 /* friends in the same room get the same stages each day */
 function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*3)); }
@@ -2352,9 +2352,22 @@ function finishDay(){
   st = fresh(sm.next, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
   return sm;
 }
+/* at 0:00 the day ends by itself: time studied after midnight belongs to the new day,
+   and if the timer was running it keeps running on the new day */
+const dayEndOf = d => { const [y, m, dd] = String(d).split('-').map(Number); const t = new Date(y, m - 1, dd + 1).getTime(); return isFinite(t) ? t : new Date().setHours(0, 0, 0, 0); };
+function rollover(){
+  if (st.d === dayKey()) return null;
+  if (!st.acc && !st.run && !st.ff) { st = fresh(st.base, st.night); save(); return null; }
+  const end = dayEndOf(st.d), keepRun = st.run && !st.ff;
+  if (st.ff) { st.acc = st.ff.target; st.mult = st.ff.prev || 1; st.ff = null; st.run = false; }
+  else if (st.run) { st.acc = Math.min(dayLen(st)*1000, st.acc + Math.max(0, Math.min(end, Date.now()) - st.t0)*(st.mult || 1)); st.run = false; st.stopAt = end; }
+  const sm = finishDay();
+  if (keepRun) { const t0 = Math.max(end, new Date().setHours(0, 0, 0, 0)); st.night = null; st.run = true; st.t0 = t0; st.act = Date.now(); st.stopAt = t0; save(); }
+  return sm;
+}
 let pendingSummary = null;
 if (!st) st = fresh(bank.base);
-else if (st.d !== dayKey()) { if (st.acc || st.run) pendingSummary = finishDay(); else { st = fresh(st.base, null); save(); } }
+else if (st.d !== dayKey()) pendingSummary = rollover();
 if (!st.ff) st.mult = 1;
 
 /* idle: 1 hour → everyone sleeps, 3 hours → tea party (time at the inn does not count) */
@@ -3152,7 +3165,7 @@ function frame(){
 }
 function frameBody(){
   now = performance.now();
-  if (st.d !== dayKey() && !st.run) { if (st.acc) showSummary(finishDay(), 'auto'); else { st = fresh(st.base, null); save(); } ui(); }
+  if (st.d !== dayKey()) { const sm = rollover(); if (sm) showSummary(sm, 'auto'); ui(); try { acNow(); } catch (e) {} }
   if (!st.night && !st.drawSeen && $('lot').hidden && $('sleep').hidden) showLottery();
   const busy = st.run || !$('shop').hidden || !$('sleep').hidden || !$('lot').hidden || (st.resume && st.run);
   if (!busy && now - lastDraw < 32) return;
