@@ -3333,7 +3333,7 @@ function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') 
 /* friends in the same room get the same stages each day */
 function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*NVAR)); }
 const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*NVAR));
-const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: Date.now()});
+const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: 0});   // act is only stamped by things the player does (start / stop / sleep / time entry), never by an automatic new day
 const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
 let bank, st;
@@ -3394,7 +3394,7 @@ function rollover(){
   if (st.ff) { st.acc = st.ff.target; st.mult = st.ff.prev || 1; st.ff = null; st.run = false; }
   else if (st.run) { st.acc = Math.min(dayLen(st)*1000, st.acc + Math.max(0, Math.min(end, Date.now()) - st.t0)*(st.mult || 1)); st.run = false; st.stopAt = end; }
   const sm = finishDay();
-  if (keepRun) { const t0 = Math.max(end, new Date().setHours(0, 0, 0, 0)); st.night = null; st.run = true; st.t0 = t0; st.act = Date.now(); st.stopAt = t0; save(); }
+  if (keepRun) { const t0 = Math.max(end, new Date().setHours(0, 0, 0, 0)); st.night = null; st.run = true; st.t0 = t0; st.act = t0; st.stopAt = t0; save(); }
   return sm;
 }
 let pendingSummary = null;
@@ -4503,7 +4503,7 @@ $('sleepb').onclick = () => {
   ui();
 };
 $('smback').onclick = () => { $('sleep').hidden = true; };
-$('smok').onclick = () => { const sm = finishDay(); showSummary(sm, 'done'); sfx('night'); ui(); acNow(); };
+$('smok').onclick = () => { const sm = finishDay(); st.act = Date.now(); save(); showSummary(sm, 'done'); sfx('night'); ui(); acNow(); };
 $('smclose').onclick = () => { $('sleep').hidden = true; if (st.night && $('smclose').textContent === '旅館へ') { st.night.at = Date.now(); save(); } ui(); };
 function drawNight(){
   withCtx(sv, sctx, 64, vw => {
