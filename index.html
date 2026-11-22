@@ -1809,16 +1809,17 @@ const SHOP = {
     ['sword','剣',7], ['trophy','トロフィー',8], ['lightblade','光の剣',9], ['scepter','王のつえ',10]]},
   pet: {name: 'ペット', items: [
     ['none','なし',0], ['slime','スライム',3], ['bird','ことり',4], ['chick','ひよこ',4], ['ghostpet','おばけ',5], ['starpet','おほしさま',6], ['catpet','ネコ',6],
-    ['bee','ハチ',6], ['robot','ロボ',7], ['fairypet','ようせい',8], ['ufo','UFO',8], ['dragonpet','ちびドラゴン',9], ['phoenix','フェニックス',10]]},
+    ['bee','ハチ',6], ['robot','ロボ',7], ['fairypet','ようせい',8], ['ufo','UFO',8], ['dragonpet','ちびドラゴン',9], ['phoenix','フェニックス',10], ['medalpet','メダルくん',0], ['trophypet','トロフィーくん',0]]},
   trail: {name: '軌跡', items: [
     ['none','なし',0], ['spark','キラキラ',2], ['stars','星',3], ['bubbles','あわ',3], ['notes','おんぷ',4], ['hearts','ハート',4], ['leaves','はっぱ',4],
-    ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10]]},
+    ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10], ['confetti','紙吹雪',0], ['goldstar','金の流れ星',0]]},
   champ: {name: '対戦', special: true, items: [['none','つけない',0], ['medal','完走メダル',0], ['band_vs','熱血ハチマキ',0], ['flag_vs','応援フラッグ',0], ['aura','闘志のオーラ',0], ['champ','チャンピオン',0]]}
 };
 /* the champion skin changes color with the number of wins (only rounds with 5+ players count) */
 const CHAMP_TIERS = [[1,'ブロンズ','#cd7f32'], [2,'シルバー','#c9d0dc'], [3,'ゴールド','#ffcc1f'], [5,'エメラルド','#2ecc71'], [7,'ルビー','#e8213f'], [10,'サファイア','#2f7dff'], [15,'アメジスト','#9b51e0'], [20,'ダイヤモンド','#bff6ff'], [30,'レジェンド','rainbow']];
 /* participation prizes needed for each battle look (a prize = 8 hours of study in a finished race) */
-const AWARD_NEED = {medal: 1, band_vs: 3, flag_vs: 5, aura: 10};
+const AWARD_NEED = {'champ:medal': 1, 'trail:confetti': 2, 'champ:band_vs': 3, 'pet:medalpet': 4, 'champ:flag_vs': 5, 'trail:goldstar': 7, 'champ:aura': 10, 'pet:trophypet': 15};
+const awardNeed = (cat, id) => AWARD_NEED[cat + ':' + id] || 0;
 const tierOf = w => { let t = null; for (const x of CHAMP_TIERS) if (w >= x[0]) t = x; return t; };
 const nextTier = w => CHAMP_TIERS.find(x => x[0] > w) || null;
 (() => {
@@ -1827,7 +1828,7 @@ const nextTier = w => CHAMP_TIERS.find(x => x[0] > w) || null;
   const nice = v => { if (v <= 0) return 0; const p = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v/p)*p; };
   for (const k in SHOP) for (const it of SHOP[k].items) it.price = nice(TIERW[it[2]]*K);
 })();
-const ALL_ITEMS = Object.values(SHOP).reduce((a, s) => a + (s.special ? 0 : s.items.length), 0);
+const ALL_ITEMS = Object.entries(SHOP).reduce((a, [k, s]) => a + (s.special ? 0 : s.items.filter(i => !AWARD_NEED[k + ':' + i[0]]).length), 0);
 const item = (cat, id) => SHOP[cat].items.find(i => i[0] === id) || SHOP[cat].items[0];
 const lookOf = (eq, wins = 0) => {
   const o = {}; for (const k in SHOP) o[k] = item(k, eq[k] || 'none')[0]; o.colorV = item('color', o.color)[3];
@@ -2120,6 +2121,11 @@ function drawPet(k, x, y, t){
     case 'fairypet': { c.shadowColor = '#ffe9a8'; c.shadowBlur = 6*glowScale; c.fillStyle = '#fff6c8'; circ(0, 0, 2.2); c.shadowBlur = 0; const fl = Math.sin(t*.05); c.fillStyle = 'rgba(190,230,255,.85)'; c.beginPath(); c.ellipse(-2, -1.6, 1.4, 3 + fl*.5, -.6, 0, 7); c.ellipse(2, -1.6, 1.4, 3 + fl*.5, .6, 0, 7); c.fill(); if ((t % 500) < 250) { c.fillStyle = '#fff'; c.fillRect(-4, 3, .7, .7); c.fillRect(3, 4, .7, .7); } break; }
     case 'ufo': c.fillStyle = 'rgba(150,230,255,.8)'; c.beginPath(); c.ellipse(0, -1.6, 2.6, 2.4, 0, Math.PI, 0); c.fill(); c.fillStyle = '#9aa0b5'; c.beginPath(); c.ellipse(0, 0, 6, 1.8, 0, 0, 7); c.fill(); ol(); for (let i = 0; i < 3; i++) { c.fillStyle = (Math.floor(t/200) + i) % 3 ? '#ffd23f' : '#ff5252'; circ(-3 + i*3, .3, .6); } break;
     case 'dragonpet': { c.fillStyle = '#5fbf6a'; c.beginPath(); c.ellipse(0, 1, 3.6, 2.8, 0, 0, 7); c.fill(); ol(); circ(3, -1.6, 2.2); c.beginPath(); c.arc(3, -1.6, 2.2, 0, 7); ol(.5); const fl = Math.sin(t*.03)*1.5; c.fillStyle = '#3f9e4c'; c.beginPath(); c.moveTo(-1, -1); c.lineTo(-4, -5 - fl); c.lineTo(-5, -1 - fl*.5); c.closePath(); c.fill(); ol(.5); c.fillStyle = OL; circ(3.8, -2.2, .5); c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(2, -3.4); c.lineTo(2.4, -5); c.lineTo(3, -3.6); c.fill(); break; }
+    case 'medalpet': { c.strokeStyle = '#e8202a'; c.lineWidth = 1; c.beginPath(); c.moveTo(-2, -5); c.lineTo(0, -2.6); c.lineTo(2, -5); c.stroke(); c.rotate(Math.sin(t*.004)*.15);
+      c.fillStyle = '#ffcc1f'; circ(0, 0, 3.6); c.beginPath(); c.arc(0, 0, 3.6, 0, 7); ol(); c.fillStyle = '#ffe680'; circ(0, 0, 2.4); eyes(-1.1, -.4, .45); c.strokeStyle = OL; c.lineWidth = .4; c.beginPath(); c.arc(0, .6, .8, .2, Math.PI - .2); c.stroke(); break; }
+    case 'trophypet': { c.fillStyle = '#ffcc1f'; c.beginPath(); c.moveTo(-3.4, -4); c.lineTo(3.4, -4); c.quadraticCurveTo(3.4, 1.4, 0, 1.6); c.quadraticCurveTo(-3.4, 1.4, -3.4, -4); c.fill(); ol();
+      c.strokeStyle = '#ffcc1f'; c.lineWidth = .9; c.beginPath(); c.arc(-3.6, -2.2, 1.4, Math.PI*.5, Math.PI*1.5); c.moveTo(3.6, -3.6); c.arc(3.6, -2.2, 1.4, -Math.PI*.5, Math.PI*.5); c.stroke();
+      c.fillStyle = '#c99a12'; c.fillRect(-.7, 1.6, 1.4, 1.6); c.fillRect(-2.2, 3, 4.4, 1.3); eyes(-1.1, -2, .45); c.fillStyle = '#fff'; c.fillRect(-2.6, -3.4, .7, 2); break; }
     case 'phoenix': { c.shadowColor = '#ff8a2a'; c.shadowBlur = 6*glowScale; c.fillStyle = '#ff7a1a'; circ(0, 0, 3.2); c.shadowBlur = 0; const fl = Math.sin(t*.04)*2; c.fillStyle = '#ffb020'; c.beginPath(); c.moveTo(-1, -1); c.quadraticCurveTo(-5, -6 - fl, -8, -3 - fl); c.quadraticCurveTo(-4, -1, -1, 1); c.fill(); for (let i = 0; i < 3; i++) { c.fillStyle = `rgba(255,${120 + i*40},40,.8)`; c.beginPath(); c.ellipse(-4 - i*2.2, 2 + i*.6, 2.4 - i*.5, 1, .2, 0, 7); c.fill(); } c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(2.8, -.4); c.lineTo(4.8, .2); c.lineTo(2.8, .8); c.fill(); c.fillStyle = OL; circ(1.6, -1, .5); break; }
   }
   c.restore();
@@ -2143,6 +2149,8 @@ function drawTrail(kind, sample, look){
       c.shadowColor = '#7fdfff'; c.shadowBlur = 5*glowScale; c.strokeStyle = '#e6fbff'; c.lineWidth = 1; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(...q) : c.moveTo(...q)); c.globalAlpha = .9; c.stroke(); c.shadowBlur = 0; break; }
     case 'rainbow': { const cols = ['#ff4d4d','#ff9f1a','#ffe14d','#4dd26b','#4da6ff','#9d6bff'], pts = []; for (let k = 0; k <= 16; k++) pts.push(sample(k, .022));
       for (let i = 0; i < cols.length; i++) { c.strokeStyle = cols[i]; c.lineWidth = 1.25; c.lineCap = 'butt'; for (let k = 0; k < 16; k++) { c.globalAlpha = .85*(1 - k/16); c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 15 + i*1.2); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 15 + i*1.2); c.stroke(); } } break; }
+    case 'confetti': parts(14, .035, (p, k, a) => { c.save(); c.translate(p.x - 3 + Math.sin(k*3.3)*4, p.y - 10 + Math.cos(k*2.1)*5 + (1 - a)*6); c.rotate(k + now*.006); c.fillStyle = ['#ff5a4e','#ffd23f','#3fbf72','#4aa3f5','#c56bff'][k % 5]; c.fillRect(-1.2, -.7, 2.4, 1.4); c.restore(); }); break;
+    case 'goldstar': { const pts = []; for (let k = 0; k <= 12; k++) pts.push(sample(k, .028)); for (let k = 11; k >= 0; k--) { const a = 1 - k/12; c.globalAlpha = a*.85; c.strokeStyle = k < 4 ? '#fff6c8' : '#ffcc1f'; c.lineWidth = .6 + a*2.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 13); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 13); c.stroke(); if (k % 3 === 1) star(pts[k].x - 2, pts[k].y - 16 - a*2, 1 + a*1.4, '#ffe680'); } c.globalAlpha = 1; star(pts[0].x - 2, pts[0].y - 13, 2.8, '#ffd23f'); break; }
     case 'comet': { const pts = []; for (let k = 0; k <= 14; k++) pts.push(sample(k, .025)); for (let k = 13; k >= 0; k--) { const a = 1 - k/14; c.globalAlpha = a*.8; c.fillStyle = k < 3 ? '#ffffff' : k < 7 ? '#bfe9ff' : '#8f7cff'; circ(pts[k].x - 2, pts[k].y - 13, .6 + a*3.2); } c.globalAlpha = 1; star(pts[0].x - 2, pts[0].y - 13, 2.6, '#ffffff'); break; }
   }
   c.globalAlpha = 1;
@@ -2376,24 +2384,24 @@ function ui(){
 /* ---------- shop ---------- */
 const pv = $('pv'), pctx = pv.getContext('2d');
 let shopCat = 'color', trial = null;
-const owned = (cat, id) => id === 'none' || (cat === 'champ' ? (id === 'champ' ? (bank.champ || 0) >= 1 : (bank.vsAwards || 0) >= (AWARD_NEED[id] || 1e9)) : bank.owned.includes(cat + ':' + id));
+const owned = (cat, id) => id === 'none' || (cat === 'champ' && id === 'champ' ? (bank.champ || 0) >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
 function shopRender(){
   const wl = wallet();
   $('sbal').textContent = num(wl);
   $('stabs').innerHTML = Object.keys(SHOP).map(k => `<button data-cat="${k}" class="${k === shopCat ? 'on' : ''}">${SHOP[k].name}</button>`).join('');
-  const have = Object.keys(SHOP).reduce((a, k) => a + (SHOP[k].special ? 0 : SHOP[k].items.filter(i => owned(k, i[0])).length), 0);
+  const have = Object.keys(SHOP).reduce((a, k) => a + (SHOP[k].special ? 0 : SHOP[k].items.filter(i => !awardNeed(k, i[0]) && owned(k, i[0])).length), 0);
   $('scomp').textContent = `コンプリート ${have} / ${ALL_ITEMS}`;
   $('scat').textContent = `${SHOP[shopCat].name}：${SHOP[shopCat].items.filter(i => owned(shopCat, i[0])).length} / ${SHOP[shopCat].items.length}`;
   $('sitems').innerHTML = SHOP[shopCat].items.map(it => {
     const [id, name, , col] = it;
-    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' ? `<em>${id === 'champ' ? '優勝で解放' : `参加賞${AWARD_NEED[id]}回で解放`}</em>` : `<em>${num(it.price)} コイン</em>`;
+    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' && id === 'champ' ? '<em>優勝で解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : `<em>${num(it.price)} コイン</em>`;
     const swc = {rainbow:'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)', gold:'linear-gradient(135deg,#fff1a8,#e8b100)', silver:'linear-gradient(135deg,#fff,#a8b0bd)', ice:'linear-gradient(135deg,#fff,#9fe3ff)', lava:'linear-gradient(135deg,#ffd23f,#e8402a)', neon:'#39ff88', ghost:'rgba(230,238,255,.6)', shadow:'linear-gradient(135deg,#a259ff,#1d1528)', galaxy:'linear-gradient(135deg,#7a5cff,#1d1b4a)'}[col] || col;
     const ct = tierOf(Math.max(1, bank.champ || 0)), sw = shopCat === 'color' ? `<i style="background:${swc}"></i>` : shopCat === 'champ' && id === 'champ' ? `<i style="background:${ct[2] === 'rainbow' ? 'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)' : ct[2]}"></i>` : '';
     return `<button data-id="${id}" class="${trial[shopCat] === id ? 'sel' : ''}">${sw}<span>${name}</span>${tag}</button>`;
   }).join('');
   if (shopCat === 'champ') { const w = bank.champ || 0, t = tierOf(Math.max(1, w)), nx = nextTier(w); $('scat').textContent = `参加賞 ${bank.vsAwards || 0}回・優勝 ${w}回` + (w ? `（${t[1]}${nx ? `・あと${nx[0] - w}回で${nx[1]}` : ''}）` : ''); }
   const id = trial[shopCat] || 'none', it = item(shopCat, id), a = $('sact');
-  if (shopCat === 'champ' && id !== 'none' && !owned('champ', id)) { a.textContent = id === 'champ' ? '5人以上の全クリレースで優勝すると使えます' : `レースで8時間ラインを${AWARD_NEED[id]}回こえると使えます（いま${bank.vsAwards || 0}回）`; a.disabled = true; return; }
+  if ((shopCat === 'champ' && id === 'champ' || awardNeed(shopCat, id)) && !owned(shopCat, id)) { a.textContent = id === 'champ' ? '5人以上の全クリレースで優勝すると使えます' : `レースで8時間ラインを${awardNeed(shopCat, id)}回こえると使えます（いま${bank.vsAwards || 0}回）`; a.disabled = true; return; }
   if ((bank.eq[shopCat] || 'none') === id) { a.textContent = '装備中'; a.disabled = true; }
   else if (owned(shopCat, id)) { a.textContent = '装備する'; a.disabled = false; }
   else if (wl >= it.price) { a.textContent = `${num(it.price)} コインで買って装備する`; a.disabled = false; }
@@ -2658,7 +2666,7 @@ async function vsPull(){
     const aw = await rpc('quest_awards', {p_member: fb.uid});
     if (typeof aw === 'number' && aw > (bank.vsAwards || 0)) {
       const before = bank.vsAwards || 0; bank.vsAwards = aw; saveBank();
-      const got = Object.entries(AWARD_NEED).filter(([k, n]) => n > before && n <= aw).map(([k]) => item('champ', k)[1]);
+      const got = Object.entries(AWARD_NEED).filter(([k, n]) => n > before && n <= aw).map(([k]) => { const [cat, id] = k.split(':'); return item(cat, id)[1]; });
       toast(`🎖 参加賞！ レースで8時間ラインをこえました（${aw}回目）` + (got.length ? `。「${got.join('・')}」が使えるようになりました` : ''), 9000); sfx('clear');
     }
     if (typeof w === 'number' && w > (bank.champ || 0)) { bank.champ = w; saveBank(); toast(`🏆 優勝！ チャンピオンスキン（${tierOf(w)[1]}）が使えるようになりました。ショップの「優勝」から装備できます`, 9000); sfx('world'); }
