@@ -84,12 +84,23 @@ canvas{display:block;width:100%;height:100%}
 .wname{color:var(--sub);font-size:13px;margin-top:10px}
 .dev{grid-column:1/-1;color:var(--sub);font-size:14px;border-top:1px solid var(--line);padding-top:12px}
 .dev summary{cursor:pointer}
+.vs{grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px}
+.vs h3{margin:0 0 8px;font-size:15px;font-weight:600}
+.vs .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.vs input{flex:1;min-width:0;background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:10px 12px;font-size:15px}
+.vsn{color:var(--sub);font-size:13px;line-height:1.5;margin:6px 0 0}
+.vsr{padding:10px 0;border-bottom:1px solid var(--line)}
+.vsr.me b{color:var(--acc)}
+.vst{display:flex;justify-content:space-between;gap:8px;font-size:15px;margin-bottom:6px}
+.vst span{color:var(--sub);font-size:13px}
+.vst span.on{color:var(--go);font-weight:600}
+.vsr small{color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums;display:block;margin-top:4px}
 .dev .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
 .dev select{background:var(--card);border-radius:10px;padding:8px 10px;font-size:14px;max-width:100%}
 .pill{background:var(--card);border-radius:999px;padding:8px 16px;font-size:14px}
 .pill.on{background:var(--acc);color:#fff}
 .dev p{margin:8px 0 0;font-size:13px;line-height:1.5}
-.dev input[type=text]{flex:1;min-width:0;background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:9px 10px;font-size:13px}
+.dev input[type=password],.dev input[type=text]{flex:1;min-width:0;background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:9px 10px;font-size:13px}
 .dev ol{margin:8px 0 0;padding-left:20px;font-size:13px;line-height:1.6}
 #gstat{font-size:13px}
 .toast{position:absolute;left:50%;top:46px;transform:translateX(-50%);background:rgba(20,16,40,.78);color:#fff;padding:8px 14px;border-radius:12px;font-size:clamp(12px,2.6vw,14px);font-weight:600;opacity:0;transition:opacity .4s;pointer-events:none;max-width:92%;text-align:center;line-height:1.5}
@@ -181,9 +192,38 @@ canvas{display:block;width:100%;height:100%}
       <div class="grid" id="grid"></div>
       <div class="wname" id="wname"></div>
     </div>
+    <section class="vs" id="vs">
+      <h3>友だちと勝負</h3>
+      <div id="vsOff">
+        <p id="vsNote" class="vsn">準備中です（サーバーの設定が終わると使えるようになります）。</p>
+        <div id="vsForm">
+          <p class="vsn">同じ部屋コードを入れた友だちと、同じステージで一緒に走ります。</p>
+          <div class="row"><input type="text" id="vsName" maxlength="10" placeholder="ニックネーム" aria-label="ニックネーム"></div>
+          <div class="row"><input type="text" id="vsRoom" maxlength="8" placeholder="部屋コード（例：AB12C）" aria-label="部屋コード" autocapitalize="characters"><button class="pill" id="vsJoin">参加</button></div>
+          <div class="row"><button class="pill" id="vsNew">新しい部屋を作る</button><span id="vsStat2" class="vsn"></span></div>
+        </div>
+      </div>
+      <div id="vsOn" hidden>
+        <div class="row"><span>部屋コード <b id="vsCode"></b></span><button class="pill" id="vsCopy">コードをコピー</button><button class="pill" id="vsLeave" style="margin-left:auto">抜ける</button></div>
+        <div id="vsList"></div>
+        <p id="vsStat" class="vsn"></p>
+      </div>
+    </section>
     <details class="dev" id="datasec">
-      <summary>データの保存・引き継ぎ</summary>
+      <summary>アカウントとデータの保存</summary>
       <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
+      <div id="acOut">
+        <p><b>アカウントを作ると</b>、記録・コイン・買った見た目がサーバーにも自動で保存され、機種変更や別の端末でも同じIDでログインすれば続きから遊べます。</p>
+        <div class="row"><input type="text" id="acId" maxlength="20" placeholder="ID（英小文字・数字・_ 3〜20文字）" autocomplete="username" autocapitalize="none" aria-label="ID"></div>
+        <div class="row"><input type="password" id="acPass" maxlength="72" placeholder="パスワード（6文字以上）" autocomplete="current-password" aria-label="パスワード"></div>
+        <div class="row"><button class="pill" id="acNew">新しく作る</button><button class="pill" id="acLogin">ログイン</button></div>
+      </div>
+      <div id="acIn" hidden>
+        <div class="row"><span>ログイン中：<b id="acName"></b></span></div>
+        <p id="acLast"></p>
+        <div class="row"><button class="pill" id="acSave">今すぐ保存</button><button class="pill" id="acPull" hidden>最新を読みこむ</button><button class="pill" id="acLogout" style="margin-left:auto">ログアウト</button></div>
+      </div>
+      <p id="acStat" style="color:var(--acc)"></p>
       <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
       <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
     </details>
@@ -236,6 +276,14 @@ canvas{display:block;width:100%;height:100%}
     <div class="lotg" id="lotg"></div>
     <p>各ワールドの1〜6面に、A・B・Cのどれが出るかを毎朝ランダムで決めます。</p>
     <button class="act" id="lotok" disabled>OK</button>
+  </div>
+</div>
+<div class="sheet" id="acCh" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="どちらの記録を使うか">
+    <h2>どちらの記録を使いますか？</h2>
+    <p id="acChP" style="white-space:pre-line"></p>
+    <button class="act" id="acChR">サーバーの記録を使う</button>
+    <button class="act alt" id="acChL">この端末の記録を使う（サーバーに上書き）</button>
   </div>
 </div>
 <div class="sheet" id="addt" hidden>
@@ -2125,7 +2173,10 @@ function airPose(Lx, s){
    A day runs until "寝る" is pressed (or 4:00 the next morning).
    The next day starts from half the stage number reached (rounded down). */
 const dayKey = () => { const d = new Date(Date.now() - 4*3600e3); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
-const drawDay = () => Array.from({length: NST}, () => Math.floor(Math.random()*3));
+function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') || '{}').room || ''; } catch (e) { return ''; } }
+/* friends in the same room get the same stages each day */
+function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*3)); }
+const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*3));
 const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false});
 const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
@@ -2334,6 +2385,8 @@ function drawPreview(){
 /* ---------- keeping data safe: persistent storage, backup codes, Google Drive ---------- */
 function onSaved(){
   try { localStorage.setItem('quest-saved', String(Date.now())); } catch (e) {}
+  try { vsQueue(); } catch (e) {}
+  try { acQueue(); } catch (e) {}
 }
 const payload = () => ({v: 1, at: Date.now(), bank, st});
 const summarize = p => { const n = (p.bank.owned || []).filter(x => !x.endsWith(':none')).length; return `コイン ${num(p.bank.earned - p.bank.spent)}・アイテム ${n}個・${new Date(p.at).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}`; };
@@ -2505,6 +2558,187 @@ $('sndb').onclick = () => { SND.on = !SND.on; saveSnd(); if (SND.on) audio(); if
 $('bgmb').onclick = () => { SND.bgm = !SND.bgm; saveSnd(); audio(); if (bgmBus) bgmBus.gain.value = SND.bgm ? .3 : 0; bgmKey = ''; soundUI(); };
 soundUI();
 
+/* ---------- 友だちと勝負 (Supabase: three database functions, no SDK) ----------
+   Each member keeps one row per room and can only change it with a secret only their device knows.
+   A member's position is a pure function of their study clock, so only a few numbers are shared
+   and the ghost moves smoothly between polls. */
+const SB = {url: 'https://umbhnuthgduedqwummes.supabase.co', key: 'sb_publishable_oziI--e4MEe-ajxMZhW6iQ_6pm_ONA7'};
+const FB_ON = true;
+let fb = {}; try { fb = JSON.parse(localStorage.getItem('quest-fb') || '{}'); } catch (e) {}
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+if (!fb.uid || !/^[0-9a-f-]{36}$/.test(fb.uid)) { const h = rnd(16); fb.uid = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`; fb.secret = rnd(24); }
+const saveFb = () => { try { localStorage.setItem('quest-fb', JSON.stringify(fb)); } catch (e) {} };
+saveFb();
+let room = null, vsPollT = 0, vsPushT = null, vsErr = '';
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+async function rpc(name, args){
+  const r = await fetch(`${SB.url}/rest/v1/rpc/${name}`, {method: 'POST', headers: {'Content-Type': 'application/json', apikey: SB.key}, body: JSON.stringify(args)});
+  if (!r.ok) throw new Error(name + ' ' + r.status);
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+const myKey = () => fb.uid;
+const myEntry = () => ({n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
+  base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify(bank.eq)});
+async function vsPush(leave){
+  if (!fb.room) return;
+  if (leave) return rpc('quest_leave', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret});
+  return rpc('quest_upsert', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret, p_data: myEntry()});
+}
+async function vsPull(){
+  if (!fb.room) return;
+  const rows = await rpc('quest_room', {p_room: fb.room}) || [], out = {};
+  for (const r of rows) if (r && r.data && typeof r.data === 'object') out[r.member_id] = {...r.data, n: String(r.data.n || 'ななし').slice(0, 10), base: Math.max(0, Math.min(NST - 1, +r.data.base || 0)), dr: String(r.data.dr || '').slice(0, NST)};
+  room = out; vsErr = '';
+}
+function vsQueue(){ if (!FB_ON || !fb.room || vsPushT) return; vsPushT = setTimeout(() => { vsPushT = null; vsPush().catch(e => { vsErr = '送信できませんでした'; }); }, 3000); }
+setInterval(() => {
+  if (!FB_ON || !fb.room || document.visibilityState !== 'visible') return;
+  const n = Date.now();
+  if (n - vsPollT > 15000) { vsPollT = n; vsPull().then(vsRender).catch(() => { vsErr = 'つながりません。電波を確認してください'; vsRender(); }); }
+}, 1000);
+setInterval(() => { if (FB_ON && fb.room && st.run) vsPush().catch(() => {}); }, 120000);
+/* a member's study clock, the same formula as ours */
+function memberT(e){
+  let v = e.acc + (e.run ? (Date.now() - e.t0)*(e.mult || 1) : 0); if (e.ft) v = Math.min(v, e.ft);
+  return Math.min((NST - e.base)*STAGE, v/1000);
+}
+function memberStage(e){ const T = memberT(e), k = Math.min(NST - 1 - e.base, Math.floor(T/STAGE)); return {T, si: e.base + k, s: T >= (NST - e.base)*STAGE ? STAGE : T - k*STAGE, v: +(e.dr || '')[e.base + k] || 0}; }
+function vsRender(){
+  $('vsOff').hidden = !!fb.room; $('vsOn').hidden = !fb.room;
+  $('vsNote').hidden = true; $('vsForm').hidden = false;
+  if (!fb.room) return;
+  $('vsCode').textContent = fb.room;
+  const mine = myKey(), list = Object.entries(room || {});
+  if (!list.find(([k]) => k === mine)) list.push([mine, null]);
+  const rows = list.map(([k, e]) => {
+    const me = k === mine;
+    if (me) e = {n: fb.name || 'ななし', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night};
+    const today = e.d === st.d, ms = today ? memberStage(e) : null;
+    const pos = ms ? (ms.si + ms.s/STAGE)/NST : 0;
+    const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
+    return {me, name: e.n, pos, T: ms ? ms.T : 0, txt: ms ? `${stageName(ms.si)} ${VAR[ms.v]} · ${fmtHM(ms.T*1000)} · ${num(e.coins || 0)}コイン` : '—', status, run: today && e.run};
+  }).sort((a, b) => b.T - a.T);
+  $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${esc(r.name)}${r.me ? '（自分）' : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.pos*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small></div>`).join('');
+  $('vsStat').textContent = vsErr || (list.length < 2 ? '友だちに部屋コードを教えると、一緒に走れます。' : '同じステージにいる友だちは、半透明のゴーストで一緒に走ります。');
+}
+/* ghosts: friends on the same stage and version run alongside, semi-transparent */
+function drawGhosts(si, cam){
+  if (!fb.room || !room) return;
+  const mine = myKey();
+  for (const [k, e] of Object.entries(room)) {
+    if (k === mine || e.d !== st.d || e.night) continue;
+    const ms = memberStage(e);
+    if (ms.si !== si || ms.v !== vIn(st, si)) continue;
+    let look; try { look = lookOf(JSON.parse(e.lk || '{}')); } catch (er) { look = lookOf({}); }
+    const o = airPose(L, ms.s), hero = heroAtIn(L, ms.s);
+    if (!e.run && !hero.air && hero.g.j === 0) o.mode = 'idle';
+    if (ms.s < INTRO) o.mode = 'idle';
+    if (ms.s >= INTRO + RUNT) { o.mode = 'win'; o.flip = 0; o.rot = 0; }
+    o.t = now;
+    const x = o.x - cam; if (x < -30 || x > VW + 30) continue;
+    c.globalAlpha = .45; drawHero(x, Y(o.y), o, {...look, pet: 'none', trail: 'none'}); c.globalAlpha = 1;
+    c.font = 'bold 5.5px -apple-system,"Hiragino Sans",sans-serif'; c.textAlign = 'center';
+    const tw = c.measureText(e.n).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill();
+    c.fillStyle = '#fff'; c.fillText(e.n, x, Y(o.y) - 34.3); c.textAlign = 'left';
+  }
+}
+function applyRoomDraw(){
+  if (!fb.room) return;
+  const rd = roomDraw(fb.room, st.d), cur = stageOf(trueT()).si;
+  for (let i = 0; i < NST; i++) if (st.acc === 0 || i > cur) st.draw[i] = rd[i];
+  save();
+}
+async function vsJoin(code){
+  code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length < 4 || code.length > 8) { $('vsStat2').textContent = '部屋コードは英数字4〜8文字にしてください'; return; }
+  const name = $('vsName').value.trim().slice(0, 10);
+  if (!name) { $('vsStat2').textContent = 'ニックネームを入れてください'; return; }
+  fb.name = name; fb.room = code; saveFb();
+  $('vsStat2').textContent = 'つないでいます…';
+  try { applyRoomDraw(); await vsPush(); await vsPull(); vsPollT = Date.now(); $('vsStat2').textContent = ''; vsRender(); }
+  catch (e) { fb.room = ''; saveFb(); $('vsStat2').textContent = 'つながりませんでした。少ししてからもう一度ためしてください'; vsRender(); }
+}
+$('vsJoin').onclick = () => vsJoin($('vsRoom').value);
+$('vsNew').onclick = () => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random()*a.length)]; $('vsRoom').value = s; vsJoin(s); };
+$('vsLeave').onclick = async () => { try { await vsPush(true); } catch (e) {} fb.room = ''; room = null; saveFb(); vsRender(); };
+$('vsCopy').onclick = async () => { try { await navigator.clipboard.writeText(fb.room); $('vsCopy').textContent = 'コピーしました'; } catch (e) { $('vsCopy').textContent = fb.room; } setTimeout(() => { $('vsCopy').textContent = 'コードをコピー'; }, 1500); };
+$('vsName').value = fb.name || '';
+vsRender();
+if (FB_ON && fb.room) { vsPull().then(vsRender).catch(() => {}); vsPush().catch(() => {}); }
+setInterval(() => { if (fb.room) vsRender(); }, 5000);
+
+/* ---------- account: ID + password, save data kept on the server ----------
+   The password is only sent when signing up or logging in; after that the device keeps a session token. */
+let acct = {}; try { acct = JSON.parse(localStorage.getItem('quest-acct') || '{}'); } catch (e) {}
+const saveAcct = () => { try { localStorage.setItem('quest-acct', JSON.stringify(acct)); } catch (e) {} };
+let acPushT = null, acBlocked = false, acPending = null;
+const acMsg = t => { $('acStat').textContent = t || ''; };
+function acRender(){
+  $('acOut').hidden = !!acct.id; $('acIn').hidden = !acct.id;
+  if (acct.id) {
+    $('acName').textContent = acct.id;
+    $('acLast').textContent = acBlocked ? '別の端末で新しく保存されています。「最新を読みこむ」を押してください'
+      : acct.last ? `${new Date(acct.last).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})} に保存しました` : 'まだ保存していません';
+    $('acPull').hidden = !acBlocked;
+  }
+}
+const hasProgress = p => p && p.bank && ((p.bank.earned || 0) + (p.bank.spent || 0) > 0 || (p.st && p.st.acc > 0));
+async function acPush(force){
+  if (!acct.id || !acct.token || (acBlocked && !force)) return;
+  commit();
+  const r = await rpc('quest_put', {p_id: acct.id, p_token: acct.token, p_save: payload(), p_rev: acct.rev || 0});
+  if (r && r.conflict) { acBlocked = true; acRender(); return; }
+  acct.rev = r.rev; acct.last = Date.now(); saveAcct(); acRender();
+}
+function acQueue(){ if (!acct.id || acBlocked || acPushT) return; acPushT = setTimeout(() => { acPushT = null; acPush().catch(e => { if (String(e).includes('400')) { acMsg('ログインの期限が切れました。もう一度ログインしてください'); acct = {}; saveAcct(); acRender(); } }); }, 20000); }
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden' || !acct.id || acBlocked) return;
+  try { commit(); fetch(`${SB.url}/rest/v1/rpc/quest_put`, {method: 'POST', keepalive: true, headers: {'Content-Type': 'application/json', apikey: SB.key}, body: JSON.stringify({p_id: acct.id, p_token: acct.token, p_save: payload(), p_rev: acct.rev || 0})})
+    .then(r => r.json()).then(j => { if (j && j.rev && !j.conflict) { acct.rev = j.rev; acct.last = Date.now(); saveAcct(); } }).catch(() => {}); } catch (e) {}
+});
+const acInputs = () => ({id: $('acId').value.trim().toLowerCase(), pass: $('acPass').value});
+function acCheck({id, pass}){
+  if (!/^[a-z0-9_]{3,20}$/.test(id)) { acMsg('IDは半角の英小文字・数字・_ で3〜20文字にしてください'); return false; }
+  if (pass.length < 6) { acMsg('パスワードは6文字以上にしてください'); return false; }
+  return true;
+}
+$('acNew').onclick = async () => {
+  const v = acInputs(); if (!acCheck(v)) return;
+  acMsg('作っています…');
+  try {
+    commit();
+    const r = await rpc('quest_signup', {p_id: v.id, p_pass: v.pass, p_save: payload()});
+    acct = {id: r.id, token: r.token, rev: r.rev, last: Date.now()}; saveAcct();
+    $('acPass').value = ''; acMsg('アカウントを作りました。これからは自動でサーバーに保存されます。'); acRender();
+  } catch (e) { acMsg(String(e).includes('400') ? 'そのIDはもう使われています。別のIDにしてください' : 'つながりませんでした。電波を確認してください'); }
+};
+$('acLogin').onclick = async () => {
+  const v = acInputs(); if (!acCheck(v)) return;
+  acMsg('ログインしています…');
+  try {
+    const r = await rpc('quest_login', {p_id: v.id, p_pass: v.pass});
+    if (r && r.error) { acMsg('IDかパスワードがちがいます（5回まちがえると10分間ログインできません）'); return; }
+    acct = {id: r.id, token: r.token, rev: r.rev, last: Date.now()}; saveAcct(); $('acPass').value = ''; acBlocked = false;
+    const local = payload();
+    if (r.save && hasProgress(r.save) && hasProgress(local)) {
+      acPending = r.save;
+      $('acChP').textContent = `サーバー：${summarize(r.save)}\nこの端末：${summarize(local)}`;
+      $('acCh').hidden = false;
+    } else if (r.save && hasProgress(r.save)) { applyPayload(r.save); }
+    else { await acPush(true); acMsg('ログインしました。この端末の記録をサーバーに保存しました。'); }
+    acRender();
+  } catch (e) { acMsg(String(e).includes('400') ? 'ログインできません。しばらく待ってからもう一度ためしてください' : 'つながりませんでした。電波を確認してください'); }
+};
+$('acChR').onclick = () => { $('acCh').hidden = true; try { applyPayload(acPending); } catch (e) { acMsg('サーバーの記録が読み取れませんでした'); } };
+$('acChL').onclick = async () => { $('acCh').hidden = true; try { await acPush(true); acMsg('この端末の記録をサーバーに保存しました。'); } catch (e) { acMsg('保存できませんでした'); } };
+$('acSave').onclick = async () => { acMsg('保存しています…'); try { await acPush(); acMsg(acBlocked ? '' : '保存しました。'); } catch (e) { acMsg('保存できませんでした。電波を確認してください'); } };
+$('acPull').onclick = async () => {
+  try { const r = await rpc('quest_pull', {p_id: acct.id, p_token: acct.token}); acct.rev = r.rev; saveAcct(); acBlocked = false; if (r.save) applyPayload(r.save); }
+  catch (e) { acMsg('読みこめませんでした'); }
+};
+$('acLogout').onclick = async () => { try { await acPush(); } catch (e) {} try { await rpc('quest_logout', {p_id: acct.id, p_token: acct.token}); } catch (e) {} acct = {}; saveAcct(); acMsg('ログアウトしました。この端末の記録はそのまま残っています。'); acRender(); };
+acRender();
+
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
 function showSummary(sm, mode){
@@ -2649,6 +2883,7 @@ function frame(){
   drawCoins(cam);
   drawEnemies(TH, cam, rest === 'sleep', (tea || cleaning) ? (x => x > hx - 12 && x < hx + 110) : null);
   drawDust(cam, hero);
+  drawGhosts(si, cam);
   if (tea || cleaning) drawTea(cam, hx, gy, look, TH, cleaning, cleaning ? wakeE/r.F : 0);
   else {
     let o = airPose(L, s), hy = hero.y;
