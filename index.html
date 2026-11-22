@@ -240,6 +240,9 @@ canvas{display:block;width:100%;height:100%}
 .bdg>div.t-l:not(.no){box-shadow:0 0 0 1px var(--tc),0 0 12px color-mix(in srgb,var(--tc) 60%,transparent)}
 .bdg>div.t-p:not(.no){box-shadow:0 0 8px color-mix(in srgb,var(--tc) 45%,transparent)}
 .bdg>div .lk{color:var(--acc);font-weight:700}
+.evbar{position:relative;height:10px;border-radius:5px;background:var(--line)}
+.evbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,#ff7a3d,#ff6bcb,#7a6bff)}
+.evbar u{position:absolute;top:-3px;width:3px;height:16px;margin-left:-1.5px;background:var(--fg);border-radius:2px;opacity:.5}
 .setr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
 .setr:first-of-type{border-top:0}
 /* theater (full screen) */
@@ -300,6 +303,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     </div>
     </div>
     <div class="tabp" data-tab="mis" hidden>
+      <section class="card2" id="evbox"></section>
       <section class="card2"><h3>今日のミッション<small id="misd"></small></h3><div id="misl"></div></section>
       <section class="card2"><h3>実績バッジ<small id="achn"></small></h3><div class="bdg" id="achl"></div></section>
     </div>
@@ -4032,6 +4036,8 @@ function mergeSave(R){
     misLog: (() => { const o = {...(Rb.misLog || {})}; for (const [d, l] of Object.entries(Lb.misLog || {})) o[d] = [...new Set([...(o[d] || []), ...l])]; return o; })(),
     cv: (() => { const o = {...(Rb.cv || {})}; for (const [k, v] of Object.entries(Lb.cv || {})) o[k] = Math.max(o[k] || 0, v); return o; })(),
     foes: Math.max(Lb.foes || 0, Rb.foes || 0), cheers: Math.max(Lb.cheers || 0, Rb.cheers || 0), watched: Math.max(Lb.watched || 0, Rb.watched || 0), fpUsed: Math.max(Lb.fpUsed || 0, Rb.fpUsed || 0),
+    evLog: (() => { const o = {...(Rb.evLog || {})}; for (const [d, l] of Object.entries(Lb.evLog || {})) o[d] = [...new Set([...(o[d] || []), ...l])]; return o; })(),
+    wkc: !Lb.wkc ? Rb.wkc : !Rb.wkc ? Lb.wkc : Lb.wkc.k === Rb.wkc.k ? {k: Lb.wkc.k, cv: {3: Math.max(Lb.wkc.cv[3] || 0, Rb.wkc.cv[3] || 0), 4: Math.max(Lb.wkc.cv[4] || 0, Rb.wkc.cv[4] || 0), 5: Math.max(Lb.wkc.cv[5] || 0, Rb.wkc.cv[5] || 0)}, foes: Math.max(Lb.wkc.foes || 0, Rb.wkc.foes || 0)} : dayNum(Rb.wkc.k) > dayNum(Lb.wkc.k) ? Rb.wkc : Lb.wkc,
     totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
     ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
     wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
@@ -4247,6 +4253,10 @@ function statsOnFinish(sm){
     bank.cv = cv; bank.foes = (bank.foes || 0) + stompsToday();
   } catch (e) {}
   const wk = weekKey(sm.d);
+  try { const add = {cv: {}, foes: stompsToday()}; for (let i = 0; i < sm.stages; i++) { const v = vIn(st, st.base + i); if (v >= 3) add.cv[v] = (add.cv[v] || 0) + 1; }
+    const w0 = bank.wkc && bank.wkc.k === wk ? bank.wkc : {k: wk, cv: {}, foes: 0};
+    bank.wkc = {k: wk, cv: {3: (w0.cv[3] || 0) + (add.cv[3] || 0), 4: (w0.cv[4] || 0) + (add.cv[4] || 0), 5: (w0.cv[5] || 0) + (add.cv[5] || 0)}, foes: w0.foes + add.foes};
+  } catch (e) {}
   bank.wk = bank.wk && bank.wk.k === wk ? {k: wk, ms: bank.wk.ms + sm.ms} : {k: wk, ms: sm.ms};
 }
 const todayMs = () => Math.min(dayLen(st), studyMs()/1000)*1000;
@@ -4415,10 +4425,11 @@ function bonusCoins(){
     let n = 0;
     for (const [d, list] of Object.entries(bank.misLog || {})) { const ms = missionsFor(d, d === st.d ? st.draw : null, d === st.d ? st.base : 0); for (const i of list) n += ms[i] ? ms[i].reward : MIS_REWARD[1]; if (list.length >= 3) n += MIS_ALL; }
     for (const id of bank.ach || []) { const a = ACH.find(x => x[0] === id); if (a) n += a[5]; }
+    for (const [wk, list] of Object.entries(bank.evLog || {})) { const ev = eventFor(wk); for (const i of list) n += ev.tiers[i] ? ev.tiers[i][1] : 0; }
     return n;
   } catch (e) { return 0; }
 }
-function misBadge(){ try { const ms = todayMis(), got = misGot(st.d), n = ms.filter((m, i) => !got.includes(i) && misProgress(m) >= m.need).length; $('misdot').hidden = !n; $('misdot').textContent = n; } catch (e) {} }
+function misBadge(){ try { const ms = todayMis(), got = misGot(st.d), n = ms.filter((m, i) => !got.includes(i) && misProgress(m) >= m.need).length + evClaimable(); $('misdot').hidden = !n; $('misdot').textContent = n; } catch (e) {} }
 setInterval(() => { achCheck(); misBadge(); if (curTab === 'mis') { misRender(); achRender(); } if (curTab === 'vs') rankRender(); if (curTab === 'home') raceRender(); }, 3000);
 const _misRender = misRender; misRender = function(){ _misRender(); achRender(); };
 
@@ -4482,6 +4493,49 @@ function cheerCheck(){
 }
 setInterval(cheerCheck, 2000);
 showTab('home');
+
+/* ---------- weekly event (Monday to Sunday, a different theme every week) ---------- */
+const EVENTS = [
+  {k: 'study', ic: '📖', name: '集中ウィーク', desc: '今週の勉強時間を積み上げよう', unit: '時間', tiers: [[5, 1000], [10, 2000], [20, 4000]], cur: () => weekMs()/3600e3},
+  {k: 'course', ic: '🎢', name: 'コース祭り', desc: 'D・E・Fコースを今週たくさんクリアしよう', unit: '回', tiers: [[6, 1000], [15, 2000], [30, 4000]], cur: () => weekC().n},
+  {k: 'foes', ic: '⚔️', name: '討伐ウィーク', desc: '今週、敵をたくさんたおそう', unit: '体', tiers: [[150, 1000], [400, 2000], [900, 4000]], cur: () => weekC().foes},
+  {k: 'room', ic: '🤝', name: '協力ウィーク', desc: '部屋のみんなの勉強時間を合わせて目標を目指そう（部屋に入っていないときは自分の時間）', unit: '時間', tiers: [[20, 1000], [50, 2000], [100, 4000]], cur: () => roomWeekMs()/3600e3}
+];
+const weekIndex = wk => { const [y, m, d] = String(wk).split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d)/(7*864e5)); };
+const eventFor = wk => EVENTS[((weekIndex(wk) % EVENTS.length) + EVENTS.length) % EVENTS.length];
+function weekC(){
+  const wk = weekKey(st.d), w = bank.wkc && bank.wkc.k === wk ? bank.wkc : {cv: {}, foes: 0};
+  return {n: [3, 4, 5].reduce((a, v) => a + (w.cv[v] || 0) + courseClears(v), 0), foes: w.foes + stompsToday()};
+}
+function roomWeekMs(){
+  let t = weekMs(); if (!fb.room || !room) return t;
+  const mine = myKey(), wk = weekKey(st.d);
+  for (const [k, e] of Object.entries(room)) {
+    if (k === mine) continue;
+    const live = e.d === st.d ? memberT(e)*1000 : 0, base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0;
+    t += Math.max(0, base) + live;
+  }
+  return t;
+}
+const evGot = wk => (bank.evLog || {})[wk] || [];
+function evClaimable(){ try { const wk = weekKey(st.d), ev = eventFor(wk), v = ev.cur(); return ev.tiers.filter((t, i) => v >= t[0] && !evGot(wk).includes(i)).length; } catch (e) { return 0; } }
+function evRender(){
+  const wk = weekKey(st.d), ev = eventFor(wk), v = ev.cur(), got = evGot(wk), max = ev.tiers[ev.tiers.length - 1][0];
+  const [y, m, d] = wk.split('-').map(Number), end = new Date(y, m - 1, d + 6), left = Math.max(0, Math.ceil((new Date(y, m - 1, d + 7) - Date.now())/864e5));
+  const fmtV = x => ev.unit === '時間' ? fmtHM(x*3600e3) : num(Math.floor(x));
+  $('evbox').innerHTML = `<h3>${ev.ic} 今週のイベント：${ev.name}<small>${m}/${d}〜${end.getMonth() + 1}/${end.getDate()}・あと${left}日</small></h3>
+    <p class="vsn" style="margin:0 0 10px">${ev.desc}</p>
+    <div class="evbar"><i style="width:${Math.min(100, v/max*100)}%"></i>${ev.tiers.map(t => `<u style="left:${t[0]/max*100}%"></u>`).join('')}</div>
+    <p class="vsn" style="margin:6px 0 4px">いま <b style="color:var(--fg)">${fmtV(v)}${ev.unit === '時間' ? '' : ev.unit}</b> / ${fmtV(max)}${ev.unit === '時間' ? '' : ev.unit}</p>
+    ${ev.tiers.map((t, i) => { const ok = v >= t[0], done = got.includes(i); return `<div class="ms"><div class="ic">${['🥉', '🥈', '🥇'][i]}</div><div class="bd"><b>${ev.unit === '時間' ? t[0] + '時間' : num(t[0]) + ev.unit}</b><small>${ok ? '達成！' : 'あと ' + fmtV(t[0] - v) + (ev.unit === '時間' ? '' : ev.unit)}</small></div>${done ? '<span class="rw done">✓ 受け取り済み</span>' : ok ? `<button class="rw get" data-ev="${i}">+${num(t[1])} 受け取る</button>` : `<span class="rw">🪙${num(t[1])}</span>`}</div>`; }).join('')}`;
+}
+$('evbox').onclick = e => {
+  const b = e.target.closest('[data-ev]'); if (!b) return;
+  const wk = weekKey(st.d), ev = eventFor(wk), i = +b.dataset.ev; if (evGot(wk).includes(i) || ev.cur() < ev.tiers[i][0]) return;
+  bank.evLog = {...(bank.evLog || {}), [wk]: [...evGot(wk), i]}; saveBank(); sfx('buy'); ui(); evRender(); misBadge();
+  toast(`🎪 イベント報酬 +${num(ev.tiers[i][1])}コイン`, 5000); try { acNow(); } catch (er) {}
+};
+const _misRender2 = misRender; misRender = function(){ _misRender2(); evRender(); };
 
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
