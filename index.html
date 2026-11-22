@@ -393,7 +393,7 @@ function build(si, v = 0){
   const course = v >= 3 ? 'DEF'[v - 3] : '';
   const RS = course === 'F' ? 165 : 75;   // planning speed: the minecart goes about twice as fast
   const hell = !course && w >= 3 && sn === 4;
-  const carries = [], bwalls = [], redirs = [], bars2 = [], rails = [], stones = [], cfoes = [], buttons = [], xcoins = [], gaps = [];
+  const carries = [], bwalls = [], redirs = [], bars2 = [], rails = [], stones = [], cfoes = [], buttons = [], xcoins = [], gaps = [], levers = [];
   let col = 0, h = 2, px = 2*T, hp = 2*T, est = 0, iceOn = false;
   const flat = (n, deco = true) => {
     for (let i = 0; i < n; i++, col++) {
@@ -419,6 +419,7 @@ function build(si, v = 0){
   const arcCoins = (s, n) => { for (let i = 1; i <= n; i++) { const u = i/(n+1); coins.push({x: s.x0 + (s.x1-s.x0)*u, y: arcY(s,u) + 12}); } };
   const lineCoins = (c0, n, y) => { for (let i = 0; i < n; i++) coins.push({x:(c0+i)*T + 8, y: y + 12}); };
   const after = () => flat(ri(2, D > .6 ? 2 : 3));
+  const FL = n => { flat(course === 'E' ? Math.max(1, Math.round(n/3)) : n); if (course === 'E') while (col*T < px + 10) flat(1); };   // parkour: barely touch the ground between moves
   const down = () => { while (h > 2) { h--; jump(col*T - 2, col*T + 14, h*T, 8); flat(2, false); } };
 
   const F = {
@@ -752,30 +753,30 @@ function build(si, v = 0){
     // jump to the edge of a tall wall, hang on and climb up
     climb(){
       if (h > 3) return F.height();
-      flat(3);
+      FL(3);
       const k = ri(4, D > .5 ? 6 : 5), e = col*T, top = (h + k)*T;
       jump(e - 36, e - 5, top - 22, 14, 'reach');
       special({j:6, k:'mantle', x0: e - 5, x1: e + 8, h1: top, d: .6});
-      h += k; const c0 = col; flat(ri(4, 6)); lineCoins(c0 + 1, 3, h*T);
+      h += k; const c0 = col; FL(ri(4, 6)); lineCoins(c0 + 1, 3, h*T);
       h -= k; jump(col*T - 2, col*T + 46, h*T, 16, 'flip');
-      flat(3);
+      FL(3);
     },
     // kick off the wall, double jump back to it and climb over the top
     kickclimb(){
       if (h > 2) return F.height();
-      flat(4);
+      FL(4);
       const e = col*T, k = 6, top = (h + k)*T, h0 = hp;
       jump(e - 46, e - 6, h0 + 44, 8, 'air');
       jump(e - 6, e - 32, h0 + 62, 6, 'kick');
       jump(e - 32, e - 5, top - 22, 8, 'reach');
       special({j:6, k:'mantle', x0: e - 5, x1: e + 8, h1: top, d: .6});
-      h += k; const c0 = col; flat(ri(4, 5)); lineCoins(c0 + 1, 3, h*T);
+      h += k; const c0 = col; FL(ri(4, 5)); lineCoins(c0 + 1, 3, h*T);
       h -= k; jump(col*T - 2, col*T + 56, h*T, 18, 'flip');
-      flat(3);
+      FL(3);
     },
     // three jumps in a row across a huge gap
     triple(){
-      flat(2);
+      FL(2);
       const w2 = ri(11, 13), x0 = col*T - 3, x1 = (col + w2)*T + 6;
       for (let i = 0; i < w2; i++) G[col+i] = 0;
       col += w2;
@@ -783,12 +784,12 @@ function build(si, v = 0){
       arcCoins(jump(x0, xa, hp + 30, 14, 'air'), 2);
       arcCoins(jump(xa, xb, hp + 48, 14, 'dj'), 2);
       arcCoins(jump(xb, x1, h*T, 32, 'tj'), 3);
-      flat(3);
+      FL(3);
     },
     // a lift shoots up and stops dead: the hero flies on, catches a high ledge and climbs it
     liftlaunch(){
       if (h > 2) return F.height();
-      flat(2);
+      FL(2);
       const c0 = col; G[col] = h; G[col+1] = h; col += 2;
       const lx = c0*T, k = 3;
       const s = special({j:3, k:'lift', x0: lx + 16, x1: lx + 16, h1: hp + k*T, d: .5});
@@ -797,13 +798,13 @@ function build(si, v = 0){
       const e = col*T, top = (h + 7)*T;
       jump(lx + 16, e - 5, top - 22, 26, 'launch');
       special({j:6, k:'mantle', x0: e - 5, x1: e + 8, h1: top, d: .6});
-      h += 7; const ct = col; flat(ri(4, 5)); lineCoins(ct + 1, 3, h*T);
+      h += 7; const ct = col; FL(ri(4, 5)); lineCoins(ct + 1, 3, h*T);
       h -= 7; jump(col*T - 2, col*T + 60, h*T, 18, 'flip');
-      flat(3);
+      FL(3);
     },
     // giant swing round a high bar, let go, catch the next bar and flip off
     giant(){
-      flat(2);
+      FL(2);
       const n = 14, c0 = col;
       for (let i = 0; i < n; i++) G[col+i] = 0;
       col += n;
@@ -814,11 +815,11 @@ function build(si, v = 0){
       arcCoins(jump(ax1, ax2, ay2 - HANG, 18, 'flip'), 2);
       special({j:9, k:'giant', x0: ax2, x1: ax2, h1: ay2 - HANG, ax: ax2, ay: ay2, a0: -.4, a1: .7, d: .6});
       arcCoins(jump(ax2, (c0 + n)*T + 8, h*T, 26, 'flip'), 2);
-      flat(3);
+      FL(3);
     },
     // land exactly on top of thin poles over a pit
     poles(){
-      flat(2);
+      FL(2);
       const n = ri(3, 4), gp = 3, w2 = n*gp + 2, c0 = col;
       for (let i = 0; i < w2; i++) G[col+i] = 0;
       col += w2;
@@ -829,7 +830,26 @@ function build(si, v = 0){
         arcCoins(jump(x, xm, hh*T, 16, 'pole'), 1); x = xm;
       }
       jump(x, (c0 + w2)*T + 8, h*T, 18);
-      flat(3);
+      FL(3);
+    },
+    // a row of high bars: swing, let go, catch the next one, and so on
+    barchain(){
+      FL(2);
+      const n = ri(3, 4), gp = 5, w2 = n*gp + 3, c0 = col;
+      for (let i = 0; i < w2; i++) G[col+i] = 0;
+      col += w2;
+      let prev = null;
+      for (let i = 0; i < n; i++) {
+        const ax = (c0 + 2 + i*gp)*T, ay = h*T + HANG + 30 + [0, 14, 6, 20][i % 4];
+        bars2.push({x: ax, y: ay});
+        if (!prev) jump(c0*T - 26, ax, ay - HANG, 14, 'grab');
+        else arcCoins(jump(prev, ax, ay - HANG, 16, 'flip'), 1);
+        const full = i % 2 === 0;
+        special({j:9, k:'giant', x0: ax, x1: ax, h1: ay - HANG, ax, ay, a0: -.45, a1: full ? Math.PI*2 + .35 : .75, d: full ? 1.4 : .6});
+        prev = ax;
+      }
+      arcCoins(jump(prev, (c0 + w2)*T + 8, h*T, 26, 'flip'), 2);
+      FL(2);
     }
   };
 
@@ -860,9 +880,8 @@ function build(si, v = 0){
     if (w >= 2) W.push(['spikes', 1]);
   } else if (course === 'E') {
     W.length = 0;
-    W.push(['climb', 3], ['triple', 2.2], ['poles', 2.2], ['kickclimb', 1.6], ['wallkick', 1.4], ['ledge', 1], ['pit', 1.2], ['coins', .8], ['rest', Math.max(.3, 1.4 - 2*D)]);
-    if (w >= 1) W.push(['liftlaunch', 1.7], ['chimney', 1]);
-    if (w >= 2) W.push(['giant', 1.8]);
+    W.push(['climb', 2.6], ['triple', 2.2], ['poles', 2.4], ['kickclimb', 1.8], ['barchain', 2.2], ['giant', 1.2], ['wallkick', .8], ['rest', .15]);
+    if (w >= 1) W.push(['liftlaunch', 1.8], ['chimney', .8], ['ropes2', 1]);
   }
   const NEW = {1:['bigpit','bridge'], 2:['spring','spikes'], 3:['ride','wallkick'], 4:['swing'], 5:['cannon','lift','rocks'], 6:['firebar','saw','ropes2'], 7:['springs3','diag'], 8:['gate','laser','crusher']}[w] || [];
   for (const e of W) {
@@ -876,10 +895,66 @@ function build(si, v = 0){
   if (course === 'F') {
     /* ===== F course: minecart on rails ===== */
     const cartRun = x => { if (x > px + .01) { const x0 = px; push({j:0, k:'cart', x0:px, x1:x, h0:hp, h1:hp, d:(x - px)/RS}); rails.push({k:'f', x0, x1:x, y0:hp, y1:hp}); px = x; } };
-    const slope = (len, dy) => { const x0 = px; push({j:7, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp + dy, d: len/RS}); rails.push({k:'s', x0, x1: px + len, y0: hp, y1: hp + dy}); px += len; hp += dy; };
+    const slope = (len, dy, o = {}) => { const x0 = px, sg = push({j:7, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp + dy, d: len/RS, lin: o.lin, chain: o.chain}); if (o.d) { sg.d = o.d; sg.fx = 1; } rails.push({k:'s', x0, x1: px + len, y0: hp, y1: hp + dy, lin: o.lin, chain: o.chain}); px += len; hp += dy; return sg; };
+    const clampDy = dy => (hp + dy > 7*T || hp + dy < 2*T) ? -dy : dy;
     const railCoins = (x0, n, gap = 22) => { for (let i = 0; i < n; i++) coins.push({x: x0 + i*gap, y: hp + 16}); };
     const C = {
-      straight(){ const n = ri(6, 11); railCoins(px + 30, ri(3, 5)); cartRun(px + n*T); },
+      straight(){ const n = ri(3, 6); railCoins(px + 20, ri(2, 4)); cartRun(px + n*T); },
+      // sharp up-and-down zigzag
+      zigzag(){
+        const n = ri(4, 7); let dir = hp > 4*T ? -1 : 1;
+        for (let i = 0; i < n; i++) {
+          const dy = clampDy(dir*ri(1, 3)*T), len = ri(2, 4)*T + 8;
+          if (i % 2 === 0) coins.push({x: px + len/2, y: hp + dy/2 + 18});
+          slope(len, dy, {lin: 1}); dir = -dir;
+        }
+        cartRun(px + 2*T);
+      },
+      // the track splits: hit the lever with a stone so the points send you the right way
+      fork(){
+        cartRun(px + 4*T);
+        const up = hp < 5*T, x0 = px, dy = (up ? 2 : -2)*T, lv = {x: x0 - 10, y: hp + 30, y0: hp, up};
+        stones.push({tgt: lv, xe: x0, kind: 'lever'});
+        levers.push(lv);
+        rails.push({k:'dead', x0, x1: x0 + 6*T, y0: hp, y1: hp - dy/2});
+        slope(6*T, dy); cartRun(px + 3*T);
+      },
+      // dash panels: a burst of speed
+      boost(){
+        cartRun(px + 2*T);
+        const len = 8*T, x0 = px; push({j:0, k:'cart', x0, x1: x0 + len, h0: hp, h1: hp, d: len/(RS*2.2), fx: 1, boost: 1});
+        rails.push({k:'f', x0, x1: x0 + len, y0: hp, y1: hp, boost: 1}); px += len;
+        railCoins(x0 + 16, 5, 24);
+        cartRun(px + 2*T);
+      },
+      // ramp, big air, land further down the line
+      ramp(){
+        if (hp > 5*T) slope(4*T, -2*T);
+        cartRun(px + T); slope(2*T, T, {lin: 1});
+        const len = ri(7, 9)*T, h1 = Math.max(2*T, hp - ri(0, 2)*T);
+        gaps.push([px, px + len]);
+        arcCoins(jump(px, px + len, h1, 46, 'cjump'), 4);
+        cartRun(px + 3*T);
+      },
+      // the rails fall away right behind you
+      collapse(){
+        cartRun(px + T);
+        const len = ri(8, 11)*T, x0 = px; push({j:0, k:'cart', x0, x1: x0 + len, h0: hp, h1: hp, d: len/RS});
+        rails.push({k:'f', x0, x1: x0 + len, y0: hp, y1: hp, fall: 1}); px += len;
+        railCoins(x0 + 20, 4, 30);
+        cartRun(px + T);
+      },
+      // roller-coaster: clank up a chain lift slowly, then plunge
+      lifthill(){
+        if (hp > 3*T) slope(5*T, 2*T - hp);
+        cartRun(px + T);
+        const dy = 7*T - hp, len = 8*T;
+        slope(len, dy, {lin: 1, chain: 1, d: len/42});
+        cartRun(px + T);
+        railCoins(px + 30, 5, 24);
+        slope(6*T, 2*T - hp);
+        cartRun(px + 3*T);
+      },
       hill(){
         const up = hp < 5*T ? ri(2, 3)*T : -ri(2, 3)*T;
         slope(ri(5, 7)*T, up); railCoins(px + 10, 3); cartRun(px + ri(3, 5)*T); slope(ri(5, 7)*T, -up); cartRun(px + 2*T);
@@ -921,7 +996,7 @@ function build(si, v = 0){
         cartRun(px + 3*T);
       }
     };
-    const CW = [['straight', .8], ['hill', 2], ['drop', 1], ['gap', 2.4], ['loop', 1.3], ['foe', 2.4], ['button', 1.5]];
+    const CW = [['straight', .4], ['hill', 1.2], ['zigzag', 2.6], ['drop', .9], ['gap', 1.8], ['loop', 1.3], ['foe', 2], ['button', 1.2], ['fork', 1.3], ['boost', 1.1], ['ramp', 1.3], ['collapse', 1.1], ['lifthill', .9]];
     const ctot = CW.reduce((a, b) => a + b[1], 0);
     cartRun(10*T);
     decos.push({x: 4*T, y: 2*T, k: 'start'});
@@ -970,7 +1045,7 @@ function build(si, v = 0){
   for (const s of segs) { if (!s.fx) s.d = (s.x1 - s.x0)/V; s.t0 = t; t += s.d; }
 
   decos.sort((a, b) => a.x - b.x); coins.sort((a, b) => a.x - b.x); rails.sort((a, b) => a.x0 - b.x0); bridges.sort((a, b) => a.x - b.x); blocks.sort((a, b) => a.x - b.x);
-  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col, course, cart: course === 'F', carries, bwalls, redirs, bars2, rails, stones, cfoes, buttons, xcoins};
+  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col, course, cart: course === 'F', carries, bwalls, redirs, bars2, rails, stones, cfoes, buttons, xcoins, levers};
   const tAt = x => timeAtIn(L, x);
   for (const o of coins) o.t = o.seg ? o.seg.t0 + o.seg.d*o.th/(2*Math.PI) : tAt(o.x);
   const throwIv = [], carryIv = [];
@@ -982,12 +1057,13 @@ function build(si, v = 0){
   for (const o of redirs) { o.tP = o.ps.t0 + .3; o.tHit = o.tP + .25; o.tSw = o.tHit + o.walkT; o.gate.t = o.tSw + .1; }
   for (const o of stones) {
     const ta = tAt(o.xe);
-    o.t1 = o.kind === 'button' ? ta - 1.0 : ta - .5; o.t0 = o.t1 - .42;
+    o.t1 = o.kind === 'foe' ? ta - .5 : ta - 1.0; o.t0 = o.t1 - .42;
     o.tgt.t = o.t1; if (o.br) o.br.t = o.t1 + .05;
     if (o.kind === 'foe') xcoins.push({t: o.t1 + .45, f: o.tgt});
     throwIv.push([o.t0 - .06, o.t0 + .24]);
   }
   L.throwIv = throwIv; L.carryIv = carryIv;
+  for (const r of rails) if (r.fall) { r.t0 = tAt(r.x0); r.t1 = tAt(r.x1); }
   for (const o of blocks) if (o.q) o.t = tAt(o.hx);
   for (const o of enemies) o.t = tAt(o.xm);
   for (const o of bridges) o.t = tAt(o.x + 8) + .3;
@@ -998,7 +1074,7 @@ function build(si, v = 0){
   for (const o of lasers) o.t = tAt(o.x);
   for (const o of crushers) o.t = tAt(o.x + 16);
   for (const o of rocks) o.t = tAt(o.x) + .35 + o.i*.12;
-  L.landings = segs.filter(s => s.j === 1 && !['e','air','kick','grab'].includes(s.k)).map(s => ({x: s.x1, y: s.h1, t: s.t0 + s.d}));
+  L.landings = segs.filter(s => s.j === 1 && !['e','air','kick','grab','pole','reach','launch'].includes(s.k)).map(s => ({x: s.x1, y: s.h1, t: s.t0 + s.d}));
   L.airFx = segs.filter(s => s.k === 'dj' || s.k === 'kick').map(s => ({x: s.x0, y: s.h0, t: s.t0, k: s.k, dir: s.x1 < s.x0 ? 1 : -1}));
   if (course) {
     if (course === 'D') for (const e of enemies) xcoins.push({t: e.t + .3, e});   // stomped enemies drop a coin
@@ -1032,7 +1108,7 @@ function heroAtIn(L, s){
   if (g.j === 9) { const e = u*u*(3 - 2*u); return {x: g.ax, y: g.ay - HANG, air: true, g, u, ph: g.a0 + (g.a1 - g.a0)*e}; }
   if (g.j === 8) { const th = 2*Math.PI*u; return {x: g.x0 + g.R*Math.sin(th) + (g.x1 - g.x0)*u, cx: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + g.R*(1 - Math.cos(th)), air: false, g, u, tilt: th}; }
   if (g.j === 6) { const a = Math.min(1, u/.62), e = a*a*(3 - 2*a), b = Math.max(0, (u - .45)/.55); return {x: g.x0 + (g.x1 - g.x0)*b, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
-  if (g.j === 7) { const e = u*u*(3 - 2*u); return {x: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u, tilt: Math.atan((g.h1 - g.h0)*6*u*(1 - u)/(g.x1 - g.x0))}; }
+  if (g.j === 7) { const e = g.lin ? u : u*u*(3 - 2*u); return {x: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u, tilt: Math.atan((g.h1 - g.h0)*(g.lin ? 1 : 6*u*(1 - u))/(g.x1 - g.x0))}; }
   const x = g.x0 + (g.x1 - g.x0)*u;
   if (g.j === 3 || g.j === 5) { const e = u*u*(3 - 2*u); return {x, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
   if (g.j === 0) return {x, y: g.h0, air: false, g, u};
@@ -1923,10 +1999,38 @@ function drawRails(TH, cam){
       continue;
     }
     const a = Math.max(r.x0, x0v), b = Math.min(r.x1, x1v), pts = [];
-    const yAt = x => { const u = (x - r.x0)/(r.x1 - r.x0 || 1); return r.y0 + (r.y1 - r.y0)*ease3(clamp01(u)); };
+    const yAt = x => { const u = clamp01((x - r.x0)/(r.x1 - r.x0 || 1)); return r.y0 + (r.y1 - r.y0)*(r.lin ? u : ease3(u)); };
+    if (r.fall) { // collapsing track: each piece drops a moment after the cart has passed
+      for (let x = Math.floor(r.x0/16)*16; x < r.x1; x += 16) {
+        if (x + 16 < x0v || x > x1v) continue;
+        const tp = lerp(r.t0, r.t1, clamp01((x - r.x0)/(r.x1 - r.x0))) + .25, age = s - tp;
+        const dy = age > 0 ? 120*age*age : age > -.4 ? Math.sin(now*.09 + x)*.5 : 0, rot = age > 0 ? age*(x % 32 ? 1.5 : -1.2) : 0;
+        if (dy > 200) continue;
+        c.save(); c.translate(x - cam + 8, Y(r.y0) + 1 + dy); c.rotate(rot);
+        c.fillStyle = '#8a5a2e'; c.fillRect(-8, 0, 16, 3.4); c.strokeStyle = OL; c.lineWidth = .5; c.strokeRect(-8, 0, 16, 3.4);
+        c.strokeStyle = '#3b3f4c'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(-8, -.4); c.lineTo(8, -.4); c.stroke();
+        c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = .5; c.beginPath(); c.moveTo(-3, 0); c.lineTo(-1, 3.4); c.moveTo(4, 0); c.lineTo(2.5, 3.4); c.stroke();
+        c.restore();
+      }
+      continue;
+    }
     for (let x = Math.floor(a/6)*6; x <= b + 6; x += 6) pts.push([x - cam, Y(yAt(Math.min(x, r.x1))) + 1]);
     for (let x = Math.ceil(a/32)*32; x <= b; x += 32) post(x - cam, Y(yAt(x)) + 1);
     track(pts);
+    if (r.chain) { // chain lift: moving teeth between the rails
+      c.fillStyle = '#2a2a33'; const off = (now*.02) % 8;
+      for (let x = Math.floor(a/8)*8 + off; x < b; x += 8) circ(x - cam, Y(yAt(x)) - .6, .8);
+    }
+    if (r.boost) { // dash panels
+      for (let x = Math.ceil(a/24)*24; x < b; x += 24) { const xx = x - cam, yy = Y(r.y0) - 1, gl = .55 + .45*Math.sin(now*.02 - x*.05);
+        c.fillStyle = `rgba(255,${Math.round(150 + 80*gl)},40,.95)`; c.beginPath(); c.moveTo(xx - 5, yy - 2.6); c.lineTo(xx + 1, yy - 2.6); c.lineTo(xx + 5, yy); c.lineTo(xx + 1, yy + 2.6); c.lineTo(xx - 5, yy + 2.6); c.lineTo(xx - 1, yy); c.closePath(); c.fill(); }
+    }
+    if (r.k === 'dead') { // the branch not taken ends in a barrier and a broken edge
+      const ex = r.x1 - cam, ey = Y(r.y1) + 1;
+      c.fillStyle = '#fff'; rr(ex - 2, ey - 12, 4, 12, 1); c.fill(); c.strokeStyle = OL; c.lineWidth = .6; c.stroke();
+      c.fillStyle = '#e8202a'; c.fillRect(ex - 2, ey - 9, 4, 2); c.fillRect(ex - 2, ey - 4.5, 4, 2);
+      c.fillStyle = '#e8202a'; rr(ex - 9, ey - 14, 18, 4, 1); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.fillRect(ex - 5, ey - 13.2, 2.4, 2.4); c.fillRect(ex + 2, ey - 13.2, 2.4, 2.4);
+    }
   }
 }
 
@@ -2083,6 +2187,24 @@ function drawXObjs(TH, cam){
     if (!hit) { c.fillStyle = '#e8202a'; c.font = 'bold 6px sans-serif'; c.textAlign = 'center'; c.fillText('!', x, y - 8 + Math.sin(now*.01)*1); c.textAlign = 'left'; }
     else if (s - b.t < .5) { const k = (s - b.t)/.5; c.globalAlpha = 1 - k; for (let i = 0; i < 6; i++) star(x + Math.cos(i)*k*14, y + Math.sin(i)*k*14, 2, '#fff27a'); c.globalAlpha = 1; }
   }
+  for (const lv of L.levers) { // track switch: the stone flips the lever and the points
+    const x = lv.x - cam; if (x < -40 || x > VW + 40) continue;
+    const hit = s >= lv.t, k = ease3(clamp01((s - lv.t)/.25)), y = Y(lv.y), yb = Y(lv.y0);
+    c.fillStyle = '#6e7488'; c.fillRect(x - 1.5, y, 3, yb - y);
+    c.fillStyle = '#4a4f62'; rr(x - 5, y - 3, 10, 6, 1.5); c.fill(); c.strokeStyle = OL; c.lineWidth = .7; c.stroke();
+    const ang = lerp(-.7, .7, k); c.strokeStyle = '#2a2a33'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.sin(ang)*9, y - Math.cos(ang)*9); c.stroke();
+    c.fillStyle = hit ? '#3fbf72' : '#e8202a'; circ(x + Math.sin(ang)*9, y - Math.cos(ang)*9, 2.2);
+    c.fillStyle = '#ffd23f'; c.beginPath(); const ay = y - 18, dir = hit ? (lv.up ? -1 : 1) : (lv.up ? 1 : -1);
+    c.moveTo(x - 4, ay); c.lineTo(x + 3, ay); c.lineTo(x + 3, ay + dir*2.5); c.lineTo(x + 6, ay - dir*1.5); c.lineTo(x + 3, ay - dir*5.5); c.lineTo(x + 3, ay - dir*3); c.lineTo(x - 4, ay - dir*3); c.closePath(); c.fill(); c.strokeStyle = OL; c.lineWidth = .5; c.stroke();
+    if (hit && s - lv.t < .5) { const q = (s - lv.t)/.5; c.globalAlpha = 1 - q; for (let i = 0; i < 6; i++) star(x + Math.cos(i)*q*14, y - 9 + Math.sin(i)*q*14, 2, '#fff27a'); c.globalAlpha = 1; }
+  }
+  { // speed lines on dash panels and steep drops
+    const h = heroAtIn(L, s), g = h.g;
+    if ((g.boost || (g.j === 7 && g.h1 < g.h0 - 2*T)) && h.u > .05 && h.u < .97) {
+      c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = .8;
+      for (let i = 0; i < 6; i++) { const yy = Y(h.y) - 4 - i*4 - ((now*.3 + i*37) % 7), x2 = h.x - cam - 16 - ((now*.5 + i*53) % 30); c.beginPath(); c.moveTo(x2, yy); c.lineTo(x2 - 14, yy); c.stroke(); }
+    }
+  }
   for (const f of L.cfoes) {
     const x = f.x - cam; if (x < -40 || x > VW + 40) continue;
     const age = s - f.t;
@@ -2091,7 +2213,7 @@ function drawXObjs(TH, cam){
   }
   for (const st2 of L.stones) {
     if (s < st2.t0 - .05 || s > st2.t1 + .05) continue;
-    const k = clamp01((s - st2.t0)/(st2.t1 - st2.t0)), h0 = handAt(st2.t0 + .1), tx = st2.tgt.x, ty = st2.tgt.y + (st2.kind === 'button' ? 0 : 8);
+    const k = clamp01((s - st2.t0)/(st2.t1 - st2.t0)), h0 = handAt(st2.t0 + .1), tx = st2.tgt.x, ty = st2.tgt.y + (st2.kind === 'foe' ? 8 : 0);
     const x = lerp(h0.x, tx, k) - cam, y = Y(lerp(h0.y, ty, k) + 14*4*k*(1 - k));
     c.fillStyle = '#8a8d99'; circ(x, y, 2.2); c.strokeStyle = OL; c.lineWidth = .6; c.beginPath(); c.arc(x, y, 2.2, 0, 7); c.stroke();
     c.fillStyle = 'rgba(255,255,255,.6)'; circ(x - .6, y - .7, .7);
@@ -3200,7 +3322,7 @@ function sfxEvents(Lx){
   for (const r of Lx.rocks) ev.push([r.t, 'slam']);
   for (const o of Lx.carries || []) ev.push([o.tG, 'block'], [o.tT, 'kick'], [o.tH, o.w ? 'boom' : 'stomp']);
   for (const o of Lx.redirs || []) ev.push([o.tP, 'block'], [o.tHit, 'kick']);
-  for (const o of Lx.stones || []) ev.push([o.t0, 'jump'], [o.t1, o.kind === 'button' ? 'gate' : 'stomp']);
+  for (const o of Lx.stones || []) ev.push([o.t0, 'jump'], [o.t1, o.kind === 'foe' ? 'stomp' : 'gate']);
   for (const o of Lx.xcoins || []) ev.push([o.t, 'coin']);
   ev.push([INTRO + RUNT, Lx.sn === 5 ? 'world' : 'clear']);
   ev.sort((a, b) => a[0] - b[0]);
