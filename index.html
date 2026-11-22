@@ -4496,10 +4496,10 @@ showTab('home');
 
 /* ---------- weekly event (Monday to Sunday, a different theme every week) ---------- */
 const EVENTS = [
-  {k: 'study', ic: '📖', name: '集中ウィーク', desc: '今週の勉強時間を積み上げよう', unit: '時間', tiers: [[5, 1000], [10, 2000], [20, 4000]], cur: () => weekMs()/3600e3},
-  {k: 'course', ic: '🎢', name: 'コース祭り', desc: 'D・E・Fコースを今週たくさんクリアしよう', unit: '回', tiers: [[12, 1000], [30, 2000], [60, 4000]], cur: () => weekC().n},
-  {k: 'foes', ic: '⚔️', name: '討伐ウィーク', desc: '今週、敵をたくさんたおそう', unit: '体', tiers: [[150, 1000], [400, 2000], [900, 4000]], cur: () => weekC().foes},
-  {k: 'room', ic: '🤝', name: '協力ウィーク', desc: '部屋のみんなの勉強時間を合わせて目標を目指そう（部屋に入っていないときは自分の時間）', unit: '時間', tiers: [[20, 1000], [50, 2000], [100, 4000]], cur: () => roomWeekMs()/3600e3}
+  {k: 'study', ic: '📖', name: '集中ウィーク', desc: '今週の勉強時間を積み上げよう', unit: '時間', tiers: [[10, 1000], [20, 2000], [40, 4000]], cur: () => weekMs()/3600e3},
+  {k: 'course', ic: '🎢', name: 'コース祭り', desc: 'D・E・Fコースを今週たくさんクリアしよう', unit: '回', tiers: [[30, 1000], [60, 2000], [120, 4000]], cur: () => weekC().n},
+  {k: 'foes', ic: '⚔️', name: '討伐ウィーク', desc: '今週、敵をたくさんたおそう', unit: '体', tiers: [[3000, 1000], [6000, 2000], [12000, 4000]], cur: () => weekC().foes},
+  {k: 'room', ic: '🤝', name: '協力ウィーク', desc: '部屋のみんな（今週勉強した人）の平均勉強時間で目標を目指そう。部屋に入っていないときは自分の時間', unit: '時間', tiers: [[10, 1000], [20, 2000], [40, 4000]], cur: () => roomWeekMs()/3600e3}
 ];
 const weekIndex = wk => { const [y, m, d] = String(wk).split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d)/(7*864e5)); };
 const eventFor = wk => EVENTS[((weekIndex(wk) % EVENTS.length) + EVENTS.length) % EVENTS.length];
@@ -4507,15 +4507,15 @@ function weekC(){
   const wk = weekKey(st.d), w = bank.wkc && bank.wkc.k === wk ? bank.wkc : {cv: {}, foes: 0};
   return {n: [3, 4, 5].reduce((a, v) => a + (w.cv[v] || 0) + courseClears(v), 0), foes: w.foes + stompsToday()};
 }
-function roomWeekMs(){
-  let t = weekMs(); if (!fb.room || !room) return t;
+function roomWeekMs(){   // average over the members who studied this week (you always count)
+  let t = weekMs(), n = 1; if (!fb.room || !room) return t;
   const mine = myKey(), wk = weekKey(st.d);
   for (const [k, e] of Object.entries(room)) {
     if (k === mine) continue;
-    const live = e.d === st.d ? memberT(e)*1000 : 0, base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0;
-    t += Math.max(0, base) + live;
+    const live = e.d === st.d ? memberT(e)*1000 : 0, base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0, ms = Math.max(0, base) + live;
+    if (ms > 0) { t += ms; n++; }
   }
-  return t;
+  return t/n;
 }
 const evGot = wk => (bank.evLog || {})[wk] || [];
 function evClaimable(){ try { const wk = weekKey(st.d), ev = eventFor(wk), v = ev.cur(); return ev.tiers.filter((t, i) => v >= t[0] && !evGot(wk).includes(i)).length; } catch (e) { return 0; } }
