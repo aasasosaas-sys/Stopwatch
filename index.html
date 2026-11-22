@@ -3989,7 +3989,7 @@ function frameBody(){
   bgmTick(st.run && !cleaning ? 'stage' : null, L.w);
   drawWeather(TH);
   drawConfetti(winT);
-  if (!rest) drawCalls(cam);
+
   // overlays
   const showTitle = !all && s < 2.8 && (st.run || Tt > 0) && !rest && !cleaning;
   $('ttl').classList.toggle('on', showTitle);
