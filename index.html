@@ -3938,7 +3938,7 @@ function frameBody(){
   const stretching = r && r.kind === 'sleep' && wakeE >= 0 && wakeE < r.F;
   const hx = hero.x - cam, gy = Y(hero.y);
   drawSky(TH, s/STAGE);
-  { const sa = st.run ? shakeAt(s) : 0; if (sa) c.translate(Math.sin(now*.09)*sa, Math.cos(now*.113)*sa*.8); }
+
   drawFar(TH, cam);
   drawHills(TH, cam);
   const d0 = lowerX(L.decos, cam - 40), d1 = lowerX(L.decos, cam + VW + 40);
