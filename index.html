@@ -2746,7 +2746,10 @@ function pose(o){
   else if (o.mode === 'paddle') { lean = .15; hipY = -10.6; Lg = [[.35, .6], [-.35, .6]]; const sw = o.hit ? 1 : 0; A = [[lerp(.9, 2.2, sw), -.9], [-.6, .5]]; }
   else if (o.mode === 'hurry') { const p = o.ph; lean = .25; hipY = -10.4 - 1.3*Math.abs(Math.cos(p)); for (let i = 0; i < 2; i++) { const q = p + i*Math.PI; Lg[i] = [.9*Math.sin(q), .25 + 1.4*Math.max(0, Math.cos(q))]; A[i] = [2.6 + Math.sin(q*1.3)*.6, -.4]; } }
   else if (o.mode === 'stretch') { const k = Math.sin(t*.006); A = [[2.7 + k*.1, .1], [-2.7 - k*.1, -.1]]; Lg = [[.15, .05], [-.15, .05]]; hipY = -11.8; }
-  else if (o.mode === 'cart') { const b = Math.sin(t*.02)*.2; lean = .1; hipY = -10.6 + b; Lg = [[.35, .75], [-.2, .6]]; A = [[1.45, -.55], [1.2, -.45]]; }
+  else if (o.mode === 'cart') { const b = Math.sin(t*.02)*.2; lean = .1; hipY = -10.6 + b; Lg = [[.6, 1.25], [.3, 1.05]]; A = [[1.45, -.55], [1.2, -.45]]; }   // knees bent inside the box
+  else if (o.mode === 'car' || o.mode === 'kart') { const b = Math.sin(t*.02)*.15; lean = o.mode === 'kart' ? -.12 : 0; hipY = -4 + b; Lg = [[1.55, .1], [1.45, .1]]; A = [[1.35, -.9], [1.15, -.8]]; }   // seated, legs stretched forward under the dash
+  else if (o.mode === 'tub') { const b = Math.sin(t*.003)*.3; lean = -.15; hipY = -4 + b; Lg = [[1.5, .05], [1.4, .05]]; A = [[1.75, -.3], [-1.55, .3]]; }   // relaxing, arms on the rim
+  else if (o.mode === 'straddle') { const b = Math.sin(t*.02)*.2; lean = .2; hipY = -5 + b; Lg = [[1.05, 1.45], [.85, 1.25]]; A = [[1.45, -.6], [1.25, -.5]]; }   // astride, knees gripping the sides
   else if (o.mode === 'place') { lean = .5; hipY = -8.2; Lg = [[1.0, 1.8], [-.35, 1.3]]; A = [[.75, .15], [.55, .1]]; }
   else if (o.mode === 'reach') { lean = -.05; Lg = [[.5, .7], [.15, .4]]; A = [[Math.PI - .2, 0], [Math.PI + .05, 0]]; }
   else if (o.mode === 'climb') { const u = o.cu || 0, b = Math.sin(u*Math.PI); lean = lerp(-.05, .55, u); hipY = lerp(-11.6, -9.6, u); Lg = [[lerp(.5, 1.7, u), lerp(.6, 2.3, u)], [lerp(.15, .5, u), lerp(.4, 1.1, u)]]; A = [[lerp(Math.PI - .2, .5, u), b*1.6], [lerp(Math.PI + .05, .3, u), b*1.4]]; }
@@ -2760,15 +2763,23 @@ function pose(o){
   const arms = A.map(([a, k]) => { const el = pt(neck, a, 4.8); return [el, pt(el, a - k, 4.6)]; });
   return {hip, neck, head, legs, arms};
 }
+/* how the hero sits in each vehicle: dy = how far the body is lifted, front = the vehicle hides the legs */
+const RIDE_SEAT = {
+  none: {pose: 'cart', dy: -6, front: 1}, wood: {pose: 'cart', dy: -6, front: 1}, red: {pose: 'cart', dy: -6, front: 1}, gold: {pose: 'cart', dy: -6, front: 1},
+  taxi: {pose: 'car', dy: -6, front: 1}, police: {pose: 'car', dy: -6, front: 1}, sports: {pose: 'car', dy: -5.5, front: 1},
+  kart: {pose: 'kart', dy: -4, front: 1}, f1: {pose: 'kart', dy: -4.5, front: 1}, tub: {pose: 'tub', dy: -3.5, dx: -4, front: 1},
+  rocket: {pose: 'straddle', dy: -7.5, front: 0}, dragonride: {pose: 'straddle', dy: -8.5, front: 0}
+};
 function drawHero(x, y, o, look){
   if (o.mode === 'sleep') return drawSleep(x, y, o.t, look);
   if (o.cart) { // riding the minecart (or whatever vehicle was bought)
-    const rk = look.ride || 'none';
+    const rk = look.ride || 'none', V = RIDE_SEAT[rk] || RIDE_SEAT.none;
+    const po = {...o, mode: V.pose}; if (o.mode === 'win') po.carry = true;   // cheering: both hands up, legs stay inside
     c.save(); c.translate(x, y); if (o.tilt) c.rotate(-o.tilt);
-    drawRide(rk, o.t, o.x || 0);
-    c.save(); c.translate(0, rk === 'kart' || rk === 'f1' || rk === 'rocket' || rk === 'dragonride' ? -3 : -5);
-    stick(pose(o.mode === 'run' || o.mode === 'jump' || o.mode === 'tuck' || o.mode === 'ride' ? {...o, mode: 'cart'} : o), look, o);
-    c.restore(); drawRideFront(rk); c.restore();
+    if (!V.front) drawRide(rk, o.t, o.x || 0);
+    c.save(); c.translate(V.dx || 0, V.dy); stick(pose(po), look, po); c.restore();
+    if (V.front) drawRide(rk, o.t, o.x || 0);
+    drawRideFront(rk); c.restore();
     return;
   }
   c.save(); c.translate(x, y);
