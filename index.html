@@ -3555,7 +3555,7 @@ function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') 
 /* friends in the same room get the same stages each day */
 function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*NVAR)); }
 const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*NVAR));
-const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: 0});   // act is only stamped by things the player does (start / stop / sleep / time entry), never by an automatic new day
+const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: 0, runT0: 0});   // act is only stamped by things the player does (start / stop / sleep / time entry), never by an automatic new day
 const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
 let bank, st;
@@ -3617,13 +3617,14 @@ function rollover(){
   else if (st.run) { st.acc = Math.min(dayLen(st)*1000, st.acc + Math.max(0, Math.min(end, Date.now()) - st.t0)*(st.mult || 1)); st.run = false; st.stopAt = end; }
   const sm = finishDay();
   if (wasNight && !keepRun) { st.night = wasNight; save(); }   // already asleep at the inn: the scene just carries on
-  if (keepRun) { const t0 = Math.max(end, new Date().setHours(0, 0, 0, 0)); st.night = null; st.run = true; st.t0 = t0; st.act = t0; st.stopAt = t0; save(); }
+  if (keepRun) { const t0 = Math.max(end, new Date().setHours(0, 0, 0, 0)); st.night = null; st.run = true; st.t0 = t0; st.runT0 = t0; st.act = t0; st.stopAt = t0; save(); try { vsPushNow(); } catch (e) {} }
   return sm;
 }
 let pendingSummary = null;
 if (!st) st = fresh(bank.base);
 else if (st.d !== dayKey()) pendingSummary = rollover();
 if (!st.ff) st.mult = 1;
+if (st && st.run && !st.runT0) st.runT0 = st.t0 || Date.now();   // older saves: anchor the continuous-run clock
 
 /* idle: 1 hour → everyone sleeps, 3 hours → tea party (time at the inn does not count) */
 const idleSec = () => (!st.run && !st.night) ? (Date.now() - st.stopAt)/1000 : 0;
@@ -3648,17 +3649,18 @@ function beginResume(){
 let wake = null;
 const lockWake = async () => { try { if (st.run && navigator.wakeLock && document.visibilityState === 'visible') wake = await navigator.wakeLock.request('screen'); } catch (e) {} };
 document.addEventListener('visibilitychange', lockWake);
-function stop(){ commit(); st.run = false; st.stopAt = Date.now(); st.act = Date.now(); if (wake) { wake.release().catch(()=>{}); wake = null; } }
+function stop(){ commit(); st.run = false; st.runT0 = 0; st.stopAt = Date.now(); st.act = Date.now(); if (wake) { wake.release().catch(()=>{}); wake = null; } }
 function toggle(){
   if (st.ff) return;
   if (st.run) { stop(); sfx('stop'); }
   else {
     if (studyMs() >= dayLen(st)*1000) return;
     if (st.night) st.night = null; else beginResume();
-    st.run = true; st.t0 = Date.now(); st.act = Date.now(); lockWake();
+    st.run = true; st.t0 = Date.now(); st.runT0 = Date.now(); st.act = Date.now(); lockWake();
     audio(); sfx(st.resume && st.resume.kind === 'tea' ? 'hurry' : 'start');
   }
   save(); ui(); acNow();
+  try { vsPushNow(); } catch (e) {}
 }
 $('go').onclick = toggle;
 window.__quest = { L: (si, v) => getStage(si ?? 0, v ?? 0), set(sec){ st.acc = Math.max(0, sec - st.base*STAGE)*1000; st.t0 = Date.now(); st.allAt = 0; st.resume = null; save(); ui(); }, bank: () => bank, st: () => st, eq(e){ Object.assign(bank.eq, e); } };
@@ -4002,7 +4004,8 @@ const myKey = () => fb.uid;
 let myCheer = null;   // the last cheer stamp this player sent ({to, k, at})
 const myEntry = () => ({wk: typeof weekKey === 'function' ? weekKey(st.d) : '', wkms: typeof weekMs === 'function' ? Math.round(weekMs()) : 0, ch: myCheer,n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
   base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: bank.champ || 0, a: bank.vsAwards || 0}),
-  allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0});
+  allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0,
+  rs0: (st.run && !st.ff && !st.night) ? (st.runT0 || st.t0 || 0) : 0});
 async function vsPush(leave){
   if (!fb.room) return;
   if (leave) return rpc('quest_leave', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret});
@@ -4034,6 +4037,12 @@ async function vsPull(){
 }
 let board = null, roomInfo = null;
 function vsQueue(){ if (!FB_ON || !fb.room || vsPushT) return; vsPushT = setTimeout(() => { vsPushT = null; vsPush().catch(e => { vsErr = '送信できませんでした'; }); }, 3000); }
+// send right now (for start / stop / sleep, so friends see 勉強中 without the 3s delay)
+function vsPushNow(){ if (!FB_ON || !fb.room) return; if (vsPushT) { clearTimeout(vsPushT); vsPushT = null; } vsPush().catch(() => { vsErr = '送信できませんでした'; }); }
+// flush the current state when the app is closed or hidden, so a running timer is not left looking stopped
+function vsFlush(){ if (!FB_ON || !fb.room) return; try { fetch(`${SB.url}/rest/v1/rpc/quest_upsert`, {method: 'POST', keepalive: true, headers: {'Content-Type': 'application/json', apikey: SB.key}, body: JSON.stringify({p_room: fb.room, p_member: fb.uid, p_secret: fb.secret, p_data: myEntry()})}); } catch (e) {} }
+addEventListener('pagehide', vsFlush);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') vsFlush(); });
 setInterval(() => {
   if (!FB_ON || !fb.room || document.visibilityState !== 'visible') return;
   const n = Date.now();
@@ -4791,7 +4800,7 @@ const _misRender2 = misRender; misRender = function(){ _misRender2(); evRender()
 const VAPID_PUB = 'BPQ2j69Me3ki8LUGMtbGEoDL6Do5du1cwXjRZiBaq8_tVhog-X6PKM1-h4kiHezcPlvZdXxzCmdIZXC_GahZQ-8';
 const NOTI_KINDS = [
   ['cheer', '📣 応援スタンプが届いたとき'], ['start', '📖 部屋の友だちが勉強を始めたとき'], ['race', '🏃 レースで抜かれた・抜いたとき'],
-  ['running', '⏱ 勉強中の表示（開始〜停止のあいだ通知に出しておく）'], ['allc', '🏁 レースの優勝が決まって次のレースが始まったとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）']];
+  ['running', '⏱ 勉強中の表示（開始〜停止のあいだ通知に出しておく）'], ['allc', '🏁 レースの優勝が決まって次のレースが始まったとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）'], ['long', '🕯 ずっと勉強中のとき「大丈夫？」（連続6時間）']];
 let noti = {on: false, prefs: {}, quiet: false}; try { noti = Object.assign(noti, JSON.parse(localStorage.getItem('quest-noti') || '{}')); } catch (e) {}
 const saveNoti = () => { try { localStorage.setItem('quest-noti', JSON.stringify(noti)); } catch (e) {} };
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -4950,10 +4959,10 @@ $('sleepb').onclick = () => {
 $('smback').onclick = () => { $('sleep').hidden = true; };
 /* 寝る only sends everyone to the inn. The day itself (and the halving) ends at 0:00, so sleeping twice never halves twice. */
 function sleepNow(){
-  if (st.run) { commit(); st.run = false; }
+  if (st.run) { commit(); st.run = false; st.runT0 = 0; }
   const sm = daySummary(st);
   if (!st.night) st.night = {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)};
-  st.stopAt = Date.now(); st.act = Date.now(); save();
+  st.stopAt = Date.now(); st.act = Date.now(); save(); try { vsPushNow(); } catch (e) {}
   return sm;
 }
 $('smok').onclick = () => { const sm = sleepNow(); showSummary(sm, 'done'); sfx('night'); ui(); acNow(); };
