@@ -243,6 +243,7 @@ canvas{display:block;width:100%;height:100%}
 .evbar{position:relative;height:10px;border-radius:5px;background:var(--line)}
 .evbar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:linear-gradient(90deg,#ff7a3d,#ff6bcb,#7a6bff)}
 .evbar u{position:absolute;top:-3px;width:3px;height:16px;margin-left:-1.5px;background:var(--fg);border-radius:2px;opacity:.5}
+.setr input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc);flex-shrink:0}
 .setr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
 .setr:first-of-type{border-top:0}
 /* theater (full screen) */
@@ -346,6 +347,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
         <div class="setr"><span>見え方</span><button class="pill" id="fpv2">横から見る</button></div>
         <div class="setr"><span>全画面で見る<br><small style="color:var(--sub)">スマホを横にすると自動で全画面</small></span><button class="pill" id="thv2">全画面にする</button></div>
       </section>
+      <section class="card2" id="notibox"></section>
     <details class="dev" id="datasec">
       <summary>アカウントとデータの保存</summary>
       <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
@@ -4646,6 +4648,75 @@ $('evbox').onclick = e => {
   toast(`🎪 イベント報酬 +${num(ev.tiers[i][1])}コイン`, 5000); try { acNow(); } catch (er) {}
 };
 const _misRender2 = misRender; misRender = function(){ _misRender2(); evRender(); };
+
+/* ---------- push notifications (sent by the server even when the app is closed) ---------- */
+const VAPID_PUB = 'BPQ2j69Me3ki8LUGMtbGEoDL6Do5du1cwXjRZiBaq8_tVhog-X6PKM1-h4kiHezcPlvZdXxzCmdIZXC_GahZQ-8';
+const NOTI_KINDS = [
+  ['cheer', '📣 応援スタンプが届いたとき'], ['start', '📖 部屋の友だちが勉強を始めたとき'], ['race', '🏃 レースで抜かれた・抜いたとき'],
+  ['allc', '🏁 部屋の誰かが全クリしたとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）']];
+let noti = {on: false, prefs: {}, quiet: false}; try { noti = Object.assign(noti, JSON.parse(localStorage.getItem('quest-noti') || '{}')); } catch (e) {}
+const saveNoti = () => { try { localStorage.setItem('quest-noti', JSON.stringify(noti)); } catch (e) {} };
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushOK = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+let swReg = null;
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; if (noti.on) notiSync(); }).catch(() => {});
+const b64u = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, ch => ch.charCodeAt(0)); };
+function notiPrefs(){ const p = {on: !!noti.on, quiet: !!noti.quiet}; for (const [k] of NOTI_KINDS) p[k] = noti.prefs[k] !== false; return p; }
+function notiStatus(){   // what the 21:00 / Sunday / 23:30 reminders need to know
+  const o = {today: {d: st.d, ms: Math.round(todayMs()), stages: Math.floor(trueT()/STAGE)}};
+  try { const ms = todayMis(), got = misGot(st.d); o.mis = {d: st.d, done: got.length, total: ms.length, left: ms.filter((m, i) => !got.includes(i)).map(m => m.t.k === 'course' ? m.t.name(m.need, m.cv) : m.t.name(m.need)).slice(0, 3)}; } catch (e) {}
+  try { const wk = weekKey(st.d), ev = eventFor(wk), v = ev.cur(), nx = ev.tiers.find(t => v < t[0]); o.ev = {wk, name: ev.name, next: nx ? (ev.unit === '時間' ? fmtHM((nx[0] - v)*3600e3) : num(Math.ceil(nx[0] - v)) + ev.unit) : ''}; } catch (e) {}
+  return o;
+}
+async function notiSub(){ const reg = swReg || await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
+async function notiSync(){
+  if (!noti.on || !pushOK()) return;
+  try {
+    const sub = await notiSub(); if (!sub) { noti.on = false; saveNoti(); notiRender(); return; }
+    const j = sub.toJSON();
+    await rpc('quest_push_set', {p_member: fb.uid, p_secret: fb.secret, p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_prefs: notiPrefs(), p_status: notiStatus()});
+    noti.err = ''; noti.last = Date.now(); saveNoti();
+  } catch (e) { noti.err = 'サーバーにつながりませんでした。あとで自動でやり直します'; }
+  notiRender();
+}
+async function notiEnable(){
+  if (!pushOK()) { noti.err = 'このブラウザは通知に対応していません'; return notiRender(); }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { noti.err = '通知が許可されませんでした。端末の設定で、このアプリの通知を許可してください'; return notiRender(); }
+  try {
+    const reg = swReg || await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUB)});
+    noti.on = true; saveNoti(); await notiSync(); toast('🔔 通知をオンにしました', 3000);
+  } catch (e) { noti.err = '通知の登録に失敗しました：' + (e && e.message || e); notiRender(); }
+}
+async function notiDisable(){
+  noti.on = false; saveNoti();
+  try { const sub = await notiSub(); if (sub) { await rpc('quest_push_off', {p_endpoint: sub.endpoint, p_secret: fb.secret}).catch(() => {}); await sub.unsubscribe(); } } catch (e) {}
+  notiRender();
+}
+function notiRender(){
+  const box = $('notibox'); if (!box) return;
+  let head;
+  if (isIOS && !isStandalone()) head = `<p class="vsn">iPhone・iPadでは、Safariの共有ボタン →「ホーム画面に追加」で追加したアプリから開くと、通知をオンにできます。</p>`;
+  else if (!pushOK()) head = `<p class="vsn">このブラウザは通知に対応していません。</p>`;
+  else head = `<div class="setr"><span>通知<br><small style="color:var(--sub)">${noti.on ? 'オン・アプリを閉じていても届きます' : 'オフ'}</small></span><button class="pill${noti.on ? '' : ' pri'}" id="notiBtn">${noti.on ? 'オフにする' : 'オンにする'}</button></div>`;
+  box.innerHTML = `<h3>通知</h3>${head}${noti.err ? `<p class="vsn" style="color:var(--acc)">${esc(noti.err)}</p>` : ''}
+    <div ${noti.on ? '' : 'style="opacity:.45;pointer-events:none"'}>
+      ${NOTI_KINDS.map(([k, label]) => `<label class="setr"><span>${label}</span><input type="checkbox" data-nk="${k}" ${noti.prefs[k] !== false ? 'checked' : ''}></label>`).join('')}
+      <label class="setr"><span>🌃 夜（0時〜7時）は通知しない</span><input type="checkbox" id="notiQuiet" ${noti.quiet ? 'checked' : ''}></label>
+    </div>`;
+}
+$('notibox').addEventListener('click', e => { if (e.target.id === 'notiBtn') noti.on ? notiDisable() : notiEnable(); });
+$('notibox').addEventListener('change', e => {
+  if (e.target.dataset.nk) noti.prefs[e.target.dataset.nk] = e.target.checked;
+  if (e.target.id === 'notiQuiet') noti.quiet = e.target.checked;
+  saveNoti(); notiSync();
+});
+setInterval(() => { if (noti.on && document.visibilityState === 'visible') notiSync(); }, 180000);
+document.addEventListener('visibilitychange', () => { if (noti.on && document.visibilityState === 'hidden') notiSync(); });
+notiRender();
 
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
