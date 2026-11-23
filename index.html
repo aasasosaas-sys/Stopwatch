@@ -100,6 +100,8 @@ canvas{display:block;width:100%;height:100%}
 .dev.acc input[type=password],.dev.acc input[type=text]{font-size:16px;padding:12px;background:var(--bg);border:1px solid var(--line)}
 .dev.acc .pill{padding:10px 16px;background:var(--bg)}
 .dev.acc .pill.pri,.dev.acc #acNew{background:var(--acc);color:#fff}
+.wrlv{margin-top:10px;background:var(--bg);border-radius:12px;padding:10px}
+.wrlv b{display:block;font-size:14px}.wrlv small{color:var(--sub);font-size:11px}
 .wrt{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
 .wrt b{font-size:14px}
 .vs{grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px}
@@ -2897,7 +2899,7 @@ const SHOP = {
     ['navy','ネイビー',3,'#24408e'], ['teal','ティール',3,'#14a39a'], ['coral','コーラル',3,'#ff7f6e'], ['mint','ミント',3,'#5fe3b0'], ['lavender','ラベンダー',3,'#b49cff'], ['gray','グレー',3,'#8a8d99'],
     ['black','ブラック',4,'#2a2a33'], ['white','ホワイト',4,'#ffffff'], ['wine','ワイン',4,'#8e1f45'], ['peach','ピーチ',4,'#ffb38a'],
     ['silver','シルバー',6,'silver'], ['ice','アイス',6,'ice'], ['gold','ゴールド',7,'gold'], ['lava','マグマ',7,'lava'], ['neon','ネオン',7,'neon'],
-    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend'], ['w_plat','プラチナカラー',0,'w_plat']]},
+    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend'], ['w_plat','プラチナカラー',0,'w_plat'], ['w_diamond','ダイヤモンドカラー',0,'w_diamond']]},
   head: {name: '頭', items: [
     ['none','なし',0], ['cap_b','キャップ（青）',1], ['cap_r','キャップ（赤）',1], ['band_r','ハチマキ（赤）',1], ['cap_k','キャップ（黒）',2], ['band_w','ハチマキ（白）',2],
     ['beanie_t','ニット帽（緑）',2], ['beanie_p','ニット帽（ピンク）',2], ['beanie_y','ニット帽（黄）',3], ['party','パーティー帽',3], ['flower','花かざり',3],
@@ -2910,7 +2912,7 @@ const SHOP = {
   back: {name: '背中', items: [
     ['none','なし',0], ['scarf_y','マフラー（黄）',1], ['scarf_r','マフラー（赤）',2], ['scarf_b','マフラー（青）',2], ['pack','リュック',2], ['scarf_s','しましまマフラー',3], ['pack_r','ランドセル',3],
     ['tail','しっぽ',4], ['cape_r','マント（赤）',4], ['cape_b','マント（青）',5], ['cape_k','マント（黒）',6], ['guitar','ギター',6], ['wings','天使のつばさ',7], ['bat','コウモリのつばさ',7],
-    ['butterfly','チョウのはね',7], ['cape_g','黄金のマント',8], ['fairy','妖精のはね',8], ['jet','ジェットパック',9], ['dragon','ドラゴンのつばさ',10], ['ref_wings','きずなの翼',0], ['a_wings','光の翼',0], ['a_sword','背負いの大剣',0], ['a_cape','伝説のマント',0], ['w_flag','ランカーの旗',0]]},
+    ['butterfly','チョウのはね',7], ['cape_g','黄金のマント',8], ['fairy','妖精のはね',8], ['jet','ジェットパック',9], ['dragon','ドラゴンのつばさ',10], ['ref_wings','きずなの翼',0], ['a_wings','光の翼',0], ['a_sword','背負いの大剣',0], ['a_cape','伝説のマント',0], ['w_flag','ランカーの旗',0], ['w_wings','蒼き翼',0]]},
   hand: {name: '手', items: [
     ['none','なし',0], ['pencil','えんぴつ',1], ['flag','はた',2], ['balloon','ふうせん',2], ['icecream','アイス',3], ['book','本',3], ['carrot','にんじん',3],
     ['heartb','ハートふうせん',4], ['umbrella','かさ',4], ['fish','さかな',4], ['torch','たいまつ',5], ['hammer','ハンマー',6], ['wand','魔法のステッキ',7],
@@ -2939,7 +2941,7 @@ const ACH_ITEM = {'head:a_visor': 's7', 'pet:a_dragon': 'd50', 'head:a_halo': 'e
   'back:a_sword': 'foe5k', 'pet:a_phoenix': 's30', 'color:a_aurora': 'h300', 'head:a_crown': 'champ3', 'back:a_cape': 'h500', 'color:a_legend': 's100', 'trail:a_galaxy': 'h1000'};
 const achItem = (cat, id) => ACH_ITEM[cat + ':' + id] || '';
 /* looks from the weekly ranking of all players: [tier needed, times] (g = top 10%, s = top 30%, b = top 50%) */
-const WR_ITEM = {'back:w_flag': ['b', 1], 'trail:w_comet': ['s', 1], 'color:w_plat': ['g', 1], 'pet:w_griffin': ['g', 3]};
+const WR_ITEM = {'back:w_flag': ['b', 1], 'trail:w_comet': ['s', 1], 'color:w_plat': ['g', 1], 'pet:w_griffin': ['g', 3], 'back:w_wings': ['g', 5], 'color:w_diamond': ['g', 10]};
 const wrItem = (cat, id) => WR_ITEM[cat + ':' + id] || null;
 /* every prize counts: the battle looks change color, titles go up, and each prize pays coins */
 const AWARD_COINS = 3000;
@@ -2976,6 +2978,7 @@ function bodyStyle(look, t){
   switch (v) {
     case 'rainbow': return {col: hsl2hex(t*.08, 85, 58)};
     case 'a_aurora': { const k = (Math.sin(t*.0015) + 1)/2, k2 = (Math.sin(t*.0023 + 1) + 1)/2; return {col: mix(mix('#3ef0c0', '#7a6bff', k), '#ff7ad9', k2*.5), glow: 'rgba(120,255,220,.9)', sheen: 1}; }
+    case 'w_diamond': { const h = (t*.05) % 360; return {col: mix('#e8f6ff', hsl2hex(h, 90, 75), .35), glow: hsl2hex(h + 120, 95, 70), sheen: 1}; }
     case 'w_plat': { const k = (Math.sin(t*.004) + 1)/2; return {col: mix('#cfd8e6', '#ffffff', k), glow: 'rgba(190,225,255,.95)', sheen: 1}; }
     case 'a_legend': return {col: hsl2hex(42 + Math.sin(t*.003)*8, 95, 55), glow: hsl2hex(t*.12, 90, 65), sheen: 1};
     case 'ref': { const k = (Math.sin(t*.002) + 1)/2; return {col: mix('#ff8fc8', '#5cc8ff', k), glow: 'rgba(255,200,230,.8)', sheen: 1}; }
@@ -3102,6 +3105,9 @@ function drawBack(k, P, e){
     case 'a_wings': { c.save(); const g = .7 + .3*Math.sin(t*.006);
       wing(`rgba(255,250,220,${g})`, s => { c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-3*s, -12*s, -14*s, -10*s); c.quadraticCurveTo(-10*s, -7*s, -12*s, -4*s); c.quadraticCurveTo(-8*s, -4*s, -9*s, -1*s); c.quadraticCurveTo(-5*s, -1*s, 0, 0); }, '#fff2a8');
       c.restore(); break; }
+    case 'w_wings': { const g = .75 + .25*Math.sin(t*.008);
+      wing(`rgba(70,140,255,${g})`, s => { c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-2*s, -13*s, -15*s, -12*s); c.lineTo(-11*s, -8*s); c.lineTo(-15*s, -7*s); c.lineTo(-10*s, -4*s); c.lineTo(-13*s, -2*s); c.quadraticCurveTo(-6*s, 0, 0, 0); }, '#7fd0ff');
+      break; }
     case 'w_flag': { c.save(); c.translate(base[0], base[1]); c.rotate(ang - .25);
       c.strokeStyle = '#6e7488'; c.lineWidth = 1.1; c.beginPath(); c.moveTo(0, 2); c.lineTo(0, -19); c.stroke(); c.fillStyle = '#ffd23f'; circ(0, -19.6, 1.1);
       const w = Math.sin(t*.012), w2 = Math.sin(t*.012 + 1.3);
@@ -3472,6 +3478,21 @@ function airPose(Lx, s){
   if (Lx.throwIv) for (const [a, b] of Lx.throwIv) if (s >= a && s < b) { o.throwK = (s - a)/(b - a); break; }
   return o;
 }
+
+/* ranking / race reward money (defined early: the wallet uses it at startup) */
+const WR_COINS = {g: 5000, s: 2500, b: 1000};
+const wkNum = wk => { const [y, m, d] = String(wk).split('-').map(Number); return Math.round(Date.UTC(y, m - 1, d)/(7*864e5)); };
+function wrStreaks(){   // [{wk, t, streak, coins}] in order; consecutive weeks with any reward build a streak (x1.25 per week, up to x2)
+  const out = []; let prev = null, streak = 0;
+  for (const [wk, t] of Object.entries(bank.wrLog || {}).sort((a, b) => wkNum(a[0]) - wkNum(b[0]))) {
+    streak = prev != null && wkNum(wk) === prev + 1 ? streak + 1 : 1; prev = wkNum(wk);
+    out.push({wk, t, streak, coins: Math.round(WR_COINS[t]*Math.min(2, 1 + .25*(streak - 1)))});
+  }
+  return out;
+}
+const wrCoinsTotal = () => wrStreaks().reduce((a, x) => a + x.coins, 0);
+const champWinCoins = i => Math.min(8000, 2000 + 1000*(i - 1));
+const champCoins = n => { let s = 0; for (let i = 1; i <= n; i++) s += champWinCoins(i); return s; };
 
 /* ---------- study day ----------
    A day runs until "寝る" is pressed or the clock reaches 0:00.
@@ -4571,7 +4592,7 @@ function bonusCoins(){
     let n = 0;
     for (const [d, list] of Object.entries(bank.misLog || {})) { const ms = missionsFor(d, d === st.d ? st.draw : null, d === st.d ? st.base : 0); for (const i of list) n += ms[i] ? ms[i].reward : MIS_REWARD[1]; if (list.length >= 3) n += MIS_ALL; }
     for (const id of bank.ach || []) { const a = ACH.find(x => x[0] === id); if (a) n += a[5]; }
-    for (const t of Object.values(bank.wrLog || {})) n += WR_COINS[t] || 0;
+    n += wrCoinsTotal() + champCoins(bank.champ || 0);
     for (const [wk, list] of Object.entries(bank.evLog || {})) { const ev = eventFor(wk); for (const i of list) n += ev.tiers[i] ? ev.tiers[i][1] : 0; }
     return n;
   } catch (e) { return 0; }
@@ -4600,7 +4621,7 @@ const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span cla
 function raceRender(){
   const box = $('racebox'); box.hidden = !fb.room; if (!fb.room) return;
   const rows = raceRows(), race = board && board.race;
-  $('raceh').textContent = race ? `第${race.no}回 全クリレース · ${rows.length}人` : `全クリレース · ${rows.length}人`;
+  $('raceh').textContent = (race ? `第${race.no}回 全クリレース · ${rows.length}人` : `全クリレース · ${rows.length}人`) + `　優勝で +${num(champWinCoins((bank.champ || 0) + 1))}コイン`;
   $('racel').innerHTML = rows.map((r, i) => raceRow(r, i, false)).join('');
 }
 function rankRender(){
@@ -4776,8 +4797,11 @@ let runPrev = null;
 setInterval(() => { const r = !!st.run; runNotiTick(r !== runPrev); runPrev = r; }, 2000);
 
 /* ---------- weekly ranking of every player with an account ---------- */
-const WR_COINS = {g: 5000, s: 2500, b: 1000};
 const WR_NAME = {g: '上位10%', s: '上位30%', b: '上位50%'};
+/* win again and again: streaks pay more, levels go up, every win is worth more than the last */
+const curWrStreak = () => { const l = wrStreaks(), last = l[l.length - 1]; if (!last) return 0; const thisWk = wkNum(weekKey(st.d)); return wkNum(last.wk) >= thisWk - 1 ? last.streak : 0; };
+const WR_LV = [[0, 'ルーキー'], [3, 'ランカー'], [8, 'エース'], [15, 'マスター'], [30, 'グランドマスター'], [50, 'レジェンド']];
+const wrPoints = () => Object.values(bank.wrLog || {}).reduce((a, t) => a + ({g: 3, s: 2, b: 1}[t] || 0), 0) + (bank.champ || 0)*3;
 const wrCount = t => Object.values(bank.wrLog || {}).filter(x => 'gsb'.indexOf(x) <= 'gsb'.indexOf(t)).length;   // a top-10% week also counts for 30% and 50%
 let wrInfo = null, wrAt = 0;
 async function wrLoad(){
@@ -4786,12 +4810,14 @@ async function wrLoad(){
     wrInfo = await rpc('quest_week_rank', {p_id: acct.id, p_token: acct.token}); wrAt = Date.now();
     const log = {...(bank.wrLog || {})}, fresh = [];
     for (const h of wrInfo.hist || []) if (h.t && !log[h.wk]) { log[h.wk] = h.t; fresh.push(h); }
+    const coinsBefore = wrCoinsTotal();
     if (fresh.length) {
       const before = Object.keys(WR_ITEM).filter(k => { const [c, i] = k.split(':'); return owned(c, i); });
       bank.wrLog = log; saveBank(); ui();
       const got = Object.keys(WR_ITEM).filter(k => { const [c, i] = k.split(':'); return owned(c, i) && !before.includes(k); }).map(k => item(...k.split(':'))[1]);
       const h = fresh[fresh.length - 1];
-      toast(`🏆 週間ランキング ${WR_NAME[h.t]}！ +${num(fresh.reduce((a, x) => a + WR_COINS[x.t], 0))}コイン` + (got.length ? `・「${got.join('・')}」が使えるようになりました` : ''), 9000); sfx('world');
+      const st2 = wrStreaks(), streak = st2[st2.length - 1].streak;
+      toast(`🏆 週間ランキング ${WR_NAME[h.t]}！ +${num(wrCoinsTotal() - coinsBefore)}コイン` + (streak > 1 ? `（${streak}週連続ボーナス×${Math.min(2, 1 + .25*(streak - 1))}）` : '') + (got.length ? `・「${got.join('・')}」が使えるようになりました` : ''), 9000); sfx('world');
       try { acNow(); } catch (e) {}
     }
   } catch (e) {}
@@ -4807,7 +4833,10 @@ function wrRender(){
   else me = wrInfo.rank ? `<p style="margin:0 0 4px">いま <b style="font-size:20px">${wrInfo.rank}位</b> / ${wrInfo.total}人　<b style="color:var(--acc)">${wrInfo.tier ? WR_NAME[wrInfo.tier] + 'に入っています' : '上位50%まであと少し'}</b></p><p class="vsn" style="margin:0">今週の勉強時間 ${fmtHM(wrInfo.ms)}（数分ごとに更新）</p>`
     : `<p class="vsn">今週はまだ勉強していません（参加${wrInfo.total}人）。勉強すると順位がつきます。</p>`;
   const last = wrInfo && wrInfo.last ? `<p class="vsn" style="margin:8px 0 0">先週：${wrInfo.last.rank}位 / ${wrInfo.last.total}人${wrInfo.last.t ? `・${WR_NAME[wrInfo.last.t]}（報酬を受け取りました）` : ''}</p>` : '';
-  box.innerHTML = `<h3>🏆 週間ランキング<small>アカウントのある全プレイヤー・月曜〜日曜の勉強時間</small></h3>${me}${last}
+  const pts = wrPoints(), lv = pickTier(WR_LV, pts), nlv = nextOf(WR_LV, pts), lvBase = lv ? lv[0] : 0, sk = curWrStreak();
+  const lvHtml = `<div class="wrlv"><b>ランカーLv：${lv ? lv[1] : 'ルーキー'}</b><small>${nlv ? `あと${nlv[0] - pts}ポイントで「${nlv[1]}」` : '最高ランク！'}　（上位10%=3・30%=2・50%=1・レース優勝=3ポイント）</small><div class="pbar"><i style="width:${nlv ? (pts - lvBase)/(nlv[0] - lvBase)*100 : 100}%"></i></div></div>`;
+  const skHtml = sk ? `<p class="vsn" style="margin:6px 0 0;color:var(--acc);font-weight:700">🔥 ${sk}週連続で入賞中！ 今週も入ると報酬×${Math.min(2, 1 + .25*sk)}</p>` : `<p class="vsn" style="margin:6px 0 0">続けて入賞すると報酬が増えます（2週連続×1.25 … 最大×2）</p>`;
+  box.innerHTML = `<h3>🏆 週間ランキング<small>アカウントのある全プレイヤー・月曜〜日曜の勉強時間</small></h3>${me}${last}${skHtml}${lvHtml}
     <div class="wrt">${rows.map(([t, ic, nm, rw]) => `<span>${ic}</span><b>${nm}</b><span>${rw}</span>`).join('')}</div>
     <p class="vsn" style="margin:8px 0 0">毎週月曜の朝に先週の順位が決まり、報酬が届きます（アプリを開いたとき）。</p>
     <p class="vsn" style="margin:6px 0 0">限定の見た目：${looks}</p>`;
