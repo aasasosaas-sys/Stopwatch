@@ -4029,7 +4029,7 @@ const myKey = () => fb.uid;
 let myCheer = null;   // the last cheer stamp this player sent ({to, k, at})
 const myEntry = () => ({wk: typeof weekKey === 'function' ? weekKey(st.d) : '', wkms: typeof weekMs === 'function' ? Math.round(weekMs()) : 0, ch: myCheer,n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
   base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: bank.champ || 0, a: bank.vsAwards || 0}),
-  allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0,
+  allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0, rv: 3,
   rs0: (st.run && !st.ff && !st.night) ? (st.runT0 || st.t0 || 0) : 0});
 async function vsPush(leave){
   if (!fb.room) return;
@@ -4109,15 +4109,16 @@ function vsRender(){
   const rows = list.map(([k, e]) => {
     const me = k === mine;
     if (me) e = {n: fb.name || 'ななし', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night};
-    const today = e.d === st.d, ms = memberNow(e), rm = raceMsOf(k, e);
-    const done = raceStagesOf(rm), out = rm < RACE_MIN;
+    const stale = !me && !e.rv;   // still on the old app: not in this race yet
+    const today = e.d === st.d, ms = memberNow(e), rm = stale ? 0 : raceMsOf(k, e);
+    const done = raceStagesOf(rm), out = stale || rm < RACE_MIN;
     const gameDone = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
-    const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : gameDone >= NST ? '今日は全クリ' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
+    const status = stale ? 'アプリ更新待ち' : !today ? '今日はまだ' : e.night ? 'おやすみ中' : gameDone >= NST ? '今日は全クリ' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
     const line = 8*3600e3;
-    return {me, k, today, out, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `レース ${Math.floor(done)}/${NST}ステージ · 優勝まであと${fmtHM(Math.max(0, RACE_MS - rm))} · ゲームは${stageName(Math.min(NST - 1, ms.si))}${today ? '' : 'から'}` + (out ? ` · 1時間未満なのでまだ不参加（あと${fmtHM(RACE_MIN - rm)}）` : ''), line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
+    return {me, k, today, out, stale, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: stale ? 'アプリを更新するとレースに参加できます' : `レース ${Math.floor(done)}/${NST}ステージ · 優勝まであと${fmtHM(Math.max(0, RACE_MS - rm))} · ゲームは${stageName(Math.min(NST - 1, ms.si))}${today ? '' : 'から'}` + (out ? ` · 1時間未満なのでまだ不参加（あと${fmtHM(RACE_MIN - rm)}）` : ''), line: stale ? '' : rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   const race = board && board.race, last = board && board.last;
-  const joined = rows.filter(r => !r.out).length;
+  const joined = rows.filter(r => !r.out && !r.stale).length;
   $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'})}スタート）・参加${joined}人` : '全クリレース';
   $('vsLast').textContent = last && last.winner ? `前回（第${last.no}回）の優勝：${last.winner}（${last.participants}人）` + (last.participants >= 5 ? '・チャンピオンスキン獲得！' : '・5人未満だったのでスキンはなし') + (last.awarded ? `・参加賞 ${last.awarded}人` : '') : '';
   // public / private: only the host can switch it
@@ -4135,7 +4136,7 @@ function drawGhosts(si, cam){
   if (!fb.room || !room) return;
   const mine = myKey();
   for (const [k, e] of Object.entries(room)) {
-    if (k === mine || e.d !== st.d || e.night) continue;
+    if (k === mine || !e.rv || e.d !== st.d || e.night) continue;   // old-app members aren't in this race yet
     const ms = memberStage(e);
     let look; try { const lk = JSON.parse(e.lk || '{}'); look = lk.eq ? lookOf(lk.eq, lk.w || 0, lk.a || 0) : lookOf(lk); } catch (er) { look = lookOf({}); }
     const s2 = Math.min(ms.s, INTRO + RUNT + 6), o = airPose(L, s2), hero = heroAtIn(L, s2);
@@ -4712,16 +4713,17 @@ function raceRows(){
   return list.map(([k, e]) => {
     const me = k === mine;
     if (me) e = {n: fb.name || '自分', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, night: !!st.night};
-    const ms = memberNow(e), gameDone = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE)), rm = raceMsOf(k, e), done = raceStagesOf(rm);
-    const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : gameDone >= NST ? '今日は全クリ' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
-    return {k, me, today: ms.today, n: e.n, done, rm, out: rm < RACE_MIN, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
+    const stale = !me && !e.rv;
+    const ms = memberNow(e), gameDone = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE)), rm = stale ? 0 : raceMsOf(k, e), done = raceStagesOf(rm);
+    const status = stale ? '更新待ち' : !ms.today ? 'まだ' : e.night ? 'おやすみ' : gameDone >= NST ? '今日は全クリ' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
+    return {k, me, today: ms.today, n: e.n, done, rm, out: stale || rm < RACE_MIN, stale, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
   }).sort((a, b) => b.done - a.done);
 }
-const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}<span>${r.out ? '不参加（1時間未満）' : `レース ${Math.floor(r.done)}/${NST}`} · ${stageName(r.si)}${r.today ? ' ' + VAR[r.v] : 'から'} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
+const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}<span>${r.stale ? 'アプリ更新待ち' : r.out ? '不参加（1時間未満）' : `レース ${Math.floor(r.done)}/${NST}`}${r.stale ? '' : ` · ${stageName(r.si)}${r.today ? ' ' + VAR[r.v] : 'から'}`} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
 function raceRender(){
   const box = $('racebox'); box.hidden = !fb.room; if (!fb.room) return;
   const rows = raceRows(), race = board && board.race;
-  const joined = rows.filter(r => !r.out).length;
+  const joined = rows.filter(r => !r.out && !r.stale).length;
   $('raceh').textContent = (race ? `第${race.no}回 全クリレース · 参加${joined}人` : `全クリレース · 参加${joined}人`) + `　優勝で +${num(champWinCoins((bank.champ || 0) + 1))}コイン`;
   $('racel').innerHTML = rows.map((r, i) => raceRow(r, i, false)).join('');
 }
