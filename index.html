@@ -4046,7 +4046,7 @@ async function vsPull(){
     try { if (board && board.race) raceSync(board.race.no); } catch (e) {}
     try {   // a race just ended: say who won and that the next one has started
       const lt = board && board.last, key = 'quest-race-seen-' + fb.room, seen = +localStorage.getItem(key) || 0;
-      if (lt && lt.no > seen) { localStorage.setItem(key, String(lt.no)); if (seen && board.race) { toast(`🏁 第${lt.no}回レース終了！ 優勝：${lt.winner || '？'}　第${board.race.no}回レースがスタート（全員0から）`, 9000); sfx('clear'); } }
+      if (lt && lt.no > seen) { localStorage.setItem(key, String(lt.no)); if (seen && board.race) { toast(lt.winner ? `🏁 第${lt.no}回レース終了！ 優勝：${lt.winner}　第${board.race.no}回レースがスタート（全員1-1から）` : `🏁 第${board.race.no}回レースがスタート！ 全員ステージ1-1から`, 9000); sfx('clear'); } }
     } catch (er) {}
     roomInfo = await rpc('quest_room_info', {p_room: fb.room});
     const w = await rpc('quest_wins', {p_member: fb.uid});
