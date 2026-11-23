@@ -153,6 +153,14 @@ canvas{display:block;width:100%;height:100%}
 .sh-in{background:var(--bg);width:100%;max-width:560px;max-height:94vh;overflow-y:auto;border-radius:20px 20px 0 0;
   padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
 .sh-in>*{flex-shrink:0}
+.dropposter{position:relative;text-align:center;border-radius:16px;padding:22px 16px 18px;margin-bottom:12px;overflow:hidden;
+  background:linear-gradient(135deg,#1b1740,#3a2a8f 55%,#c8468f);color:#fff}
+.dropbadge{position:absolute;top:10px;left:10px;font-size:11px;font-weight:900;letter-spacing:.12em;background:#ffd23f;color:#20163a;padding:3px 9px;border-radius:999px}
+.dropart{font-size:46px;line-height:1;margin:6px 0 8px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.3))}
+.dropposter h2{margin:0 0 6px;font-size:clamp(18px,4.5vw,24px);color:#fff}
+.dropposter p{margin:0;opacity:.95;font-size:14px}
+#dropdet{margin:0 0 12px;padding-left:20px;display:flex;flex-direction:column;gap:7px}
+#dropdet li{font-size:14px;line-height:1.5}
 .sh-top{display:flex;align-items:center;gap:12px}
 .shead{position:sticky;top:-16px;margin-top:-16px;padding-top:16px;padding-bottom:4px;background:var(--bg);z-index:3;display:flex;flex-direction:column;gap:10px}
 #sact{position:sticky;bottom:0;z-index:3;box-shadow:0 0 0 10px var(--bg)}
@@ -454,6 +462,13 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     <div class="row2"><button class="act alt" id="aback">やめる</button><button class="act" id="aok">減らす</button></div>
   </div>
 </div>
+<div class="sheet" id="drop" hidden>
+  <div class="sh-in sum" role="dialog" aria-label="アップデート">
+    <div class="dropposter"><span class="dropbadge">UPDATE</span><div class="dropart" id="dropart">🎉</div><h2 id="dropttl">アップデート</h2><p id="droptag"></p></div>
+    <ul id="dropdet" hidden></ul>
+    <div class="row2"><button class="act alt" id="dropmore">詳細をタップ</button><button class="act" id="dropok">とじる</button></div>
+  </div>
+</div>
 <script>
 (() => {
 'use strict';
@@ -505,8 +520,34 @@ const THEMES = [
    decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', foes:['knight', 'ghost', 'bat'], sun:'moon', boost:{firebar:1.5, cannon:1.4}}
 ];
 const FLYERS = ['bird','bat','cloudy','ufo','ghost'];
-const VAR = 'ABCDEF';
-const NVAR = 6;
+const VAR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const NVAR0 = 6;              // the courses available from the start (A-F)
+/* ---------- content drops: every 3 days a new course / look unlocks, up to 30 times ----------
+   DROP_START is a fixed instant shared by everyone: 2026-11-24 00:00 JST. drop 1 opens then,
+   drop 2 three days later, ... capped at 30. */
+const DROP_START = Date.UTC(2026, 10, 23, 15, 0, 0);   // 2026-11-24 00:00 JST
+const DROP_INTERVAL = 3*864e5, DROP_MAX = 30;
+function dropNow(){ const e = Date.now() - DROP_START; return e < 0 ? 0 : Math.min(DROP_MAX, Math.floor(e/DROP_INTERVAL) + 1); }
+/* each drop can add new courses (variant indexes) and later new concepts/looks. Only the first few
+   are authored for now; more are added over time. Index of a course = its letter (A=0 … Z=25). */
+const DROPS = {
+  1: {title: '新コース「ジャンプの国」', art: '🦘', tag: 'バネと大ジャンプだらけの新コース Gが登場！', vars: [6],
+      details: ['🟢 コースG：バネ・大ジャンプ・足場とびが山盛り', '🎡 ルーレットにGが入り、その日のステージに混ざります', 'これから3日に1回、新しいコースや見た目が増えていきます！']},
+  2: {title: '新コース「トゲの砦」', art: '🧗', tag: 'トゲと壁キックの歯ごたえコース Hが登場！', vars: [7],
+      details: ['🟣 コースH：トゲ・壁キック・足場わたりが連続する技巧コース', '🎡 ルーレットにHが追加されます', 'あわてず足場を見極めて進もう']},
+  3: {title: '新コース「コインラッシュ」', art: '🪙', tag: 'コインざくざくのごきげんコース Iが登場！', vars: [8],
+      details: ['🟡 コースI：コインと階段・橋でテンポよく進むボーナス寄りコース', '🎡 ルーレットにIが追加されます', 'まったり走ってコインを稼ごう']},
+};
+const NEWVARS = Object.values(DROPS).flatMap(d => d.vars || []);   // all course indexes any drop introduces
+function varsUnlocked(){ const n = dropNow(); let c = NVAR0; for (let i = 1; i <= n; i++) if (DROPS[i] && DROPS[i].vars) c += DROPS[i].vars.length; return Math.min(VAR.length, c); }
+function NVAR(){ return varsUnlocked(); }   // active course count right now (date-gated)
+/* custom course flavours for the new variants (reuse existing gimmicks with a fresh mix) */
+const COURSE_W = {
+  6: (w, D) => [['spring', 3.4], ['bigpit', 2.4], ['plats', 2], ['stump', 1.6], ['bridge', 1.4], ['pit', 1.4], ['stairs', 1], ['coins', 1.4], ['height', 1], ['rest', Math.max(.4, 1.6 - 2*D)]],
+  7: (w, D) => [['spikes', 3], ['wallkick', 2.4], ['ledge', 2.2], ['bigpit', 1.8], ['plats', 1.8], ['spring', 1.4], ['pit', 1.2], ['stump', 1], ['coins', 1], ['rest', Math.max(.4, 1.5 - 2*D)]],
+  8: (w, D) => [['coins', 4], ['stairs', 2.2], ['bridge', 2], ['spring', 1.6], ['plats', 1.6], ['stump', 1.4], ['height', 1.2], ['pit', 1], ['rest', 1.4]],
+};
+const NEWCOURSE_NAME = {6: 'ジャンプコース', 7: 'トゲコース', 8: 'コインラッシュ'};
 const COURSE_NAME = {3: 'てきコース', 4: 'パルクールコース', 5: 'トロッココース'};
 const stageName = si => `${Math.floor(si/6) + 1}-${si % 6 + 1}`;
 
@@ -521,7 +562,7 @@ function build(si, v = 0){
   const G = [], ICE = [], segs = [], coins = [], blocks = [], enemies = [], stumps = [], plats = [], decos = [];
   const spikes = [], springs = [], bridges = [], movers = [], ropes = [], cannons = [], bullets = [], lifts = [], bars = [], gates = [];
   const saws = [], lasers = [], crushers = [], rocks = [], walls = [];
-  const course = v >= 3 ? 'DEF'[v - 3] : '';
+  const course = (v >= 3 && v <= 5) ? 'DEF'[v - 3] : '';
   const RS = course === 'F' ? 165 : 75;   // planning speed: the minecart goes about twice as fast
   const hell = !course && w >= 3 && sn === 4;
   const carries = [], bwalls = [], redirs = [], bars2 = [], rails = [], stones = [], cfoes = [], buttons = [], xcoins = [], gaps = [], levers = [];
@@ -1014,6 +1055,7 @@ function build(si, v = 0){
     W.push(['climb', 2.6], ['triple', 2.2], ['poles', 2.4], ['kickclimb', 1.8], ['barchain', 2.2], ['giant', 1.2], ['wallkick', .8], ['rest', .15]);
     if (w >= 1) W.push(['liftlaunch', 1.8], ['chimney', .8], ['ropes2', 1]);
   }
+  if (COURSE_W[v]) { W.length = 0; for (const e of COURSE_W[v](w, D)) W.push(e); }
   const NEW = {1:['bigpit','bridge'], 2:['spring','spikes'], 3:['ride','wallkick'], 4:['swing'], 5:['cannon','lift','rocks'], 6:['firebar','saw','ropes2'], 7:['springs3','diag'], 8:['gate','laser','crusher']}[w] || [];
   for (const e of W) {
     if (TH.boost && TH.boost[e[0]]) e[1] *= TH.boost[e[0]];
@@ -1179,7 +1221,7 @@ function build(si, v = 0){
   for (const s of segs) { if (!s.fx) s.d = (s.x1 - s.x0)*(s.dash ? .62 : 1)/V; s.t0 = t; t += s.d; }
 
   decos.sort((a, b) => a.x - b.x); coins.sort((a, b) => a.x - b.x); rails.sort((a, b) => a.x0 - b.x0); bridges.sort((a, b) => a.x - b.x); blocks.sort((a, b) => a.x - b.x);
-  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col, course, cart: course === 'F', carries, bwalls, redirs, bars2, rails, stones, cfoes, buttons, xcoins, levers};
+  const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col, course, cname: NEWCOURSE_NAME[v] || '', cart: course === 'F', carries, bwalls, redirs, bars2, rails, stones, cfoes, buttons, xcoins, levers};
   const tAt = x => timeAtIn(L, x);
   for (const o of coins) o.t = o.seg ? o.seg.t0 + o.seg.d*o.th/(2*Math.PI) : tAt(o.x);
   const throwIv = [], carryIv = [];
@@ -3553,8 +3595,8 @@ const champCoins = n => { let s = 0; for (let i = 1; i <= n; i++) s += champWinC
 const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
 function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') || '{}').room || ''; } catch (e) { return ''; } }
 /* friends in the same room get the same stages each day */
-function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*NVAR)); }
-const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*NVAR));
+function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*NVAR())); }
+const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*NVAR()));
 const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: 0, runT0: 0});   // act is only stamped by things the player does (start / stop / sleep / time entry), never by an automatic new day
 const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
@@ -5031,15 +5073,16 @@ function showLottery(){
   const g = $('lotg');
   g.innerHTML = THEMES.map((th, w) => `<div><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-k="${w*6+i}">?</i>`).join('')}<em>${w+1}</em></div>`).join('');
   const cellsL = [...g.querySelectorAll('i')], t0 = performance.now(), cols = ['#ff7a3d', '#3fbf72', '#4aa3f5', '#c56bff', '#ff4f7a', '#8a6a3a'];
-  $('lotok').disabled = true; $('lotp').textContent = '全432ステージの中から、今日の72ステージを選んでいます…';
+  const colOf = v => cols[v] || `hsl(${(v*47) % 360} 68% 55%)`;
+  $('lotok').disabled = true; $('lotp').textContent = `全${NST*NVAR()}ステージの中から、今日の72ステージを選んでいます…`;
   $('lot').hidden = false;
   clearInterval(lotTimer);
   lotTimer = setInterval(() => {
     const e = (performance.now() - t0)/1000; let done = true;
     cellsL.forEach(el => {
       const k = +el.dataset.k, at = .5 + Math.floor(k/6)*.12 + (k % 6)*.03;
-      if (e < at) { done = false; el.textContent = VAR[Math.floor(Math.random()*NVAR)]; el.className = ''; el.style.background = ''; }
-      else if (!el.classList.contains('set')) { const v = vIn(st, k); el.textContent = VAR[v]; el.className = 'set'; el.style.background = cols[v]; if (k % 6 === 5) sfx('coin'); }
+      if (e < at) { done = false; el.textContent = VAR[Math.floor(Math.random()*NVAR())]; el.className = ''; el.style.background = ''; }
+      else if (!el.classList.contains('set')) { const v = vIn(st, k); el.textContent = VAR[v]; el.className = 'set'; el.style.background = colOf(v); if (k % 6 === 5) sfx('coin'); }
     });
     if (done) { clearInterval(lotTimer); $('lotok').disabled = false; $('lotp').textContent = '今日のステージが決まりました！ この72ステージをクリアしていこう。'; sfx('clear'); }
   }, 60);
@@ -5154,7 +5197,7 @@ function frameBody(){
   // overlays
   const showTitle = !all && s < 2.8 && (st.run || Tt > 0) && !rest && !cleaning;
   $('ttl').classList.toggle('on', showTitle);
-  if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageLabel(st, si); $('ttln').textContent = TH.name + (L.course ? `　─ ${COURSE_NAME[L.v]} ─` : L.hell ? '　─ 壁キック地獄 ─' : L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
+  if (showTitle) { $('ttlw').textContent = 'WORLD ' + stageLabel(st, si); $('ttln').textContent = TH.name + (L.course ? `　─ ${COURSE_NAME[L.v]} ─` : L.cname ? `　─ ${L.cname} ─` : L.hell ? '　─ 壁キック地獄 ─' : L.sn === 0 ? '　─ 新しいワールド ─' : ''); }
   $('ban').classList.toggle('on', winT >= 0);
   if (winT >= 0) {
     $('banb').textContent = all ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
@@ -5171,6 +5214,31 @@ setInterval(() => { if (st.run || st.night || Date.now() - lastUi > 1000) { ui()
 resize(); ui(); if (st.run) lockWake();
 if (pendingSummary) showSummary(pendingSummary, 'auto');
 requestAnimationFrame(frame);
+
+/* ---------- content-drop poster: shown once, the first time a new drop is open ---------- */
+function checkDropPoster(){
+  try {
+    const n = dropNow(); if (n < 1 || !DROPS[n]) return;
+    let seen = 0; try { seen = +localStorage.getItem('quest-drop-seen') || 0; } catch (e) {}
+    if (seen >= n) return;
+    const d = DROPS[n];
+    $('dropart').textContent = d.art || '🎉';
+    $('dropttl').textContent = `アップデート #${n}　${d.title}`;
+    $('droptag').textContent = d.tag || '';
+    $('dropdet').innerHTML = (d.details || []).map(x => `<li>${esc(x)}</li>`).join('');
+    $('dropdet').hidden = true;
+    $('dropmore').hidden = !(d.details && d.details.length);
+    $('dropmore').textContent = '詳細をタップ';
+    $('drop').hidden = false;
+    try { sfx('world'); } catch (e) {}
+    try { localStorage.setItem('quest-drop-seen', String(n)); } catch (e) {}
+  } catch (e) {}
+}
+$('dropmore').onclick = () => { $('dropdet').hidden = false; $('dropmore').hidden = true; };
+$('dropok').onclick = () => { $('drop').hidden = true; };
+$('drop').onclick = e => { if (e.target.id === 'drop') $('drop').hidden = true; };
+setTimeout(checkDropPoster, 900);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(checkDropPoster, 400); });
 })();
 </script>
 </body>
