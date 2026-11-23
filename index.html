@@ -290,7 +290,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
   <div class="specb" id="specb" hidden><span><b id="specn"></b><small id="spect"></small></span><button id="specx">✕ 自分にもどる</button></div>
   <div class="panel">
     <div>
-      <div class="lbl">今日の勉強時間</div>
+      <div class="lbl" id="ttlbl">このレースの勉強時間</div>
       <div class="tt" id="tt">0:00</div>
       <div class="mini"><button class="pill addb" id="addb">－ 勉強時間を減らす</button></div>
     </div>
@@ -298,7 +298,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     <div class="prog">
       <div class="bar"><i id="pb"></i></div>
       <div class="ticks"><span>0分</span><span>2分</span><span>4分</span><span>6分</span><span>8分</span><span>10分</span></div>
-      <div class="meta"><span id="pn">ステージ 1-1</span><b id="pt">今日 0 / 72 クリア</b></div>
+      <div class="meta"><span id="pn">ステージ 1-1</span><b id="pt">レース 0 / 72</b></div>
     </div>
     <div class="tabp" data-tab="home">
     <section class="card2" id="racebox" hidden><h3><span id="raceh">全クリレース</span><small>名前をタップでその人の画面へ</small></h3><div id="racel"></div><p class="vsn" style="margin:6px 0 0">スタートしてから勉強した時間だけで競争（全員0から）。72ステージ＝12時間で優勝、その瞬間に次のレースが始まります。1時間未満の人は不参加です。</p></section>
@@ -448,7 +448,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
 <div class="sheet" id="addt" hidden>
   <div class="sh-in sum" role="dialog" aria-label="勉強時間を減らす">
     <h2>勉強時間を減らす</h2>
-    <p>止め忘れなどで多く記録された時間を、今日の勉強時間から減らせます。減らしたぶんキャラは戻り、今日のコインも減ります。<br><small>※勉強時間を後から追加することはできません。</small></p>
+    <p>止め忘れなどで多く記録された時間を減らせます。減らしたぶんキャラは戻り、レースの進みとコインも減ります。<br><small>※勉強時間を後から追加することはできません。</small></p>
     <div class="hm"><input id="ah" type="number" inputmode="numeric" min="0" max="12" placeholder="0" aria-label="時間">時間<input id="am" type="number" inputmode="numeric" min="0" max="59" placeholder="0" aria-label="分">分</div>
     <p id="aprev"></p>
     <div class="row2"><button class="act alt" id="aback">やめる</button><button class="act" id="aok">減らす</button></div>
@@ -3596,21 +3596,44 @@ const wallet = () => bank.earned + (typeof bonusCoins === 'function' ? bonusCoin
 function daySummary(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   const reachedNum = Math.min(NST, o.base + cl + 1);
-  const next = Math.max(1, Math.floor(reachedNum/2)) - 1;
+  const next = 0;   // each new day / race starts again from 1-1
   return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
 }
 function finishDay(){
   if (st.run) { commit(); st.run = false; }
   const sm = daySummary(st);
-  bank.last = sm; bank.earned += sm.coins; bank.base = sm.next; try { statsOnFinish(sm); } catch (e) {} saveBank();
-  st = fresh(sm.next, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
+  bank.last = sm; bank.earned += sm.coins; bank.base = 0; try { statsOnFinish(sm); } catch (e) {} saveBank();
+  st = fresh(0, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
   return sm;
+}
+/* in a room the cycle is the RACE, not the calendar day: a new race (someone reached 72) resets
+   everyone to stage 1-1. The study clock is kept in "race coordinates" (0 at the start of a race). */
+const inRoom = () => !!roomCodeLS();
+function raceReset(rn){
+  if (st.run) commit();
+  const sm = daySummary(st);
+  bank.last = sm; bank.earned += sm.coins; bank.base = 0; if (sm.ms > 0) { try { statsOnFinish(sm); } catch (e) {} } saveBank();
+  const wasRun = st.run, wasNight = st.night;
+  st = fresh(0, wasNight && !wasRun ? wasNight : null);
+  try { st.draw = roomDraw(roomCodeLS(), dayKey() + ':' + rn); } catch (e) {}
+  st.drawSeen = true;                       // a new race shouldn't pop the lottery over your study
+  st.raceNo = rn;
+  if (wasRun) { st.run = true; st.t0 = Date.now(); st.runT0 = Date.now(); st.act = Date.now(); }
+  save();
+  try { vsPushNow(); } catch (e) {}
+}
+/* called from vsPull when the room's current race number is known. st.raceNo (persisted) is the
+   race the local game belongs to. First load after the update (undefined) does a clean 1-1 start. */
+function raceSync(rn){
+  if (rn == null || !inRoom()) return;
+  if (st.raceNo == null || rn > st.raceNo) raceReset(rn);
 }
 /* at 0:00 the day ends by itself: time studied after midnight belongs to the new day,
    and if the timer was running it keeps running on the new day */
 const dayEndOf = d => { const [y, m, dd] = String(d).split('-').map(Number); const t = new Date(y, m - 1, dd + 1).getTime(); return isFinite(t) ? t : new Date().setHours(0, 0, 0, 0); };
 function rollover(){
   if (st.d === dayKey()) return null;
+  if (inRoom()) { st.d = dayKey(); if (!st.draw) st.draw = Array(NST).fill(0); save(); return null; }
   if (!st.acc && !st.run && !st.ff) { st = fresh(st.base, st.night); save(); return null; }
   const end = dayEndOf(st.d), keepRun = st.run && !st.ff, wasNight = st.night;
   if (st.ff) { st.acc = st.ff.target; st.mult = st.ff.prev || 1; st.ff = null; st.run = false; }
@@ -3621,8 +3644,9 @@ function rollover(){
   return sm;
 }
 let pendingSummary = null;
-if (!st) st = fresh(bank.base);
-else if (st.d !== dayKey()) pendingSummary = rollover();
+if (!st) st = fresh(0);
+else if (!inRoom() && st.d !== dayKey()) pendingSummary = rollover();
+else if (inRoom() && st.d !== dayKey()) { st.d = dayKey(); save(); }
 if (!st.ff) st.mult = 1;
 if (st && st.run && !st.runT0) st.runT0 = st.t0 || Date.now();   // older saves: anchor the continuous-run clock
 
@@ -3687,7 +3711,8 @@ function ui(){
   $('addb').disabled = !!st.ff || ms <= 0;
   $('pb').style.width = (s/STAGE*100) + '%';
   $('pn').textContent = `ステージ ${stageLabel(st, si)}　${TH.name}`;
-  $('pt').textContent = st.base ? `今日 ${cleared} ステージ（${stageName(st.base)}から）` : `今日 ${cleared} ステージ`;
+  try { $('ttlbl').textContent = inRoom() ? 'このレースの勉強時間' : '今日の勉強時間'; } catch (e) {}
+  $('pt').textContent = inRoom() ? `レース ${cleared} / ${NST}` + (all ? '・全クリ！' : '') : `今日 ${cleared} ステージ`;
   if (st.night) {
     const ph = nightPhase((Date.now() - st.night.at)/1000);
     $('hw').textContent = '旅館'; $('hn').textContent = ph.name; $('hc').textContent = '—'; $('hl').textContent = '--:--';
@@ -3697,7 +3722,7 @@ function ui(){
   }
   $('wl').textContent = num(wallet());
   const hint = $('hint');
-  hint.textContent = st.night ? (st.acc > 0 ? `おやすみ中…「開始」で続きから。0時になると進んだ半分（${daySummary(st).nextName}）から新しい一日` : `おやすみ中…「開始」で ${stageName(st.base)} から新しい一日`) : '「開始」を押して勉強スタート。キャラが自動で進みます';
+  hint.textContent = st.night ? 'おやすみ中…「開始」で続きから' : inRoom() ? '「開始」で勉強スタート。72ステージ全クリで優勝！　だれかが全クリすると次のレースが全員1-1から始まります' : '「開始」を押して勉強スタート。キャラが自動で進みます';
   hint.classList.toggle('off', st.night ? nightPhase((Date.now() - st.night.at)/1000).i < 4 : (st.run || ms > 0));
   cells.forEach((el, i) => {
     const f = i < st.base ? 1 : i < si || (all && i === si) ? 1 : i === si ? s/STAGE : 0;
@@ -4018,6 +4043,7 @@ async function vsPull(){
   room = out; vsErr = '';
   try {
     board = await rpc('quest_board', {p_room: fb.room});
+    try { if (board && board.race) raceSync(board.race.no); } catch (e) {}
     try {   // a race just ended: say who won and that the next one has started
       const lt = board && board.last, key = 'quest-race-seen-' + fb.room, seen = +localStorage.getItem(key) || 0;
       if (lt && lt.no > seen) { localStorage.setItem(key, String(lt.no)); if (seen && board.race) { toast(`🏁 第${lt.no}回レース終了！ 優勝：${lt.winner || '？'}　第${board.race.no}回レースがスタート（全員0から）`, 9000); sfx('clear'); } }
@@ -4049,12 +4075,6 @@ setInterval(() => {
   if (n - vsPollT > 15000) { vsPollT = n; vsPull().then(vsRender).catch(() => { vsErr = 'つながりません。電波を確認してください'; vsRender(); }); }
 }, 1000);
 setInterval(() => { if (FB_ON && fb.room && st.run) vsPush().catch(() => {}); }, 120000);
-let raceGoalSent = 0;
-setInterval(() => {   // reached 72 stages in this race: tell the server now so the win (and the next race) happen at once
-  if (!FB_ON || !fb.room || !board || !board.race || raceGoalSent === board.race.no) return;
-  const me = {acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, d: st.d};
-  if (raceMsOf(myKey(), me) >= RACE_MS) { raceGoalSent = board.race.no; vsPush().then(() => vsPull()).then(vsRender).catch(() => {}); }
-}, 5000);
 /* a member's study clock, the same formula as ours */
 function memberT(e){
   let v = e.acc + (e.run ? (Date.now() - e.t0)*(e.mult || 1) : 0); if (e.ft) v = Math.min(v, e.ft);
@@ -4070,21 +4090,11 @@ function memberNow(e){
   const reached = Math.min(NST, (e.base || 0) + Math.floor(T/STAGE) + 1);
   return {T: 0, si: Math.max(1, Math.floor(reached/2)) - 1, s: 0, v: 0, today: false, yReach: reached - 1};
 }
-/* race progress: only the study done after this race started counts, so everyone starts each race
-   from 0. 72 stages = 12 hours of study. Less than 1 hour in the race = not taking part. */
+/* race progress: everyone plays each race from stage 1-1, so a member's race progress is simply
+   their study clock in race coordinates (0 at the start of the race). 72 stages = 12 hours.
+   Less than 1 hour in the race = not taking part. */
 const RACE_MS = NST*STAGE*1000, RACE_MIN = 3600e3;
-const dkOf = ms => { const d = new Date(ms); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
-function raceMsOf(k, e){
-  if (!board || !board.race || !e) return 0;
-  const m = (board.members || []).find(x => x.id === k), rs = (m && m.rs) || {};
-  let sum = 0;
-  for (const [d, v] of Object.entries(rs)) if (d !== e.d) sum += +v[0] || 0;
-  if (e.d) {
-    const r = rs[e.d];
-    if (r || dayNum(e.d) >= dayNum(dkOf(new Date(board.race.started_at).getTime()))) sum += Math.max(0, Math.min(43200e3, memberT(e)*1000) - (r ? +r[1] || 0 : 0));   // live value, so taking time away also lowers the race
-  }
-  return Math.max(0, Math.min(RACE_MS, sum));
-}
+function raceMsOf(k, e){ if (!e) return 0; return Math.max(0, Math.min(RACE_MS, memberT(e)*1000)); }
 const raceStagesOf = ms => Math.min(NST, ms/1000/STAGE);
 function memberStage(e){ const T = memberT(e), k = Math.min(NST - 1 - e.base, Math.floor(T/STAGE)); return {T, si: e.base + k, s: T >= (NST - e.base)*STAGE ? STAGE : T - k*STAGE, v: +(e.dr || '')[e.base + k] || 0}; }
 function vsRender(){
@@ -5054,7 +5064,7 @@ function frame(){
 }
 function frameBody(){
   now = performance.now();
-  if (st.d !== dayKey()) { const sm = rollover(); if (sm) showSummary(sm, 'auto'); ui(); try { acNow(); } catch (e) {} }
+  if (st.d !== dayKey()) { const sm = rollover(); if (sm) showSummary(sm, 'auto'); ui(); try { acNow(); } catch (e) {} }   // rollover is a no-op in a room
   if (!st.night && !st.drawSeen && $('lot').hidden && $('sleep').hidden) showLottery();
   const busy = st.run || !$('shop').hidden || !$('sleep').hidden || !$('lot').hidden || (st.resume && st.run);
   if (!busy && now - lastDraw < 32) return;
