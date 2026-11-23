@@ -292,7 +292,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     <div>
       <div class="lbl">今日の勉強時間</div>
       <div class="tt" id="tt">0:00</div>
-      <div class="mini"><button class="pill addb" id="addb">＋ 勉強した時間を入れる</button></div>
+      <div class="mini"><button class="pill addb" id="addb">－ 勉強時間を減らす</button></div>
     </div>
     <button class="cir" id="go">開始</button>
     <div class="prog">
@@ -301,7 +301,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
       <div class="meta"><span id="pn">ステージ 1-1</span><b id="pt">今日 0 / 72 クリア</b></div>
     </div>
     <div class="tabp" data-tab="home">
-    <section class="card2" id="racebox" hidden><h3><span id="raceh">全クリレース</span><small>名前をタップでその人の画面へ</small></h3><div id="racel"></div></section>
+    <section class="card2" id="racebox" hidden><h3><span id="raceh">全クリレース</span><small>名前をタップでその人の画面へ</small></h3><div id="racel"></div><p class="vsn" style="margin:6px 0 0">スタートしてから勉強した時間だけで競争（全員0から）。72ステージ＝12時間で優勝、その瞬間に次のレースが始まります。1時間未満の人は不参加です。</p></section>
     <div class="btns">
       <button class="big" id="shopb"><span>ショップ<small>見た目を変える</small></span><b><span class="coin"></span><span id="wl">0</span></b></button>
       <button class="big sleep" id="sleepb"><span>寝る<small>今日のきろくを見て終わる</small></span><b>☾</b></button>
@@ -446,12 +446,12 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
   </div>
 </div>
 <div class="sheet" id="addt" hidden>
-  <div class="sh-in sum" role="dialog" aria-label="勉強した時間を入れる">
-    <h2>勉強した時間を入れる</h2>
-    <p>アプリを開かずに勉強した時間を入れると、そのぶんキャラが早送りで進みます（×60以上、1分以内）。</p>
+  <div class="sh-in sum" role="dialog" aria-label="勉強時間を減らす">
+    <h2>勉強時間を減らす</h2>
+    <p>止め忘れなどで多く記録された時間を、今日の勉強時間から減らせます。減らしたぶんキャラは戻り、今日のコインも減ります。<br><small>※勉強時間を後から追加することはできません。</small></p>
     <div class="hm"><input id="ah" type="number" inputmode="numeric" min="0" max="12" placeholder="0" aria-label="時間">時間<input id="am" type="number" inputmode="numeric" min="0" max="59" placeholder="0" aria-label="分">分</div>
     <p id="aprev"></p>
-    <div class="row2"><button class="act alt" id="aback">やめる</button><button class="act" id="aok">進める</button></div>
+    <div class="row2"><button class="act alt" id="aback">やめる</button><button class="act" id="aok">減らす</button></div>
   </div>
 </div>
 <script>
@@ -3682,7 +3682,7 @@ function ui(){
   $('go').textContent = st.ff ? '早送り中' : st.run ? '停止' : all ? 'クリア' : '開始';
   $('go').className = 'cir' + (st.run && !st.ff ? ' stop' : '');
   $('go').disabled = !!st.ff || (!st.run && all);
-  $('addb').disabled = !!st.ff || all;
+  $('addb').disabled = !!st.ff || ms <= 0;
   $('pb').style.width = (s/STAGE*100) + '%';
   $('pn').textContent = `ステージ ${stageLabel(st, si)}　${TH.name}`;
   $('pt').textContent = st.base ? `今日 ${cleared} ステージ（${stageName(st.base)}から）` : `今日 ${cleared} ステージ`;
@@ -4015,6 +4015,10 @@ async function vsPull(){
   room = out; vsErr = '';
   try {
     board = await rpc('quest_board', {p_room: fb.room});
+    try {   // a race just ended: say who won and that the next one has started
+      const lt = board && board.last, key = 'quest-race-seen-' + fb.room, seen = +localStorage.getItem(key) || 0;
+      if (lt && lt.no > seen) { localStorage.setItem(key, String(lt.no)); if (seen && board.race) { toast(`🏁 第${lt.no}回レース終了！ 優勝：${lt.winner || '？'}　第${board.race.no}回レースがスタート（全員0から）`, 9000); sfx('clear'); } }
+    } catch (er) {}
     roomInfo = await rpc('quest_room_info', {p_room: fb.room});
     const w = await rpc('quest_wins', {p_member: fb.uid});
     const aw = await rpc('quest_awards', {p_member: fb.uid});
@@ -4036,6 +4040,12 @@ setInterval(() => {
   if (n - vsPollT > 15000) { vsPollT = n; vsPull().then(vsRender).catch(() => { vsErr = 'つながりません。電波を確認してください'; vsRender(); }); }
 }, 1000);
 setInterval(() => { if (FB_ON && fb.room && st.run) vsPush().catch(() => {}); }, 120000);
+let raceGoalSent = 0;
+setInterval(() => {   // reached 72 stages in this race: tell the server now so the win (and the next race) happen at once
+  if (!FB_ON || !fb.room || !board || !board.race || raceGoalSent === board.race.no) return;
+  const me = {acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, d: st.d};
+  if (raceMsOf(myKey(), me) >= RACE_MS) { raceGoalSent = board.race.no; vsPush().then(() => vsPull()).then(vsRender).catch(() => {}); }
+}, 5000);
 /* a member's study clock, the same formula as ours */
 function memberT(e){
   let v = e.acc + (e.run ? (Date.now() - e.t0)*(e.mult || 1) : 0); if (e.ft) v = Math.min(v, e.ft);
@@ -4051,6 +4061,22 @@ function memberNow(e){
   const reached = Math.min(NST, (e.base || 0) + Math.floor(T/STAGE) + 1);
   return {T: 0, si: Math.max(1, Math.floor(reached/2)) - 1, s: 0, v: 0, today: false, yReach: reached - 1};
 }
+/* race progress: only the study done after this race started counts, so everyone starts each race
+   from 0. 72 stages = 12 hours of study. Less than 1 hour in the race = not taking part. */
+const RACE_MS = NST*STAGE*1000, RACE_MIN = 3600e3;
+const dkOf = ms => { const d = new Date(ms); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); };
+function raceMsOf(k, e){
+  if (!board || !board.race || !e) return 0;
+  const m = (board.members || []).find(x => x.id === k), rs = (m && m.rs) || {};
+  let sum = 0;
+  for (const [d, v] of Object.entries(rs)) if (d !== e.d) sum += +v[0] || 0;
+  if (e.d) {
+    const r = rs[e.d];
+    if (r || dayNum(e.d) >= dayNum(dkOf(new Date(board.race.started_at).getTime()))) sum += Math.max(0, Math.min(43200e3, memberT(e)*1000) - (r ? +r[1] || 0 : 0));   // live value, so taking time away also lowers the race
+  }
+  return Math.max(0, Math.min(RACE_MS, sum));
+}
+const raceStagesOf = ms => Math.min(NST, ms/1000/STAGE);
 function memberStage(e){ const T = memberT(e), k = Math.min(NST - 1 - e.base, Math.floor(T/STAGE)); return {T, si: e.base + k, s: T >= (NST - e.base)*STAGE ? STAGE : T - k*STAGE, v: +(e.dr || '')[e.base + k] || 0}; }
 function vsRender(){
   $('vsOff').hidden = !!fb.room; $('vsOn').hidden = !fb.room;
@@ -4064,14 +4090,16 @@ function vsRender(){
   const rows = list.map(([k, e]) => {
     const me = k === mine;
     if (me) e = {n: fb.name || 'ななし', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, coins: dayCoins(st), night: !!st.night};
-    const today = e.d === st.d, ms = memberNow(e);
-    const done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
-    const status = !today ? (ms.yReach != null ? '今日はまだ（前回の続きから）' : '今日はまだ') : e.night ? 'おやすみ中' : done >= NST ? '全クリ！' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
-    const rm = rms[k] || 0, line = 8*3600e3;
-    return {me, k, today, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `${stageName(Math.min(NST - 1, ms.si))}${today ? '' : 'から'} · 全クリまであと${Math.max(0, Math.ceil(NST - done))}ステージ · ${today ? '今日 ' + fmtHM(ms.T*1000) : ms.yReach != null ? '前回は' + stageName(ms.yReach) + 'まで' : 'まだ始めていません'}`, line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
+    const today = e.d === st.d, ms = memberNow(e), rm = raceMsOf(k, e);
+    const done = raceStagesOf(rm), out = rm < RACE_MIN;
+    const gameDone = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
+    const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : gameDone >= NST ? '今日は全クリ' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
+    const line = 8*3600e3;
+    return {me, k, today, out, name: e.n, done, w: me ? (bank.champ || 0) : (wins[k] || 0), a: me ? (bank.vsAwards || 0) : (aws[k] || 0), txt: `レース ${Math.floor(done)}/${NST}ステージ · 優勝まであと${fmtHM(Math.max(0, RACE_MS - rm))} · ゲームは${stageName(Math.min(NST - 1, ms.si))}${today ? '' : 'から'}` + (out ? ` · 1時間未満なのでまだ不参加（あと${fmtHM(RACE_MIN - rm)}）` : ''), line: rm >= line ? `レース中 ${fmtHM(rm)} ✓8時間ライン突破（参加賞）` : `レース中 ${fmtHM(rm)}（8時間ラインまであと${fmtHM(line - rm)}）`, over: rm >= line, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   const race = board && board.race, last = board && board.last;
-  $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleDateString('ja-JP', {month: 'numeric', day: 'numeric'})}から）・${rows.length}人` : '全クリレース';
+  const joined = rows.filter(r => !r.out).length;
+  $('vsRound').textContent = race ? `第${race.no}回 全クリレース（${new Date(race.started_at).toLocaleString('ja-JP', {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'})}スタート）・参加${joined}人` : '全クリレース';
   $('vsLast').textContent = last && last.winner ? `前回（第${last.no}回）の優勝：${last.winner}（${last.participants}人）` + (last.participants >= 5 ? '・チャンピオンスキン獲得！' : '・5人未満だったのでスキンはなし') + (last.awarded ? `・参加賞 ${last.awarded}人` : '') : '';
   // public / private: only the host can switch it
   const ri = roomInfo, hostName = ri && ri.host ? (ri.host === mine ? (fb.name || '自分') : ((room || {})[ri.host] || {}).n || '？') : '';
@@ -4079,7 +4107,7 @@ function vsRender(){
     ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small>`
     : `${ri.public ? '公開部屋（だれでも入れます）' : 'プライベート部屋（コードを知っている人だけ）'}<br><small>ホスト：${esc(hostName)}</small>`;
   $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${r.me || !r.today ? esc(r.name) : `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.name)} 👀</button>`}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
-  $('vsStat').textContent = vsErr || (rows.length < 5 ? `一番に全クリした人が優勝。チャンピオンスキンは5人以上のときだけもらえます（あと${5 - rows.length}人）。` : '一番に全クリした人が優勝して、チャンピオンスキンがもらえます。') + ' レースが終わったとき、レース中に8時間以上勉強していた人には参加賞（2人以上のレース）。';
+  $('vsStat').textContent = vsErr || 'レースはスタートしてから勉強した時間だけで競います（全員0から）。72ステージぶん（12時間）を一番に勉強した人が優勝で、その瞬間に次のレースが始まります。' + (joined < 5 ? `チャンピオンスキンは参加5人以上のときだけ（あと${5 - joined}人）。` : '優勝するとチャンピオンスキンがもらえます。') + 'レース中に1時間以上勉強した人が参加者です。8時間以上勉強した人には参加賞（参加2人以上のレース）。';
 }
 /* ghosts: every friend who is studying today runs in your stage at their own place in their stage */
 let ghostHits = [];   // where each friend's name tag was drawn (for tapping)
@@ -4665,16 +4693,17 @@ function raceRows(){
   return list.map(([k, e]) => {
     const me = k === mine;
     if (me) e = {n: fb.name || '自分', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, night: !!st.night};
-    const ms = memberNow(e), done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
-    const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : done >= NST ? '全クリ' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
-    return {k, me, today: ms.today, n: e.n, done, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
+    const ms = memberNow(e), gameDone = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE)), rm = raceMsOf(k, e), done = raceStagesOf(rm);
+    const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : gameDone >= NST ? '今日は全クリ' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
+    return {k, me, today: ms.today, n: e.n, done, rm, out: rm < RACE_MIN, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
   }).sort((a, b) => b.done - a.done);
 }
-const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}<span>${stageName(r.si)}${r.today ? ' ' + VAR[r.v] : 'から'} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
+const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}<span>${r.out ? '不参加（1時間未満）' : `レース ${Math.floor(r.done)}/${NST}`} · ${stageName(r.si)}${r.today ? ' ' + VAR[r.v] : 'から'} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
 function raceRender(){
   const box = $('racebox'); box.hidden = !fb.room; if (!fb.room) return;
   const rows = raceRows(), race = board && board.race;
-  $('raceh').textContent = (race ? `第${race.no}回 全クリレース · ${rows.length}人` : `全クリレース · ${rows.length}人`) + `　優勝で +${num(champWinCoins((bank.champ || 0) + 1))}コイン`;
+  const joined = rows.filter(r => !r.out).length;
+  $('raceh').textContent = (race ? `第${race.no}回 全クリレース · 参加${joined}人` : `全クリレース · 参加${joined}人`) + `　優勝で +${num(champWinCoins((bank.champ || 0) + 1))}コイン`;
   $('racel').innerHTML = rows.map((r, i) => raceRow(r, i, false)).join('');
 }
 function rankRender(){
@@ -4762,7 +4791,7 @@ const _misRender2 = misRender; misRender = function(){ _misRender2(); evRender()
 const VAPID_PUB = 'BPQ2j69Me3ki8LUGMtbGEoDL6Do5du1cwXjRZiBaq8_tVhog-X6PKM1-h4kiHezcPlvZdXxzCmdIZXC_GahZQ-8';
 const NOTI_KINDS = [
   ['cheer', '📣 応援スタンプが届いたとき'], ['start', '📖 部屋の友だちが勉強を始めたとき'], ['race', '🏃 レースで抜かれた・抜いたとき'],
-  ['running', '⏱ 勉強中の表示（開始〜停止のあいだ通知に出しておく）'], ['allc', '🏁 部屋の誰かが全クリしたとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）']];
+  ['running', '⏱ 勉強中の表示（開始〜停止のあいだ通知に出しておく）'], ['allc', '🏁 レースの優勝が決まって次のレースが始まったとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）']];
 let noti = {on: false, prefs: {}, quiet: false}; try { noti = Object.assign(noti, JSON.parse(localStorage.getItem('quest-noti') || '{}')); } catch (e) {}
 const saveNoti = () => { try { localStorage.setItem('quest-noti', JSON.stringify(noti)); } catch (e) {} };
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -4948,30 +4977,30 @@ function drawNight(){
   });
 }
 
-/* ---------- entering study time: plays back at 60× or faster, always within a minute ---------- */
-function addPlan(){
-  const h = Math.max(0, +$('ah').value || 0), m = Math.max(0, +$('am').value || 0);
-  const left = dayLen(st) - trueT(), add = Math.min(left, h*3600 + m*60);
-  const speed = Math.max(60, add/60), dur = add/speed;
-  return {add, speed, dur, capped: h*3600 + m*60 > left};
+/* ---------- taking study time away (forgot to stop etc.). Adding time is not allowed. ---------- */
+const jHM = sec => { const m = Math.round(sec/60); return (m >= 60 ? Math.floor(m/60) + '時間' : '') + (m % 60 || m < 60 ? m % 60 + '分' : ''); };
+function subPlan(){
+  const h = Math.max(0, +$('ah').value || 0), m = Math.max(0, +$('am').value || 0), have = studyMs()/1000;
+  const sub = Math.min(have, h*3600 + m*60);
+  return {sub, have, after: have - sub};
 }
 function addRender(){
-  const p = addPlan();
-  $('aprev').textContent = p.add <= 0 ? '時間を入れてください。' : `${(h => (h >= 60 ? Math.floor(h/60) + '時間' : '') + (h % 60 ? h % 60 + '分' : ''))(Math.round(p.add/60))}を ×${Math.round(p.speed)} の速さで、${Math.max(1, Math.round(p.dur))} 秒で進めます。` + (p.capped ? '（今日の残りステージぶんまで）' : '');
-  $('aok').disabled = p.add <= 0;
+  const p = subPlan(), hm = jHM;
+  $('aprev').textContent = p.have <= 0 ? '今日はまだ勉強時間がありません。' : p.sub <= 0 ? `今日の勉強時間：${hm(p.have)}。減らす時間を入れてください。` : `今日の勉強時間が ${hm(p.have)} → ${hm(p.after)} になります。`;
+  $('aok').disabled = p.sub <= 0;
 }
 $('addb').onclick = () => { $('ah').value = ''; $('am').value = ''; addRender(); $('addt').hidden = false; };
 $('ah').oninput = $('am').oninput = addRender;
 $('aback').onclick = () => { $('addt').hidden = true; };
 $('addt').onclick = e => { if (e.target.id === 'addt') $('addt').hidden = true; };
 $('aok').onclick = () => {
-  const p = addPlan(); if (p.add <= 0) return;
-  if (st.run) stop();
-  if (st.night) st.night = null; else beginResume();
+  const p = subPlan(); if (p.sub <= 0 || st.ff) return;
   commit();
-  st.ff = {target: st.acc + p.add*1000, prev: st.mult};
-  st.mult = p.speed; st.run = true; st.t0 = Date.now(); st.act = Date.now(); acNow();
-  save(); $('addt').hidden = true; ui();
+  st.acc = Math.max(0, st.acc - p.sub*1000); if (st.run) st.t0 = Date.now();
+  if (st.allAt && st.acc < dayLen(st)*1000) st.allAt = 0;
+  st.resume = null; st.act = Date.now(); acNow();
+  save(); $('addt').hidden = true; ui(); try { vsQueue(); } catch (e) {}
+  toast(`勉強時間を${jHM(p.sub)}減らしました`, 4000);
 };
 
 /* ---------- the morning lottery ---------- */
