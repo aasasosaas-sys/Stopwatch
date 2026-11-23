@@ -95,6 +95,13 @@ canvas{display:block;width:100%;height:100%}
 .wname{color:var(--sub);font-size:13px;margin-top:10px}
 .dev{grid-column:1/-1;color:var(--sub);font-size:14px;border-top:1px solid var(--line);padding-top:12px}
 .dev summary{cursor:pointer}
+.dev.acc{color:var(--fg);border-top:0;padding-top:14px;font-size:15px}
+.dev.acc p{color:var(--sub)}
+.dev.acc input[type=password],.dev.acc input[type=text]{font-size:16px;padding:12px;background:var(--bg);border:1px solid var(--line)}
+.dev.acc .pill{padding:10px 16px;background:var(--bg)}
+.dev.acc .pill.pri,.dev.acc #acNew{background:var(--acc);color:#fff}
+.wrt{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
+.wrt b{font-size:14px}
 .vs{grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px}
 .vs h3{margin:0 0 8px;font-size:15px;font-weight:600}
 .vs .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
@@ -305,6 +312,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     </div>
     <div class="tabp" data-tab="mis" hidden>
       <section class="card2" id="evbox"></section>
+      <section class="card2" id="wrbox"></section>
       <section class="card2"><h3>今日のミッション<small id="misd"></small></h3><div id="misl"></div></section>
       <section class="card2"><h3>実績バッジ<small id="achn"></small></h3><div class="bdg" id="achl"></div></section>
     </div>
@@ -348,8 +356,10 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
         <div class="setr"><span>全画面で見る<br><small style="color:var(--sub)">スマホを横にすると自動で全画面</small></span><button class="pill" id="thv2">全画面にする</button></div>
       </section>
       <section class="card2" id="notibox"></section>
-    <details class="dev" id="datasec">
-      <summary>アカウントとデータの保存</summary>
+    </div>
+    <div class="tabp" data-tab="acct" hidden>
+    <section class="card2 dev acc" id="datasec">
+      <h3>アカウント</h3>
       <p>記録はこの端末のブラウザに自動で保存されます。アプリを閉じても、勉強中なら時間は進み続けます。</p>
       <div id="acOut">
         <p><b>アカウントを作ると</b>、記録・コイン・買った見た目がサーバーにも自動で保存され、機種変更や別の端末でも同じIDでログインすれば続きから遊べます。</p>
@@ -365,7 +375,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
       <p id="acStat" style="color:var(--acc)"></p>
       <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
       <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
-    </details>
+    </section>
     </div>
   </div>
 </div>
@@ -374,6 +384,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
   <button data-t="home" class="on"><i>🏠</i>ホーム</button>
   <button data-t="mis"><i>🎯</i>ミッション<span class="dot" id="misdot" hidden></span></button>
   <button data-t="vs"><i>⚔️</i>対戦</button>
+  <button data-t="acct"><i>👤</i>アカウント</button>
   <button data-t="set"><i>⚙️</i>設定</button>
 </nav>
 <div class="sheet" id="shop" hidden>
@@ -2886,7 +2897,7 @@ const SHOP = {
     ['navy','ネイビー',3,'#24408e'], ['teal','ティール',3,'#14a39a'], ['coral','コーラル',3,'#ff7f6e'], ['mint','ミント',3,'#5fe3b0'], ['lavender','ラベンダー',3,'#b49cff'], ['gray','グレー',3,'#8a8d99'],
     ['black','ブラック',4,'#2a2a33'], ['white','ホワイト',4,'#ffffff'], ['wine','ワイン',4,'#8e1f45'], ['peach','ピーチ',4,'#ffb38a'],
     ['silver','シルバー',6,'silver'], ['ice','アイス',6,'ice'], ['gold','ゴールド',7,'gold'], ['lava','マグマ',7,'lava'], ['neon','ネオン',7,'neon'],
-    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend']]},
+    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend'], ['w_plat','プラチナカラー',0,'w_plat']]},
   head: {name: '頭', items: [
     ['none','なし',0], ['cap_b','キャップ（青）',1], ['cap_r','キャップ（赤）',1], ['band_r','ハチマキ（赤）',1], ['cap_k','キャップ（黒）',2], ['band_w','ハチマキ（白）',2],
     ['beanie_t','ニット帽（緑）',2], ['beanie_p','ニット帽（ピンク）',2], ['beanie_y','ニット帽（黄）',3], ['party','パーティー帽',3], ['flower','花かざり',3],
@@ -2899,17 +2910,17 @@ const SHOP = {
   back: {name: '背中', items: [
     ['none','なし',0], ['scarf_y','マフラー（黄）',1], ['scarf_r','マフラー（赤）',2], ['scarf_b','マフラー（青）',2], ['pack','リュック',2], ['scarf_s','しましまマフラー',3], ['pack_r','ランドセル',3],
     ['tail','しっぽ',4], ['cape_r','マント（赤）',4], ['cape_b','マント（青）',5], ['cape_k','マント（黒）',6], ['guitar','ギター',6], ['wings','天使のつばさ',7], ['bat','コウモリのつばさ',7],
-    ['butterfly','チョウのはね',7], ['cape_g','黄金のマント',8], ['fairy','妖精のはね',8], ['jet','ジェットパック',9], ['dragon','ドラゴンのつばさ',10], ['ref_wings','きずなの翼',0], ['a_wings','光の翼',0], ['a_sword','背負いの大剣',0], ['a_cape','伝説のマント',0]]},
+    ['butterfly','チョウのはね',7], ['cape_g','黄金のマント',8], ['fairy','妖精のはね',8], ['jet','ジェットパック',9], ['dragon','ドラゴンのつばさ',10], ['ref_wings','きずなの翼',0], ['a_wings','光の翼',0], ['a_sword','背負いの大剣',0], ['a_cape','伝説のマント',0], ['w_flag','ランカーの旗',0]]},
   hand: {name: '手', items: [
     ['none','なし',0], ['pencil','えんぴつ',1], ['flag','はた',2], ['balloon','ふうせん',2], ['icecream','アイス',3], ['book','本',3], ['carrot','にんじん',3],
     ['heartb','ハートふうせん',4], ['umbrella','かさ',4], ['fish','さかな',4], ['torch','たいまつ',5], ['hammer','ハンマー',6], ['wand','魔法のステッキ',7],
     ['sword','剣',7], ['trophy','トロフィー',8], ['lightblade','光の剣',9], ['scepter','王のつえ',10]]},
   pet: {name: 'ペット', items: [
     ['none','なし',0], ['slime','スライム',3], ['bird','ことり',4], ['chick','ひよこ',4], ['ghostpet','おばけ',5], ['starpet','おほしさま',6], ['catpet','ネコ',6],
-    ['bee','ハチ',6], ['robot','ロボ',7], ['fairypet','ようせい',8], ['ufo','UFO',8], ['dragonpet','ちびドラゴン',9], ['phoenix','フェニックス',10], ['medalpet','メダルくん',0], ['trophypet','トロフィーくん',0], ['ref_buddy','なかよしくん',0], ['a_dragon','ちび竜',0], ['a_phoenix','不死鳥',0]]},
+    ['bee','ハチ',6], ['robot','ロボ',7], ['fairypet','ようせい',8], ['ufo','UFO',8], ['dragonpet','ちびドラゴン',9], ['phoenix','フェニックス',10], ['medalpet','メダルくん',0], ['trophypet','トロフィーくん',0], ['ref_buddy','なかよしくん',0], ['a_dragon','ちび竜',0], ['a_phoenix','不死鳥',0], ['w_griffin','グリフォン',0]]},
   trail: {name: '軌跡', items: [
     ['none','なし',0], ['spark','キラキラ',2], ['stars','星',3], ['bubbles','あわ',3], ['notes','おんぷ',4], ['hearts','ハート',4], ['leaves','はっぱ',4],
-    ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10], ['confetti','紙吹雪',0], ['goldstar','金の流れ星',0], ['ribbon','リボン',0], ['a_aurora','オーロラの軌跡',0], ['a_galaxy','銀河の軌跡',0]]},
+    ['snow','ゆき',5], ['petals','花びら',5], ['pixels','ドット',5], ['ghost','残像',6], ['fire','ほのお',7], ['lightning','いなずま',8], ['rainbow','虹',9], ['comet','すいせい',10], ['confetti','紙吹雪',0], ['goldstar','金の流れ星',0], ['ribbon','リボン',0], ['a_aurora','オーロラの軌跡',0], ['a_galaxy','銀河の軌跡',0], ['w_comet','ランカーの彗星',0]]},
   ride: {name: '乗り物', items: [
     ['none','トロッコ',0], ['wood','木のトロッコ',1], ['red','赤いトロッコ',2], ['kart','ゴーカート',3], ['tub','おふろ',4], ['taxi','タクシー',4],
     ['police','パトカー',5], ['sports','スポーツカー',6], ['gold','黄金のトロッコ',7], ['f1','レーシングカー',8], ['rocket','ロケット',9], ['dragonride','ドラゴン',10], ['a_chariot','黄金の戦車',0]]},
@@ -2927,6 +2938,9 @@ const refNeed = (cat, id) => REF_NEED[cat + ':' + id] || 0;
 const ACH_ITEM = {'head:a_visor': 's7', 'pet:a_dragon': 'd50', 'head:a_halo': 'e50', 'ride:a_chariot': 'f50', 'back:a_wings': 'h100', 'trail:a_aurora': 'allc5',
   'back:a_sword': 'foe5k', 'pet:a_phoenix': 's30', 'color:a_aurora': 'h300', 'head:a_crown': 'champ3', 'back:a_cape': 'h500', 'color:a_legend': 's100', 'trail:a_galaxy': 'h1000'};
 const achItem = (cat, id) => ACH_ITEM[cat + ':' + id] || '';
+/* looks from the weekly ranking of all players: [tier needed, times] (g = top 10%, s = top 30%, b = top 50%) */
+const WR_ITEM = {'back:w_flag': ['b', 1], 'trail:w_comet': ['s', 1], 'color:w_plat': ['g', 1], 'pet:w_griffin': ['g', 3]};
+const wrItem = (cat, id) => WR_ITEM[cat + ':' + id] || null;
 /* every prize counts: the battle looks change color, titles go up, and each prize pays coins */
 const AWARD_COINS = 3000;
 const AWARD_TIERS = [[1,'ブロンズ','#cd7f32'], [5,'シルバー','#c9d0dc'], [10,'ゴールド','#ffcc1f'], [20,'プラチナ','#bff6ff'], [50,'レインボー','rainbow']];
@@ -2942,7 +2956,7 @@ const nextTier = w => CHAMP_TIERS.find(x => x[0] > w) || null;
   const nice = v => { if (v <= 0) return 0; const p = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v/p)*p; };
   for (const k in SHOP) for (const it of SHOP[k].items) it.price = nice(TIERW[it[2]]*K);
 })();
-const ALL_ITEMS = Object.entries(SHOP).reduce((a, [k, s]) => a + (s.special ? 0 : s.items.filter(i => !AWARD_NEED[k + ':' + i[0]] && !REF_NEED[k + ':' + i[0]] && !ACH_ITEM[k + ':' + i[0]]).length), 0);
+const ALL_ITEMS = Object.entries(SHOP).reduce((a, [k, s]) => a + (s.special ? 0 : s.items.filter(i => !AWARD_NEED[k + ':' + i[0]] && !REF_NEED[k + ':' + i[0]] && !ACH_ITEM[k + ':' + i[0]] && !WR_ITEM[k + ':' + i[0]]).length), 0);
 const item = (cat, id) => SHOP[cat].items.find(i => i[0] === id) || SHOP[cat].items[0];
 const lookOf = (eq, wins = 0, awards = 0) => {
   const o = {}; for (const k in SHOP) o[k] = item(k, eq[k] || 'none')[0]; o.colorV = item('color', o.color)[3];
@@ -2962,6 +2976,7 @@ function bodyStyle(look, t){
   switch (v) {
     case 'rainbow': return {col: hsl2hex(t*.08, 85, 58)};
     case 'a_aurora': { const k = (Math.sin(t*.0015) + 1)/2, k2 = (Math.sin(t*.0023 + 1) + 1)/2; return {col: mix(mix('#3ef0c0', '#7a6bff', k), '#ff7ad9', k2*.5), glow: 'rgba(120,255,220,.9)', sheen: 1}; }
+    case 'w_plat': { const k = (Math.sin(t*.004) + 1)/2; return {col: mix('#cfd8e6', '#ffffff', k), glow: 'rgba(190,225,255,.95)', sheen: 1}; }
     case 'a_legend': return {col: hsl2hex(42 + Math.sin(t*.003)*8, 95, 55), glow: hsl2hex(t*.12, 90, 65), sheen: 1};
     case 'ref': { const k = (Math.sin(t*.002) + 1)/2; return {col: mix('#ff8fc8', '#5cc8ff', k), glow: 'rgba(255,200,230,.8)', sheen: 1}; }
     case 'gold': return {col: '#e8b100', sheen: 1};
@@ -3087,6 +3102,12 @@ function drawBack(k, P, e){
     case 'a_wings': { c.save(); const g = .7 + .3*Math.sin(t*.006);
       wing(`rgba(255,250,220,${g})`, s => { c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-3*s, -12*s, -14*s, -10*s); c.quadraticCurveTo(-10*s, -7*s, -12*s, -4*s); c.quadraticCurveTo(-8*s, -4*s, -9*s, -1*s); c.quadraticCurveTo(-5*s, -1*s, 0, 0); }, '#fff2a8');
       c.restore(); break; }
+    case 'w_flag': { c.save(); c.translate(base[0], base[1]); c.rotate(ang - .25);
+      c.strokeStyle = '#6e7488'; c.lineWidth = 1.1; c.beginPath(); c.moveTo(0, 2); c.lineTo(0, -19); c.stroke(); c.fillStyle = '#ffd23f'; circ(0, -19.6, 1.1);
+      const w = Math.sin(t*.012), w2 = Math.sin(t*.012 + 1.3);
+      c.fillStyle = '#5b2bd6'; c.beginPath(); c.moveTo(0, -18.5); c.quadraticCurveTo(-5, -19.5 + w, -10, -18 + w2); c.lineTo(-10, -11 + w2); c.quadraticCurveTo(-5, -12.5 + w, 0, -11.5); c.closePath(); c.fill(); ol(.5);
+      c.strokeStyle = '#ffd23f'; c.lineWidth = .7; c.beginPath(); c.moveTo(-10, -18 + w2); c.lineTo(-10, -11 + w2); c.stroke();
+      star(-5, -15 + w*.6, 1.8, '#ffd23f'); c.restore(); break; }
     case 'a_sword': { c.save(); c.translate(base[0], base[1]); c.rotate(ang + 2.5);
       c.fillStyle = '#6e452d'; c.fillRect(-.9, -2, 1.8, 5); c.fillStyle = '#c9a227'; c.fillRect(-3, 2.6, 6, 1.4); circ(0, -2.4, 1.1);
       c.fillStyle = '#dfe6f0'; c.beginPath(); c.moveTo(-1.8, 4); c.lineTo(1.8, 4); c.lineTo(1.4, 17); c.lineTo(0, 19.5); c.lineTo(-1.4, 17); c.closePath(); c.fill(); ol(.5);
@@ -3267,6 +3288,14 @@ function drawPet(k, x, y, t){
     case 'fairypet': { c.shadowColor = '#ffe9a8'; c.shadowBlur = 6*glowScale; c.fillStyle = '#fff6c8'; circ(0, 0, 2.2); c.shadowBlur = 0; const fl = Math.sin(t*.05); c.fillStyle = 'rgba(190,230,255,.85)'; c.beginPath(); c.ellipse(-2, -1.6, 1.4, 3 + fl*.5, -.6, 0, 7); c.ellipse(2, -1.6, 1.4, 3 + fl*.5, .6, 0, 7); c.fill(); if ((t % 500) < 250) { c.fillStyle = '#fff'; c.fillRect(-4, 3, .7, .7); c.fillRect(3, 4, .7, .7); } break; }
     case 'ufo': c.fillStyle = 'rgba(150,230,255,.8)'; c.beginPath(); c.ellipse(0, -1.6, 2.6, 2.4, 0, Math.PI, 0); c.fill(); c.fillStyle = '#9aa0b5'; c.beginPath(); c.ellipse(0, 0, 6, 1.8, 0, 0, 7); c.fill(); ol(); for (let i = 0; i < 3; i++) { c.fillStyle = (Math.floor(t/200) + i) % 3 ? '#ffd23f' : '#ff5252'; circ(-3 + i*3, .3, .6); } break;
     case 'dragonpet': { c.fillStyle = '#5fbf6a'; c.beginPath(); c.ellipse(0, 1, 3.6, 2.8, 0, 0, 7); c.fill(); ol(); circ(3, -1.6, 2.2); c.beginPath(); c.arc(3, -1.6, 2.2, 0, 7); ol(.5); const fl = Math.sin(t*.03)*1.5; c.fillStyle = '#3f9e4c'; c.beginPath(); c.moveTo(-1, -1); c.lineTo(-4, -5 - fl); c.lineTo(-5, -1 - fl*.5); c.closePath(); c.fill(); ol(.5); c.fillStyle = OL; circ(3.8, -2.2, .5); c.fillStyle = '#ffd23f'; c.beginPath(); c.moveTo(2, -3.4); c.lineTo(2.4, -5); c.lineTo(3, -3.6); c.fill(); break; }
+    case 'w_griffin': { const fl = Math.sin(t*.022);
+      c.fillStyle = '#c9952b'; c.beginPath(); c.moveTo(-1, -1); c.lineTo(-8, -8 - fl*3); c.lineTo(-5, -5 - fl*2); c.lineTo(-9, -4 - fl*2); c.lineTo(-2, 0); c.fill(); ol(.5);
+      c.fillStyle = '#e0b04a'; c.beginPath(); c.ellipse(-.5, .5, 4.4, 2.8, 0, 0, 7); c.fill(); ol(.6);
+      c.strokeStyle = '#e0b04a'; c.lineWidth = .9; c.beginPath(); c.moveTo(-4.5, .5); c.quadraticCurveTo(-7, 2, -7.5, -.5); c.stroke(); c.fillStyle = '#8a5a1e'; circ(-7.6, -.7, .8);
+      c.fillStyle = '#ffffff'; c.beginPath(); c.arc(3.4, -2, 2.4, 0, 7); c.fill(); ol(.6);
+      c.fillStyle = '#ffb020'; c.beginPath(); c.moveTo(5.4, -2.4); c.lineTo(7.2, -1.6); c.lineTo(5.3, -1); c.fill(); c.fillStyle = OL; circ(4, -2.5, .45);
+      c.fillStyle = '#c9952b'; for (const x of [-3, 1.5]) c.fillRect(x, 2.6, 1, 1.6);
+      break; }
     case 'a_dragon': { const fl = Math.sin(t*.02);
       c.fillStyle = '#3fbf72'; c.beginPath(); c.moveTo(-1, -2); c.lineTo(-6, -7 - fl*2); c.lineTo(-3, -2); c.fill(); ol(.5);
       c.beginPath(); c.ellipse(0, 0, 4.2, 3.2, 0, 0, 7); c.fill(); ol(.6);
@@ -3314,6 +3343,9 @@ function drawTrail(kind, sample, look){
       c.shadowColor = '#7fdfff'; c.shadowBlur = 5*glowScale; c.strokeStyle = '#e6fbff'; c.lineWidth = 1; c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(...q) : c.moveTo(...q)); c.globalAlpha = .9; c.stroke(); c.shadowBlur = 0; break; }
     case 'rainbow': { const cols = ['#ff4d4d','#ff9f1a','#ffe14d','#4dd26b','#4da6ff','#9d6bff'], pts = []; for (let k = 0; k <= 16; k++) pts.push(sample(k, .022));
       for (let i = 0; i < cols.length; i++) { c.strokeStyle = cols[i]; c.lineWidth = 1.25; c.lineCap = 'butt'; for (let k = 0; k < 16; k++) { c.globalAlpha = .85*(1 - k/16); c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 15 + i*1.2); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 15 + i*1.2); c.stroke(); } } break; }
+    case 'w_comet': { const p0 = sample(1, .02);
+      parts(16, .03, (p, k, a) => { c.fillStyle = `rgba(160,220,255,${.5*a})`; circ(p.x - 2, p.y - 12, 1 + a*3); if (k % 3 === 0) star(p.x - 2 + Math.sin(k*2 + now*.01)*3, p.y - 12 + Math.cos(k*1.7)*3, 1.2*a + .4, '#ffffff'); });
+      c.globalAlpha = 1; c.save(); c.shadowColor = '#bfe6ff'; c.shadowBlur = 6*glowScale; c.fillStyle = '#ffffff'; circ(p0.x - 1, p0.y - 12, 2.2); c.restore(); break; }
     case 'a_aurora': { const pts = []; for (let k = 0; k <= 16; k++) pts.push(sample(k, .028));
       for (let k = 0; k < 16; k++) { const a = 1 - k/16; c.globalAlpha = a*.55; c.lineCap = 'round';
         for (let b = 0; b < 3; b++) { c.strokeStyle = ['#3ef0c0', '#7a6bff', '#ff7ad9'][b]; c.lineWidth = 2.4*a + .5; const o = (b - 1)*2.2 + Math.sin(k*.6 + now*.006 + b)*1.5; c.beginPath(); c.moveTo(pts[k].x - 2, pts[k].y - 13 + o); c.lineTo(pts[k+1].x - 2, pts[k+1].y - 13 + o + Math.sin((k + 1)*.6 + now*.006 + b)*.4); c.stroke(); } } break; }
@@ -3603,17 +3635,17 @@ function ui(){
 /* ---------- shop ---------- */
 const pv = $('pv'), pctx = pv.getContext('2d');
 let shopCat = 'color', trial = null;
-const owned = (cat, id) => id === 'none' || (achItem(cat, id) ? (bank.ach || []).includes(achItem(cat, id)) : false) || (refNeed(cat, id) ? (bank.refCount || 0) >= refNeed(cat, id) : false) || (cat === 'champ' && id === 'champ' ? (bank.champ || 0) >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
+const owned = (cat, id) => id === 'none' || (wrItem(cat, id) ? (typeof wrCount === 'function' && wrCount(wrItem(cat, id)[0]) >= wrItem(cat, id)[1]) : false) || (achItem(cat, id) ? (bank.ach || []).includes(achItem(cat, id)) : false) || (refNeed(cat, id) ? (bank.refCount || 0) >= refNeed(cat, id) : false) || (cat === 'champ' && id === 'champ' ? (bank.champ || 0) >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
 function shopRender(){
   const wl = wallet();
   $('sbal').textContent = num(wl);
   $('stabs').innerHTML = Object.keys(SHOP).map(k => `<button data-cat="${k}" class="${k === shopCat ? 'on' : ''}">${SHOP[k].name}</button>`).join('');
-  const have = Object.keys(SHOP).reduce((a, k) => a + (SHOP[k].special ? 0 : SHOP[k].items.filter(i => !awardNeed(k, i[0]) && !refNeed(k, i[0]) && !achItem(k, i[0]) && owned(k, i[0])).length), 0);
+  const have = Object.keys(SHOP).reduce((a, k) => a + (SHOP[k].special ? 0 : SHOP[k].items.filter(i => !awardNeed(k, i[0]) && !refNeed(k, i[0]) && !achItem(k, i[0]) && !wrItem(k, i[0]) && owned(k, i[0])).length), 0);
   $('scomp').textContent = `コンプリート ${have} / ${ALL_ITEMS}`;
   $('scat').textContent = `${SHOP[shopCat].name}：${SHOP[shopCat].items.filter(i => owned(shopCat, i[0])).length} / ${SHOP[shopCat].items.length}`;
   $('sitems').innerHTML = SHOP[shopCat].items.map(it => {
     const [id, name, , col] = it;
-    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' && id === 'champ' ? '<em>優勝で解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : refNeed(shopCat, id) ? `<em>💌招待${refNeed(shopCat, id)}人で解放</em>` : achItem(shopCat, id) ? `<em>🏅実績で解放</em>` : `<em>${num(it.price)} コイン</em>`;
+    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' && id === 'champ' ? '<em>優勝で解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : refNeed(shopCat, id) ? `<em>💌招待${refNeed(shopCat, id)}人で解放</em>` : achItem(shopCat, id) ? `<em>🏅実績で解放</em>` : wrItem(shopCat, id) ? `<em>🏆週間ランキングで解放</em>` : `<em>${num(it.price)} コイン</em>`;
     const swc = {rainbow:'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)', gold:'linear-gradient(135deg,#fff1a8,#e8b100)', silver:'linear-gradient(135deg,#fff,#a8b0bd)', ice:'linear-gradient(135deg,#fff,#9fe3ff)', lava:'linear-gradient(135deg,#ffd23f,#e8402a)', neon:'#39ff88', ghost:'rgba(230,238,255,.6)', shadow:'linear-gradient(135deg,#a259ff,#1d1528)', galaxy:'linear-gradient(135deg,#7a5cff,#1d1b4a)'}[col] || col;
     const ct = tierOf(Math.max(1, bank.champ || 0)), sw = shopCat === 'color' ? `<i style="background:${swc}"></i>` : shopCat === 'champ' && id === 'champ' ? `<i style="background:${ct[2] === 'rainbow' ? 'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)' : ct[2]}"></i>` : '';
     return `<button data-id="${id}" class="${trial[shopCat] === id ? 'sel' : ''}">${sw}<span>${name}</span>${tag}</button>`;
@@ -3621,6 +3653,7 @@ function shopRender(){
   if (shopCat === 'champ') { const w = bank.champ || 0, t = tierOf(Math.max(1, w)), nx = nextTier(w); const n = bank.vsAwards || 0, ti = pickTier(AWARD_TITLES, n), nti = nextOf(AWARD_TITLES, n), at2 = pickTier(AWARD_TIERS, n), nat = nextOf(AWARD_TIERS, n);
     $('scat').textContent = `参加賞 ${n}回` + (ti ? `「${ti[1]}」` : '') + `・メダルの色 ${at2 ? at2[1] : 'ブロンズ'}` + (nat ? `（あと${nat[0] - n}回で${nat[1]}）` : '') + (nti ? `・次の称号「${nti[1]}」まであと${nti[0] - n}回` : '') + `・優勝 ${w}回` + (w ? `（${t[1]}${nx ? `・あと${nx[0] - w}回で${nx[1]}` : ''}）` : '') + `・参加賞1回ごとに${num(AWARD_COINS)}コイン`; }
   const id = trial[shopCat] || 'none', it = item(shopCat, id), a = $('sact');
+  if (wrItem(shopCat, id) && !owned(shopCat, id)) { const [t, n] = wrItem(shopCat, id); a.textContent = `週間ランキングで上位${{g: 10, s: 30, b: 50}[t]}%に${n > 1 ? n + '回' : ''}入ると使えます`; a.disabled = true; return; }
   if (achItem(shopCat, id) && !owned(shopCat, id)) { const ad = typeof ACH !== 'undefined' ? ACH.find(x => x[0] === achItem(shopCat, id)) : null; a.textContent = ad ? `実績「${ad[2]}」（${ad[3]}）で使えるようになります` : '実績で使えるようになります'; a.disabled = true; return; }
   if (refNeed(shopCat, id) && !owned(shopCat, id)) { a.textContent = `招待した友だちが${refNeed(shopCat, id)}人になると使えます（いま${bank.refCount || 0}人）`; a.disabled = true; return; }
   if ((shopCat === 'champ' && id === 'champ' || awardNeed(shopCat, id)) && !owned(shopCat, id)) { a.textContent = id === 'champ' ? '5人以上の全クリレースで優勝すると使えます' : `レースで8時間ラインを${awardNeed(shopCat, id)}回こえると使えます（いま${bank.vsAwards || 0}回）`; a.disabled = true; return; }
@@ -4150,6 +4183,7 @@ function mergeSave(R){
     foes: Math.max(Lb.foes || 0, Rb.foes || 0), cheers: Math.max(Lb.cheers || 0, Rb.cheers || 0), watched: Math.max(Lb.watched || 0, Rb.watched || 0), fpUsed: Math.max(Lb.fpUsed || 0, Rb.fpUsed || 0),
     evLog: (() => { const o = {...(Rb.evLog || {})}; for (const [d, l] of Object.entries(Lb.evLog || {})) o[d] = [...new Set([...(o[d] || []), ...l])]; return o; })(),
     wkc: !Lb.wkc ? Rb.wkc : !Rb.wkc ? Lb.wkc : Lb.wkc.k === Rb.wkc.k ? {k: Lb.wkc.k, cv: {3: Math.max(Lb.wkc.cv[3] || 0, Rb.wkc.cv[3] || 0), 4: Math.max(Lb.wkc.cv[4] || 0, Rb.wkc.cv[4] || 0), 5: Math.max(Lb.wkc.cv[5] || 0, Rb.wkc.cv[5] || 0)}, foes: Math.max(Lb.wkc.foes || 0, Rb.wkc.foes || 0)} : dayNum(Rb.wkc.k) > dayNum(Lb.wkc.k) ? Rb.wkc : Lb.wkc,
+    wrLog: {...(Rb.wrLog || {}), ...(Lb.wrLog || {})},
     totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
     ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
     wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
@@ -4285,7 +4319,7 @@ async function refLoad(){
 }
 function refRender(){
   const box = $('inv'); if (!box) return;
-  if (!acct.id) { box.innerHTML = '<p class="vsn">招待リンクを使うには、アカウントが必要です。「設定」タブの「アカウントとデータの保存」から作れます。</p>'; return; }
+  if (!acct.id) { box.innerHTML = '<p class="vsn">招待リンクを使うには、アカウントが必要です。「アカウント」タブから作れます。</p>'; return; }
   if (!refInfo) { box.innerHTML = '<p class="vsn">読みこみ中…</p>'; return; }
   const n = bank.refCount || 0, nx = Object.entries(REF_NEED).map(([k, need]) => [k, need]).find(([k, need]) => need > n);
   box.innerHTML = `<p class="vsn">このリンクから友だちがアカウントを作って30分勉強すると、1人とカウントされて専用の見た目がもらえます。</p>
@@ -4537,6 +4571,7 @@ function bonusCoins(){
     let n = 0;
     for (const [d, list] of Object.entries(bank.misLog || {})) { const ms = missionsFor(d, d === st.d ? st.draw : null, d === st.d ? st.base : 0); for (const i of list) n += ms[i] ? ms[i].reward : MIS_REWARD[1]; if (list.length >= 3) n += MIS_ALL; }
     for (const id of bank.ach || []) { const a = ACH.find(x => x[0] === id); if (a) n += a[5]; }
+    for (const t of Object.values(bank.wrLog || {})) n += WR_COINS[t] || 0;
     for (const [wk, list] of Object.entries(bank.evLog || {})) { const ev = eventFor(wk); for (const i of list) n += ev.tiers[i] ? ev.tiers[i][1] : 0; }
     return n;
   } catch (e) { return 0; }
@@ -4653,7 +4688,7 @@ const _misRender2 = misRender; misRender = function(){ _misRender2(); evRender()
 const VAPID_PUB = 'BPQ2j69Me3ki8LUGMtbGEoDL6Do5du1cwXjRZiBaq8_tVhog-X6PKM1-h4kiHezcPlvZdXxzCmdIZXC_GahZQ-8';
 const NOTI_KINDS = [
   ['cheer', '📣 応援スタンプが届いたとき'], ['start', '📖 部屋の友だちが勉強を始めたとき'], ['race', '🏃 レースで抜かれた・抜いたとき'],
-  ['allc', '🏁 部屋の誰かが全クリしたとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）']];
+  ['running', '⏱ 勉強中の表示（開始〜停止のあいだ通知に出しておく）'], ['allc', '🏁 部屋の誰かが全クリしたとき'], ['mission', '🎯 今日のミッションが残っているとき（21時）'], ['event', '🎪 週イベントの締め切り（日曜20時）'], ['night', '🌙 今日のきろく（23時30分）']];
 let noti = {on: false, prefs: {}, quiet: false}; try { noti = Object.assign(noti, JSON.parse(localStorage.getItem('quest-noti') || '{}')); } catch (e) {}
 const saveNoti = () => { try { localStorage.setItem('quest-noti', JSON.stringify(noti)); } catch (e) {} };
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -4717,6 +4752,70 @@ $('notibox').addEventListener('change', e => {
 setInterval(() => { if (noti.on && document.visibilityState === 'visible') notiSync(); }, 180000);
 document.addEventListener('visibilitychange', () => { if (noti.on && document.visibilityState === 'hidden') notiSync(); });
 notiRender();
+
+/* "studying now" notification: shown while the timer runs, updated every minute, removed on stop */
+let runShown = false, runLast = 0;
+async function runNotiTick(force){
+  if (!pushOK() || Notification.permission !== 'granted') return;
+  const want = noti.on && noti.prefs.running !== false && st.run && !st.night;
+  try {
+    const reg = swReg || await navigator.serviceWorker.getRegistration(); if (!reg) return;
+    if (want) {
+      if (!runShown || force || Date.now() - runLast > 60000) {
+        runLast = Date.now(); runShown = true;
+        const ms = studyMs(), {si} = stageOf(trueT());
+        await reg.showNotification('⏱ 勉強中', {body: `今日 ${fmtHM(ms)}　ステージ ${stageLabel(st, si)}　（停止するとこの表示は消えます）`, tag: 'quest-running', silent: true, renotify: false, requireInteraction: true, icon: 'icons/icon-192.png', badge: 'icons/favicon-32.png'});
+      }
+    } else if (runShown || force) {
+      runShown = false;
+      for (const n of await reg.getNotifications({tag: 'quest-running'})) n.close();
+    }
+  } catch (e) {}
+}
+let runPrev = null;
+setInterval(() => { const r = !!st.run; runNotiTick(r !== runPrev); runPrev = r; }, 2000);
+
+/* ---------- weekly ranking of every player with an account ---------- */
+const WR_COINS = {g: 5000, s: 2500, b: 1000};
+const WR_NAME = {g: '上位10%', s: '上位30%', b: '上位50%'};
+const wrCount = t => Object.values(bank.wrLog || {}).filter(x => 'gsb'.indexOf(x) <= 'gsb'.indexOf(t)).length;   // a top-10% week also counts for 30% and 50%
+let wrInfo = null, wrAt = 0;
+async function wrLoad(){
+  if (!acct.id || !acct.token) { wrInfo = null; return wrRender(); }
+  try {
+    wrInfo = await rpc('quest_week_rank', {p_id: acct.id, p_token: acct.token}); wrAt = Date.now();
+    const log = {...(bank.wrLog || {})}, fresh = [];
+    for (const h of wrInfo.hist || []) if (h.t && !log[h.wk]) { log[h.wk] = h.t; fresh.push(h); }
+    if (fresh.length) {
+      const before = Object.keys(WR_ITEM).filter(k => { const [c, i] = k.split(':'); return owned(c, i); });
+      bank.wrLog = log; saveBank(); ui();
+      const got = Object.keys(WR_ITEM).filter(k => { const [c, i] = k.split(':'); return owned(c, i) && !before.includes(k); }).map(k => item(...k.split(':'))[1]);
+      const h = fresh[fresh.length - 1];
+      toast(`🏆 週間ランキング ${WR_NAME[h.t]}！ +${num(fresh.reduce((a, x) => a + WR_COINS[x.t], 0))}コイン` + (got.length ? `・「${got.join('・')}」が使えるようになりました` : ''), 9000); sfx('world');
+      try { acNow(); } catch (e) {}
+    }
+  } catch (e) {}
+  wrRender();
+}
+function wrRender(){
+  const box = $('wrbox'); if (!box) return;
+  const rows = [['g', '🥇', '上位10%', `${num(WR_COINS.g)}コイン`], ['s', '🥈', '上位30%', `${num(WR_COINS.s)}コイン`], ['b', '🥉', '上位50%', `${num(WR_COINS.b)}コイン`]];
+  const looks = Object.entries(WR_ITEM).map(([k, [t, n]]) => { const [c, i] = k.split(':'); return `${owned(c, i) ? '✓' : '・'}${item(c, i)[1]}（${WR_NAME[t]}${n > 1 ? `×${n}回` : ''}）`; }).join('　');
+  let me;
+  if (!acct.id) me = `<p class="vsn">アカウントでログインすると参加できます。</p><button class="pill pri" id="wrLogin">アカウントタブへ</button>`;
+  else if (!wrInfo) me = '<p class="vsn">読みこみ中…</p>';
+  else me = wrInfo.rank ? `<p style="margin:0 0 4px">いま <b style="font-size:20px">${wrInfo.rank}位</b> / ${wrInfo.total}人　<b style="color:var(--acc)">${wrInfo.tier ? WR_NAME[wrInfo.tier] + 'に入っています' : '上位50%まであと少し'}</b></p><p class="vsn" style="margin:0">今週の勉強時間 ${fmtHM(wrInfo.ms)}（数分ごとに更新）</p>`
+    : `<p class="vsn">今週はまだ勉強していません（参加${wrInfo.total}人）。勉強すると順位がつきます。</p>`;
+  const last = wrInfo && wrInfo.last ? `<p class="vsn" style="margin:8px 0 0">先週：${wrInfo.last.rank}位 / ${wrInfo.last.total}人${wrInfo.last.t ? `・${WR_NAME[wrInfo.last.t]}（報酬を受け取りました）` : ''}</p>` : '';
+  box.innerHTML = `<h3>🏆 週間ランキング<small>アカウントのある全プレイヤー・月曜〜日曜の勉強時間</small></h3>${me}${last}
+    <div class="wrt">${rows.map(([t, ic, nm, rw]) => `<span>${ic}</span><b>${nm}</b><span>${rw}</span>`).join('')}</div>
+    <p class="vsn" style="margin:8px 0 0">毎週月曜の朝に先週の順位が決まり、報酬が届きます（アプリを開いたとき）。</p>
+    <p class="vsn" style="margin:6px 0 0">限定の見た目：${looks}</p>`;
+}
+$('wrbox').addEventListener('click', e => { if (e.target.id === 'wrLogin') { showTab('acct'); window.scrollTo({top: 0}); } });
+setInterval(() => { if (acct.id && document.visibilityState === 'visible' && Date.now() - wrAt > 300000) wrLoad(); }, 30000);
+setTimeout(wrLoad, 2500);
+const _misRender3 = misRender; misRender = function(){ _misRender3(); wrRender(); if (acct.id && Date.now() - wrAt > 60000) wrLoad(); };
 
 /* ---------- sleep summary ---------- */
 const sv = $('sv'), sctx = sv.getContext('2d');
