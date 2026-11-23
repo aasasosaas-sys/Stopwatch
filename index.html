@@ -2459,6 +2459,7 @@ function drawFP(TH, s, look){
   const pitCol = TH.pit === 'water' ? '#2b8fd9' : TH.pit === 'lava' ? '#ff6a1a' : mix(TH.hill2, '#000000', .55);
   const S = TH.g, G = L.G;
   const sprites = [];   // things standing on the path, drawn far to near together with the ground
+  const fpMarks = [];   // friends behind you or far ahead (shown at the screen edge)
   const i0 = Math.floor(hx/T), i1 = Math.floor((hx + FP_FAR)/T);
   // gather sprites by column
   const add = (x, fn) => { const z = x - hx; if (z > 3 && z < FP_FAR) sprites.push({z, fn}); };
@@ -2505,6 +2506,32 @@ function drawFP(TH, s, look){
     if (b.x < hx - T || b.x > hx + FP_FAR) continue;
     add(b.x + 8, (k, sx) => { const y = HZ + (eye - b.y - T)*k, w = 8*k; c.fillStyle = b.q && !(s >= b.t) ? '#ffb020' : '#b5793e'; rr(sx - w, y, w*2, w*2, 2*k); c.fill(); c.strokeStyle = OL; c.lineWidth = .8*k; c.stroke(); if (b.q && !(s >= b.t)) { c.fillStyle = '#fff'; c.font = `bold ${10*k}px sans-serif`; c.textAlign = 'center'; c.fillText('?', sx, y + 12*k); c.textAlign = 'left'; } });
   }
+  const curve = (x0, w, y, k, sx, col, top) => { const ww = w*k*.5; c.fillStyle = col; rr(sx - ww, HZ + (eye - y)*k, ww*2, 5*k, 1.5*k); c.fill(); c.fillStyle = top; c.fillRect(sx - ww, HZ + (eye - y)*k, ww*2, 1.4*k); };
+  for (const lf of L.lifts) { // lifts ahead, at their current height, hanging from their frame
+    if (lf.x + 16 < hx + 6 || lf.x > hx + FP_FAR) continue;
+    const g2 = lf.seg, kq = Math.max(0, Math.min(1, (s - g2.t0)/g2.d)), ly = lerp(lf.y0, lf.y1, kq*kq*(3 - 2*kq));
+    add(lf.x + 16, (k, sx) => { const top = HZ + (eye - lf.y1 - 14)*k, y = HZ + (eye - ly)*k, ww = FP_HALF*.7*k;
+      c.strokeStyle = 'rgba(70,70,90,.8)'; c.lineWidth = Math.max(.6, k*.9); c.beginPath(); c.moveTo(sx - ww*.9, top); c.lineTo(sx - ww*.9, y); c.moveTo(sx + ww*.9, top); c.lineTo(sx + ww*.9, y); c.stroke();
+      c.fillStyle = '#6e7488'; c.fillRect(sx - ww - 2*k, top - 4*k, ww*2 + 4*k, 4*k);
+      c.fillStyle = '#ffd23f'; rr(sx - ww, y, ww*2, 5*k, 1.5*k); c.fill(); c.fillStyle = '#2a2a33'; for (let q = -3; q <= 3; q += 2) c.fillRect(sx + q*ww/4 - ww/10, y + 1.5*k, ww/5, 2*k); });
+  }
+  for (const m of L.movers) { // moving platforms
+    const g2 = m.seg, kq = Math.max(0, Math.min(1, (s - g2.t0)/g2.d)), mx = lerp(m.x0, m.x1, kq) + m.w/2, my = m.y1 == null ? m.y : lerp(m.y, m.y1, kq*kq*(3 - 2*kq));
+    if (mx < hx + 6 || mx > hx + FP_FAR) continue;
+    add(mx, (k, sx) => curve(mx, FP_HALF*1.2, my, k, sx, '#ffb020', '#ffe08a'));
+  }
+  if (typeof room !== 'undefined' && room && fb.room) for (const [mk, e] of Object.entries(room)) { // friends running as see-through ghosts
+    if (mk === myKey() || e.d !== st.d || e.night) continue;
+    const ms = memberStage(e), s2 = Math.min(ms.s, INTRO + RUNT + 6), q = airPose(L, s2), z = q.x - hx;
+    const tag = ms.si === L.si && ms.v === L.v ? e.n : `${e.n}（${stageName(ms.si)}）`;
+    if (z <= 16 || z >= FP_FAR) { fpMarks.push({tag, behind: z <= 16}); continue; }
+    const glook = lookFromEntry(e);
+    if (!e.run && !q.air && q.g.j === 0) q.mode = 'idle';
+    add(q.x, (k, sx) => { const y = HZ + (eye - q.y)*k, side = sx + FP_HALF*.35*k;
+      c.save(); c.globalAlpha = .55; c.translate(side, y); c.scale(k*.9, k*.9); drawHero(0, 0, {...q, t: now, face: 1}, {...glook, pet: 'none', trail: 'none'}); c.restore();
+      c.font = `bold ${Math.max(5, 6*k)}px -apple-system,"Hiragino Sans",sans-serif`; c.textAlign = 'center'; const tw = c.measureText(tag).width + 6*k;
+      c.fillStyle = 'rgba(20,16,40,.6)'; rr(side - tw/2, y - 44*k, tw, 9*k, 3*k); c.fill(); c.fillStyle = '#fff'; c.fillText(tag, side, y - 37.5*k); c.textAlign = 'left'; });
+  }
   for (const bb of L.bars2) {
     if (bb.x < hx - 4 || bb.x > hx + FP_FAR) continue;
     add(bb.x, (k, sx) => { const y = HZ + (eye - bb.y)*k; c.strokeStyle = '#c9ced8'; c.lineWidth = 2*k; c.beginPath(); c.moveTo(sx - FP_HALF*k, y); c.lineTo(sx + FP_HALF*k, y); c.stroke(); c.fillStyle = '#6e7488'; c.fillRect(sx - FP_HALF*k - 2*k, y, 3*k, VH); c.fillRect(sx + FP_HALF*k - k, y, 3*k, VH); });
@@ -2527,6 +2554,13 @@ function drawFP(TH, s, look){
     if (z1 <= 2) continue;
     let gh = G[i] || 0, wy;
     if (L.cart) { const ry = railAt(i*T + 8); if (ry == null) continue; wy = ry; }
+    else if (!gh && (platY(i*T + 8) != null || L.bridges.some(b2 => b2.x === i*T && !(s > b2.t + .3)))) { // floating platform or a plank bridge
+      const py = platY(i*T + 8), br = py == null, wy2 = br ? (G[i - 1] || G[i + 1] || 2)*T : py, pa = P(Math.max(z0, 2), wy2), pb = P(z1, wy2);
+      c.fillStyle = br ? (i % 2 ? '#b5793e' : '#9a6634') : (i % 2 ? S.top : mix(S.top, S.hi, .45));
+      c.beginPath(); c.moveTo(CX - FP_HALF*pa.k*(br ? .8 : 1), pa.y); c.lineTo(CX + FP_HALF*pa.k*(br ? .8 : 1), pa.y); c.lineTo(CX + FP_HALF*pb.k*(br ? .8 : 1), pb.y); c.lineTo(CX - FP_HALF*pb.k*(br ? .8 : 1), pb.y); c.closePath(); c.fill();
+      if (!br) { c.fillStyle = S.dirt; c.fillRect(CX - FP_HALF*pa.k, pa.y, FP_HALF*2*pa.k, 6*pa.k); }
+      continue;
+    }
     else if (!gh) { // a pit in the path
       const lv = (G[i - 1] || G[i + 1] || 2)*T, pa = P(Math.max(z0, 2), lv), pb = P(z1, lv);
       c.fillStyle = pitCol; c.beginPath(); c.moveTo(CX - FP_HALF*pa.k, pa.y); c.lineTo(CX + FP_HALF*pa.k, pa.y); c.lineTo(CX + FP_HALF*pb.k, pb.y); c.lineTo(CX - FP_HALF*pb.k, pb.y); c.closePath(); c.fill();
@@ -2584,6 +2618,22 @@ function drawFP(TH, s, look){
     c.globalAlpha = 1;
   }
   c.restore();
+  const rg = h.g;
+  if (rg.j === 3 || rg.j === 5 || (rg.j === 0 && rg.k === 'ride')) { // standing on a lift / moving platform: its deck under your feet
+    const up = rg.j === 3 || (rg.j === 5 && rg.h1 > rg.h0);
+    if (rg.j === 3) { c.strokeStyle = 'rgba(70,70,90,.85)'; c.lineWidth = 3; c.beginPath(); c.moveTo(VW*.08, 0); c.lineTo(VW*.08, VH); c.moveTo(VW*.92, 0); c.lineTo(VW*.92, VH); c.stroke(); }
+    if (up && h.u < .97) { c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1.2; for (let q = 0; q < 8; q++) { const x = VW*(.04 + (q % 4)*.31 + (q > 3 ? .15 : 0)), y = ((now*.35 + q*53) % (VH + 40)) - 20; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 18); c.stroke(); } }
+    const dy = VH - 30; c.fillStyle = rg.j === 3 ? '#ffd23f' : '#ffb020'; rr(VW*.12, dy, VW*.76, 40, 6); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = '#2a2a33'; for (let q = 0; q < 8; q++) { c.save(); c.beginPath(); c.rect(VW*.12, dy, VW*.76, 8); c.clip(); c.fillRect(VW*.12 + q*VW*.1, dy, VW*.05, 8); c.restore(); }
+  }
+  if (fpMarks.length) { // friends you can't see: behind you (bottom-left) or far ahead (top)
+    c.font = 'bold 7px -apple-system,"Hiragino Sans",sans-serif';
+    let yb = VH - 40, yt = 26;
+    for (const m of fpMarks) {
+      const lbl = m.behind ? `▼ ${m.tag}（うしろ）` : `▲ ${m.tag}（前方）`, tw = c.measureText(lbl).width + 10, x = m.behind ? 6 : VW/2 - tw/2, y = m.behind ? (yb -= 13) : (yt += 13);
+      c.fillStyle = 'rgba(20,16,40,.62)'; rr(x, y - 8, tw, 11, 4); c.fill(); c.fillStyle = '#fff'; c.fillText(lbl, x + 5, y);
+    }
+  }
   if (stomp) drawFPStomp(stomp, look, TH);
   drawFPHands(o, look, bob);
 }
@@ -2677,6 +2727,9 @@ function drawFPGrip(o, look, col, S){
     c.strokeStyle = 'rgba(43,35,64,.55)'; c.lineWidth = 1; for (let q = -1; q <= 1; q++) { c.beginPath(); c.moveTo(x - 5, y + q*2.4); c.lineTo(x + 5, y + q*2.4); c.stroke(); }   // curled fingers
   });
 }
+
+/* height of a floating platform at world x, or null */
+function platY(x){ for (const p of L.plats) if (x >= p.x && x <= p.x + p.w) return p.y; return null; }
 
 /* ---------- tea party & inn ---------- */
 function bubble(x, y, text){
