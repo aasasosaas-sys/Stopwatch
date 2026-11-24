@@ -360,6 +360,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     </div>
     <div class="tabp" data-tab="set" hidden>
       <section class="card2"><h3>設定</h3>
+        <div class="setr"><span>自動で停止<br><small style="color:var(--sub)">設定した時間つけっぱなしだと自動で止まります（タップで時間を変更・止め忘れ防止）</small></span><button class="pill" id="autob">自動停止：オン</button></div>
         <div class="setr"><span>効果音</span><button class="pill" id="sndb">音：オン</button></div>
         <div class="setr"><span>BGM</span><button class="pill" id="bgmb">BGM：オン</button></div>
         <div class="setr"><span>見え方</span><button class="pill" id="fpv2">横から見る</button></div>
@@ -4136,7 +4137,17 @@ function memberNow(e){
    their study clock in race coordinates (0 at the start of the race). 72 stages = 12 hours.
    Less than 1 hour in the race = not taking part. */
 const RACE_MS = NST*STAGE*1000, RACE_MIN = 3600e3;
-function raceMsOf(k, e){ if (!e) return 0; return Math.max(0, Math.min(RACE_MS, memberT(e)*1000)); }
+/* a member's progress in the CURRENT race. The server (board.race_ms) is the source of truth, so
+   someone who left the timer running and closed the app doesn't keep "studying" forever. We only add
+   a little live time to smooth between their updates, and only while their last update is recent. */
+function raceMsOf(k, e){
+  if (k === myKey()) return Math.max(0, Math.min(RACE_MS, studyMs()));   // me: my own live clock
+  let ms = 0;
+  const m = board && (board.members || []).find(x => x.id === k);
+  if (m) ms = +m.race_ms || 0;
+  if (e && e.run && !e.night && e.up) { const dt = Date.now() - e.up; if (dt > 0 && dt < 5*60e3) ms += dt*(e.mult || 1); }
+  return Math.max(0, Math.min(RACE_MS, ms));
+}
 const raceStagesOf = ms => Math.min(NST, ms/1000/STAGE);
 function memberStage(e){ const T = memberT(e), k = Math.min(NST - 1 - e.base, Math.floor(T/STAGE)); return {T, si: e.base + k, s: T >= (NST - e.base)*STAGE ? STAGE : T - k*STAGE, v: +(e.dr || '')[e.base + k] || 0}; }
 function vsRender(){
@@ -5215,12 +5226,36 @@ resize(); ui(); if (st.run) lockWake();
 if (pendingSummary) showSummary(pendingSummary, 'auto');
 requestAnimationFrame(frame);
 
+/* ---------- auto-stop: stops the timer after N hours running non-stop (so it isn't left on).
+   The player picks N (default 6h); 0 = off. ---------- */
+const AUTO_CHOICES = [0, 3, 4, 6, 8, 10, 12];
+let autostopH = 6; try { const v = localStorage.getItem('quest-autostop'); if (v !== null && v !== '' && !isNaN(+v)) autostopH = AUTO_CHOICES.includes(+v) ? +v : 6; } catch (e) {}
+function autostopUI(){ try { $('autob').textContent = '自動停止：' + (autostopH > 0 ? autostopH + '時間' : 'オフ'); } catch (e) {} }
+$('autob').onclick = () => {
+  const i = AUTO_CHOICES.indexOf(autostopH); autostopH = AUTO_CHOICES[(i + 1) % AUTO_CHOICES.length];
+  try { localStorage.setItem('quest-autostop', String(autostopH)); } catch (e) {} autostopUI();
+  toast(autostopH > 0 ? `${autostopH}時間つけっぱなしで自動停止します` : `自動停止をオフにしました（つけっぱなしでも止まりません）`, 4000);
+};
+autostopUI();
+setInterval(() => {
+  if (!autostopH || !st.run || st.ff || st.night) return;
+  const r0 = st.runT0 || st.t0 || 0;
+  if (r0 && Date.now() - r0 >= autostopH*3600e3) {
+    stop(); save(); ui(); try { vsPushNow(); } catch (e) {} try { acNow(); } catch (e) {}
+    sfx('stop'); toast(`${autostopH}時間たったので自動で停止しました。続けるときは「開始」を押してね`, 9000);
+  }
+}, 5000);
+
 /* ---------- content-drop poster: shown once, the first time a new drop is open ---------- */
 function checkDropPoster(){
   try {
+    if (navigator.webdriver && !localStorage.getItem('quest-allow-poster')) return;   // keep automated tests clear of the poster
     const n = dropNow(); if (n < 1 || !DROPS[n]) return;
     let seen = 0; try { seen = +localStorage.getItem('quest-drop-seen') || 0; } catch (e) {}
     if (seen >= n) return;
+    if (!$('drop').hidden) return;   // already up
+    // don't cover the lottery / sleep / shop: wait until the player has dealt with them
+    if (!$('lot').hidden || !$('sleep').hidden || !$('shop').hidden || st.night) { setTimeout(checkDropPoster, 1500); return; }
     const d = DROPS[n];
     $('dropart').textContent = d.art || '🎉';
     $('dropttl').textContent = `アップデート #${n}　${d.title}`;
