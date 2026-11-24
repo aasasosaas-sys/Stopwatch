@@ -4196,7 +4196,7 @@ function vsRender(){
   // public / private: only the host can switch it
   const ri = roomInfo, hostName = ri && ri.host ? (ri.host === mine ? (fb.name || '自分') : ((room || {})[ri.host] || {}).n || '？') : '';
   $('vsHost').innerHTML = !ri ? '' : ri.host === mine
-    ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small>`
+    ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small><div style="margin-top:10px"><button class="pill" data-restart="1">⟲ レースをやり直す</button><small style="display:block;margin-top:4px">つけっぱなしや不具合で順位がおかしいとき、今のレースを全員ステージ1-1・0から仕切り直します（コイン・見た目は残ります）。</small></div>`
     : `${ri.public ? '公開部屋（だれでも入れます）' : 'プライベート部屋（コードを知っている人だけ）'}<br><small>ホスト：${esc(hostName)}</small>`;
   $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${r.me || !r.today ? esc(r.name) : `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.name)} 👀</button>`}${r.me ? '（自分）' : ''}${r.w ? ` <span class="cup">🏆${r.w}</span>` : ''}${r.a ? ` <span class="cup">🎖${r.a}${pickTier(AWARD_TITLES, r.a) ? ' ' + pickTier(AWARD_TITLES, r.a)[1] : ''}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small><small class="${r.over ? 'ok8' : ''}">${esc(r.line)}</small></div>`).join('');
   $('vsStat').textContent = vsErr || 'レースはスタートしてから勉強した時間だけで競います（全員0から）。72ステージぶん（12時間）を一番に勉強した人が優勝で、その瞬間に次のレースが始まります。' + (joined < 5 ? `チャンピオンスキンは参加5人以上のときだけ（あと${5 - joined}人）。` : '優勝するとチャンピオンスキンがもらえます。') + 'レース中に1時間以上勉強した人が参加者です。8時間以上勉強した人には参加賞（参加2人以上のレース）。';
@@ -4275,6 +4275,13 @@ $('vsFind').onclick = async () => {
     : '<p class="vsn">いま入れる部屋はありません。「新しい部屋を作る」で作ってみよう。</p>';
 };
 $('vsHost').onclick = async e => {
+  if (e.target.closest('[data-restart]')) {
+    if (!roomInfo || roomInfo.host !== myKey()) return;
+    if (!confirm('今のレースを全員ステージ1-1・0から仕切り直します。よろしいですか？（コイン・見た目は残ります）')) return;
+    try { await rpc('quest_race_restart', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret}); await vsPull(); vsRender(); toast('レースを仕切り直しました。全員ステージ1-1から再スタートです', 7000); sfx('clear'); }
+    catch (er) { toast('やり直せませんでした。ホストだけが使えます'); }
+    return;
+  }
   const b = e.target.closest('[data-pub]'); if (!b || !roomInfo) return;
   const pub = b.dataset.pub === '1'; if (pub === roomInfo.public) return;
   try { await rpc('quest_room_meta', {p_room: fb.room, p_member: fb.uid, p_secret: fb.secret, p_public: pub, p_title: ''}); roomInfo.public = pub; vsRender(); toast(pub ? '公開部屋にしました。「部屋を探す」に出ます' : 'プライベート部屋にしました。部屋コードを知っている人だけ入れます'); }
