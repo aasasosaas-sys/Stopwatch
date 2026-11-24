@@ -262,6 +262,12 @@ canvas{display:block;width:100%;height:100%}
 .evbar u{position:absolute;top:-3px;width:3px;height:16px;margin-left:-1.5px;background:var(--fg);border-radius:2px;opacity:.5}
 .setr input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc);flex-shrink:0}
 .setr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.sesr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.sesr>div{display:flex;flex-direction:column}
+.sesr>div b{font-size:15px}
+.sesr>div small{color:var(--sub);font-size:12px}
+.sesr>span{color:var(--sub);font-size:12px;text-align:right}
+.sesr.warn>span em{color:var(--stop);font-style:normal;font-weight:700;display:block}
 .setr:first-of-type{border-top:0}
 /* theater (full screen) */
 .thv{position:absolute;right:66px;bottom:8px;z-index:3;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(20,16,40,.55);color:#fff}
@@ -386,6 +392,11 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
       <p id="acStat" style="color:var(--acc)"></p>
       <div class="row"><button class="pill" id="bkout">バックアップコードを作る</button><button class="pill" id="bkin">コードから戻す</button></div>
       <p>機種変更のときは、バックアップコードをメモ帳などに貼って新しい端末で「コードから戻す」を使えば引き継げます。</p>
+    </section>
+    <section class="card2" id="seslogsec">
+      <h3>勉強の記録</h3>
+      <p style="color:var(--sub);font-size:13px;margin:0 0 8px">開始から停止までの記録です（この端末に残ります）。<b>自動停止</b>で終わったものは、つけっぱなしだった可能性があります。</p>
+      <div id="seslog"></div>
     </section>
     </div>
   </div>
@@ -3642,8 +3653,16 @@ function daySummary(o){
   const next = 0;   // each new day / race starts again from 1-1
   return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
 }
+/* ---------- study-session log: a record of every start→stop, kept on this device ---------- */
+let sessLog = []; try { sessLog = JSON.parse(localStorage.getItem('quest-sessions') || '[]'); } catch (e) {}
+function logSession(start, how){
+  if (!start) return; const e = Date.now(), ms = e - start; if (ms < 60000) return;   // ignore under a minute
+  sessLog.unshift({s: start, e, ms, how}); if (sessLog.length > 60) sessLog.length = 60;
+  try { localStorage.setItem('quest-sessions', JSON.stringify(sessLog)); } catch (er) {}
+  try { renderSessions(); } catch (er) {}
+}
 function finishDay(){
-  if (st.run) { commit(); st.run = false; }
+  if (st.run) { logSession(st.runT0, 'day'); commit(); st.run = false; }
   const sm = daySummary(st);
   bank.last = sm; bank.earned += sm.coins; bank.base = 0; try { statsOnFinish(sm); } catch (e) {} saveBank();
   st = fresh(0, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
@@ -3669,7 +3688,7 @@ function raceReset(rn){
    race the local game belongs to. First load after the update (undefined) does a clean 1-1 start. */
 function raceSync(rn){
   if (rn == null || !inRoom()) return;
-  if (st.raceNo == null || rn > st.raceNo) raceReset(rn);
+  if (st.raceNo == null || rn !== st.raceNo) raceReset(rn);   // reset whenever the room moves to a different race (incl. an admin roll-back)
 }
 /* at 0:00 the day ends by itself: time studied after midnight belongs to the new day,
    and if the timer was running it keeps running on the new day */
@@ -3719,7 +3738,7 @@ document.addEventListener('visibilitychange', lockWake);
 function stop(){ commit(); st.run = false; st.runT0 = 0; st.stopAt = Date.now(); st.act = Date.now(); if (wake) { wake.release().catch(()=>{}); wake = null; } }
 function toggle(){
   if (st.ff) return;
-  if (st.run) { stop(); sfx('stop'); }
+  if (st.run) { const _s = st.runT0; stop(); logSession(_s, 'stop'); sfx('stop'); }
   else {
     if (studyMs() >= dayLen(st)*1000) return;
     if (st.night) st.night = null; else beginResume();
@@ -4525,6 +4544,14 @@ function showTab(t){
   if (t === 'mis') misRender();
   if (t === 'vs') { try { vsRender(); } catch (e) {} rankRender(); }
   if (t === 'home') raceRender();
+  if (t === 'acct') renderSessions();
+}
+const SESS_HOW = {stop: ['手動で停止', ''], auto: ['自動停止', '⚠ つけっぱなしかも'], sleep: ['おやすみ', ''], day: ['日付が変わった', '']};
+function renderSessions(){
+  const box = $('seslog'); if (!box) return;
+  if (!sessLog || !sessLog.length) { box.innerHTML = '<p style="color:var(--sub)">まだ記録がありません。「開始」で勉強を始めると、ここに残ります。</p>'; return; }
+  const fdt = ms => { const d = new Date(ms); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+  box.innerHTML = sessLog.slice(0, 30).map(x => { const h = SESS_HOW[x.how] || ['停止', '']; return `<div class="sesr${x.how==='auto'?' warn':''}"><div><b>${fmtHM(x.ms)}</b><small>${fdt(x.s)} 〜 ${new Date(x.e).getHours().toString().padStart(2,'0')}:${new Date(x.e).getMinutes().toString().padStart(2,'0')}</small></div><span>${h[0]}${h[1]?` <em>${h[1]}</em>`:''}</span></div>`; }).join('');
 }
 $('nav').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { showTab(b.dataset.t); window.scrollTo({top: 0}); } };
 
@@ -5024,7 +5051,7 @@ $('sleepb').onclick = () => {
 $('smback').onclick = () => { $('sleep').hidden = true; };
 /* 寝る only sends everyone to the inn. The day itself (and the halving) ends at 0:00, so sleeping twice never halves twice. */
 function sleepNow(){
-  if (st.run) { commit(); st.run = false; st.runT0 = 0; }
+  if (st.run) { logSession(st.runT0, 'sleep'); commit(); st.run = false; st.runT0 = 0; }
   const sm = daySummary(st);
   if (!st.night) st.night = {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)};
   st.stopAt = Date.now(); st.act = Date.now(); save(); try { vsPushNow(); } catch (e) {}
@@ -5241,7 +5268,7 @@ setInterval(() => {
   if (!autostopH || !st.run || st.ff || st.night) return;
   const r0 = st.runT0 || st.t0 || 0;
   if (r0 && Date.now() - r0 >= autostopH*3600e3) {
-    stop(); save(); ui(); try { vsPushNow(); } catch (e) {} try { acNow(); } catch (e) {}
+    const _s = st.runT0; stop(); logSession(_s, 'auto'); save(); ui(); try { vsPushNow(); } catch (e) {} try { acNow(); } catch (e) {}
     sfx('stop'); toast(`${autostopH}時間たったので自動で停止しました。続けるときは「開始」を押してね`, 9000);
   }
 }, 5000);
