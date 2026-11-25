@@ -321,7 +321,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
       <button class="big sleep" id="sleepb"><span>寝る<small>今日のきろくを見て終わる</small></span><b>☾</b></button>
     </div>
     <div class="map">
-      <h3>全72ステージ <span>· 1ステージ10分 · 12時間でオールクリア</span></h3>
+      <h3>全96ステージ <span>· 1ステージ10分 · 72で全クリ（12h）・96で完全制覇（16h）</span></h3>
       <div class="grid" id="grid"></div>
       <div class="wname" id="wname"></div>
     </div>
@@ -484,7 +484,7 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
 <script>
 (() => {
 'use strict';
-const T = 16, VH = 192, STAGE = 600, INTRO = 1.2, OUTRO = 8, RUNT = STAGE - INTRO - OUTRO, HEAD = 27, NST = 72, HANG = 29.4, DAY = NST*STAGE;
+const T = 16, VH = 192, STAGE = 600, INTRO = 1.2, OUTRO = 8, RUNT = STAGE - INTRO - OUTRO, HEAD = 27, NST = 96, ALLC = 72, HANG = 29.4, DAY = NST*STAGE;
 let cv = document.getElementById('cv'), mainCtx = cv.getContext('2d');
 let c = mainCtx;
 const $ = id => document.getElementById(id);
@@ -529,7 +529,19 @@ const THEMES = [
    decos:['ant','crater','r','crater'], enemy:['#7dff8a','#d4ffd9','#3fbf4f','#c56bff'], obst:'metal', foes:['alien', 'ufo'], sun:'earth', boost:{bigpit:1.6, spring:1.6, plats:1.4}},
   {name:'魔王城', key:'#8e3fbf', sky:['#1a1030','#4a2a5a'], far:'castle', farCol:'#2a1a40', hill:'#33204a', hill2:'#2a1a3e', hillTop:'spire',
    g:{style:'brick', top:'#5a5470', lip:'#3e3a52', hi:'#7a7490', dirt:'#4a4560', dot:'#3a3550', edge:'#2a2638'}, pit:'lava', weather:'ember', dark:1,
-   decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', foes:['knight', 'ghost', 'bat'], sun:'moon', boost:{firebar:1.5, cannon:1.4}}
+   decos:['tc','tc','chain','r'], enemy:['#e04848','#ffb0b0','#9e2020','#2a2a33'], obst:'column', foes:['knight', 'ghost', 'bat'], sun:'moon', boost:{firebar:1.5, cannon:1.4}},
+  {name:'ネオンシティ', key:'#ff46c3', sky:['#0a0820','#2a1250'], far:'factory', farCol:'#2a1a55', hill:'#241a4a', hill2:'#1d1540', hillTop:'tank',
+   g:{style:'metal', top:'#3a2a6a', lip:'#ff46c3', hi:'#6a4ab0', dirt:'#2a1f55', dot:'#46e8ff', edge:'#1a1340'}, pit:'void', weather:'glint', dark:1,
+   decos:['pipe','gear','crate','pipe'], enemy:['#46e8ff','#c8fbff','#2f9ad8','#ff46c3'], obst:'crate', foes:['robot','ufo'], sun:'none', boost:{cannon:2, lift:2, spring:1.8, swing:1.6, firebar:1.5, springs3:1.4}},
+  {name:'キャンディタウン', key:'#ff7bc0', sky:['#ffd1ec','#fff3fb'], far:'cloudsea', farCol:'#ffe3f4', hill:'#ffc2e2', hill2:'#ffd4ec', hillTop:'none',
+   g:{style:'cloud', top:'#ffd9ee', lip:'#ff9ccb', hi:'#ffffff', dirt:'#ffc7e4', dot:'#ff7bc0', edge:'#f3a9d2'}, pit:'void', weather:'petal',
+   decos:['f','f','cf','cf','g'], enemy:['#ff7bc0','#ffd9ee','#e0559a','#7bd0ff'], obst:'column', foes:['cloudy','bird'], sun:'sun', boost:{spring:2.6, swing:2, ride:2, plats:1.7, bigpit:1.4}},
+  {name:'しんかい神殿', key:'#2fd2c4', sky:['#041a2e','#0d3a5a'], far:'sea', farCol:'#0d3a5a', hill:'#0d3148', hill2:'#0a2740', hillTop:'column',
+   g:{style:'brick', top:'#17607a', lip:'#2fd2c4', hi:'#3a8aa0', dirt:'#123a52', dot:'#2fd2c4', edge:'#0c2a3e'}, pit:'water', weather:'glint', dark:1,
+   decos:['pl','pl','vase','r','sh'], enemy:['#2fd2c4','#c2fff8','#2f9a90','#ffcc1f'], obst:'column', foes:['crab','bat'], sun:'none', boost:{swing:2.2, firebar:1.8, gate:1.6, cannon:1.4, ropes2:1.6}},
+  {name:'ゴールデンタワー', key:'#ffcf3f', sky:['#1a1020','#5a3a10'], far:'castle', farCol:'#3a2a10', hill:'#4a3414', hill2:'#3a280f', hillTop:'spire',
+   g:{style:'metal', top:'#7a5a1a', lip:'#ffcf3f', hi:'#ffe79a', dirt:'#5a4015', dot:'#ffcf3f', edge:'#3a280f'}, pit:'lava', weather:'ember', dark:1,
+   decos:['tc','tc','chain','r'], enemy:['#ffcf3f','#fff0b8','#c2910c','#e04848'], obst:'column', foes:['knight','ghost','bat'], sun:'moon', boost:{cannon:2.2, firebar:2, swing:1.8, lift:1.6, springs3:1.6, giant:1.4}}
 ];
 const FLYERS = ['bird','bat','cloudy','ufo','ghost'];
 const VAR = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -3006,7 +3018,7 @@ const SHOP = {
     ['navy','ネイビー',3,'#24408e'], ['teal','ティール',3,'#14a39a'], ['coral','コーラル',3,'#ff7f6e'], ['mint','ミント',3,'#5fe3b0'], ['lavender','ラベンダー',3,'#b49cff'], ['gray','グレー',3,'#8a8d99'],
     ['black','ブラック',4,'#2a2a33'], ['white','ホワイト',4,'#ffffff'], ['wine','ワイン',4,'#8e1f45'], ['peach','ピーチ',4,'#ffb38a'],
     ['silver','シルバー',6,'silver'], ['ice','アイス',6,'ice'], ['gold','ゴールド',7,'gold'], ['lava','マグマ',7,'lava'], ['neon','ネオン',7,'neon'],
-    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend'], ['w_plat','プラチナカラー',0,'w_plat'], ['w_diamond','ダイヤモンドカラー',0,'w_diamond']]},
+    ['ghost','ゴースト',8,'ghost'], ['shadow','シャドウ',8,'shadow'], ['galaxy','ギャラクシー',9,'galaxy'], ['rainbow','レインボー',10,'rainbow'], ['comp','コンプリートカラー',0,'rainbow'], ['ref','きずなカラー',0,'ref'], ['a_aurora','オーロラカラー',0,'a_aurora'], ['a_legend','レジェンドカラー',0,'a_legend'], ['w_plat','プラチナカラー',0,'w_plat'], ['w_diamond','ダイヤモンドカラー',0,'w_diamond']]},
   head: {name: '頭', items: [
     ['none','なし',0], ['cap_b','キャップ（青）',1], ['cap_r','キャップ（赤）',1], ['band_r','ハチマキ（赤）',1], ['cap_k','キャップ（黒）',2], ['band_w','ハチマキ（白）',2],
     ['beanie_t','ニット帽（緑）',2], ['beanie_p','ニット帽（ピンク）',2], ['beanie_y','ニット帽（黄）',3], ['party','パーティー帽',3], ['flower','花かざり',3],
@@ -3609,7 +3621,7 @@ function roomCodeLS(){ try { return JSON.parse(localStorage.getItem('quest-fb') 
 /* friends in the same room get the same stages each day */
 function roomDraw(code, day){ let h = 7; for (const ch of code + '|' + day) h = (h*31 + ch.charCodeAt(0)) | 0; const R = rng(h); return Array.from({length: NST}, () => Math.floor(R()*NVAR())); }
 const drawDay = () => roomCodeLS() ? roomDraw(roomCodeLS(), dayKey()) : Array.from({length: NST}, () => Math.floor(Math.random()*NVAR()));
-const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: 0, runT0: 0});   // act is only stamped by things the player does (start / stop / sleep / time entry), never by an automatic new day
+const fresh = (base = 0, night = null) => ({d: dayKey(), base, acc: 0, run: false, t0: 0, mult: 1, stopAt: Date.now(), done: 0, doneCoins: 0, allAt: 0, compAt: 0, night, resume: null, ff: null, draw: drawDay(), drawSeen: false, act: 0, runT0: 0});   // act is only stamped by things the player does (start / stop / sleep / time entry), never by an automatic new day
 const vIn = (o, si) => (o.draw && o.draw[si]) || 0;
 const freshBank = () => ({earned: 0, spent: 0, owned: ['color:orange','head:none','face:none','back:none','hand:none','pet:none','trail:none'], eq: {}, last: null, base: 0});
 let bank, st;
@@ -3652,7 +3664,7 @@ function daySummary(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   const reachedNum = Math.min(NST, o.base + cl + 1);
   const next = 0;   // each new day / race starts again from 1-1
-  return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
+  return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= ALLC, comp: o.base + cl >= NST, next, nextName: stageName(next), d: o.d};
 }
 /* ---------- study-session log: a record of every start→stop, kept on this device ---------- */
 let sessLog = []; try { sessLog = JSON.parse(localStorage.getItem('quest-sessions') || '[]'); } catch (e) {}
@@ -3752,8 +3764,17 @@ window.__quest = { L: (si, v) => getStage(si ?? 0, v ?? 0), set(sec){ st.acc = M
 
 /* ---------- map ---------- */
 const grid = $('grid');
-grid.innerHTML = THEMES.map((th, w) => `<div class="w" title="${th.name}"><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-s="${w*6+i}"><u style="background:${th.key}"></u><b></b></i>`).join('')}<em>${w+1}</em></div>`).join('');
-const cells = [...grid.querySelectorAll('i')];
+/* the grid stays 12 columns wide. Worlds 13-16 don't add columns: they overwrite the first 4
+   (the 1-1 cell shows world 13, etc.) so the table never grows sideways. */
+let cells = [], gridBand = null;
+function buildGrid(bonus){
+  if (gridBand === bonus) return;
+  gridBand = bonus;
+  const cols = bonus ? [12, 13, 14, 15, 4, 5, 6, 7, 8, 9, 10, 11] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  grid.innerHTML = cols.map(w => { const th = THEMES[w]; return `<div class="w" title="${th.name}"><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, r) => `<i data-s="${w*6+r}"><u style="background:${th.key}"></u><b></b></i>`).join('')}<em>${w+1}</em></div>`; }).join('');
+  cells = [...grid.querySelectorAll('i')];
+}
+buildGrid(false);
 
 const fmt = ms => { const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor(s/60)%60, x = s%60; return h + ':' + String(m).padStart(2,'0') + ':' + String(x).padStart(2,'0'); };
 const fmtHM = ms => { const m = Math.floor(ms/60000); return Math.floor(m/60) + ':' + String(m % 60).padStart(2, '0'); };
@@ -3773,7 +3794,7 @@ function ui(){
   $('pb').style.width = (s/STAGE*100) + '%';
   $('pn').textContent = `ステージ ${stageLabel(st, si)}　${TH.name}`;
   try { $('ttlbl').textContent = '今日の勉強時間'; } catch (e) {}
-  $('pt').textContent = `今日 ${cleared} / ${NST}` + (all ? '・全クリ！' : '');
+  $('pt').textContent = `今日 ${cleared} / ${NST}` + (cleared >= NST ? '・16コンプリート！🏆' : cleared >= ALLC ? '・全クリ！🏁' : '');
   if (st.night) {
     const ph = nightPhase((Date.now() - st.night.at)/1000);
     $('hw').textContent = '旅館'; $('hn').textContent = ph.name; $('hc').textContent = '—'; $('hl').textContent = '--:--';
@@ -3785,7 +3806,9 @@ function ui(){
   const hint = $('hint');
   hint.textContent = st.night ? 'おやすみ中…「開始」で続きから' : inRoom() ? '「開始」で勉強スタート。毎日みんな1-1から、72ステージ全クリでスキンがもらえます' : '「開始」を押して勉強スタート。キャラが自動で進みます';
   hint.classList.toggle('off', st.night ? nightPhase((Date.now() - st.night.at)/1000).i < 4 : (st.run || ms > 0));
-  cells.forEach((el, i) => {
+  buildGrid(si >= 72);   // once in the bonus worlds (73-96) the first 4 columns show 13-16
+  cells.forEach(el => {
+    const i = +el.dataset.s;
     const f = i < st.base ? 1 : i < si || (all && i === si) ? 1 : i === si ? s/STAGE : 0;
     el.classList.toggle('cur', i === si && !all);
     el.firstChild.style.height = (f*100) + '%';
@@ -3797,7 +3820,7 @@ function ui(){
 /* ---------- shop ---------- */
 const pv = $('pv'), pctx = pv.getContext('2d');
 let shopCat = 'color', trial = null;
-const owned = (cat, id) => id === 'none' || (wrItem(cat, id) ? (typeof wrCount === 'function' && wrCount(wrItem(cat, id)[0]) >= wrItem(cat, id)[1]) : false) || (achItem(cat, id) ? (bank.ach || []).includes(achItem(cat, id)) : false) || (refNeed(cat, id) ? (bank.refCount || 0) >= refNeed(cat, id) : false) || (cat === 'champ' && id === 'champ' ? champW() >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
+const owned = (cat, id) => id === 'none' || (wrItem(cat, id) ? (typeof wrCount === 'function' && wrCount(wrItem(cat, id)[0]) >= wrItem(cat, id)[1]) : false) || (achItem(cat, id) ? (bank.ach || []).includes(achItem(cat, id)) : false) || (refNeed(cat, id) ? (bank.refCount || 0) >= refNeed(cat, id) : false) || (cat === 'color' && id === 'comp' ? (typeof compN === 'function' && compN() >= 1) : cat === 'champ' && id === 'champ' ? champW() >= 1 : awardNeed(cat, id) ? (bank.vsAwards || 0) >= awardNeed(cat, id) : bank.owned.includes(cat + ':' + id));
 function shopRender(){
   const wl = wallet();
   $('sbal').textContent = num(wl);
@@ -3807,7 +3830,7 @@ function shopRender(){
   $('scat').textContent = `${SHOP[shopCat].name}：${SHOP[shopCat].items.filter(i => owned(shopCat, i[0])).length} / ${SHOP[shopCat].items.length}`;
   $('sitems').innerHTML = SHOP[shopCat].items.map(it => {
     const [id, name, , col] = it;
-    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'champ' && id === 'champ' ? '<em>全クリで解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : refNeed(shopCat, id) ? `<em>💌招待${refNeed(shopCat, id)}人で解放</em>` : achItem(shopCat, id) ? `<em>🏅実績で解放</em>` : wrItem(shopCat, id) ? `<em>🏆週間ランキングで解放</em>` : `<em>${num(it.price)} コイン</em>`;
+    const tag = (bank.eq[shopCat] || 'none') === id ? '<em class="own">装備中</em>' : owned(shopCat, id) ? '<em class="own">持っている</em>' : shopCat === 'color' && id === 'comp' ? '<em>16コンプリートで解放</em>' : shopCat === 'champ' && id === 'champ' ? '<em>全クリで解放</em>' : awardNeed(shopCat, id) ? `<em>🎖参加賞${awardNeed(shopCat, id)}回で解放</em>` : refNeed(shopCat, id) ? `<em>💌招待${refNeed(shopCat, id)}人で解放</em>` : achItem(shopCat, id) ? `<em>🏅実績で解放</em>` : wrItem(shopCat, id) ? `<em>🏆週間ランキングで解放</em>` : `<em>${num(it.price)} コイン</em>`;
     const swc = {rainbow:'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)', gold:'linear-gradient(135deg,#fff1a8,#e8b100)', silver:'linear-gradient(135deg,#fff,#a8b0bd)', ice:'linear-gradient(135deg,#fff,#9fe3ff)', lava:'linear-gradient(135deg,#ffd23f,#e8402a)', neon:'#39ff88', ghost:'rgba(230,238,255,.6)', shadow:'linear-gradient(135deg,#a259ff,#1d1528)', galaxy:'linear-gradient(135deg,#7a5cff,#1d1b4a)'}[col] || col;
     const ct = tierOf(Math.max(1, champW())), sw = shopCat === 'color' ? `<i style="background:${swc}"></i>` : shopCat === 'champ' && id === 'champ' ? `<i style="background:${ct[2] === 'rainbow' ? 'conic-gradient(#ff4d4d,#ffe14d,#4dd26b,#4da6ff,#9d6bff,#ff4d4d)' : ct[2]}"></i>` : '';
     return `<button data-id="${id}" class="${trial[shopCat] === id ? 'sel' : ''}">${sw}<span>${name}</span>${tag}</button>`;
@@ -4091,7 +4114,7 @@ let myCheer = null;   // the last cheer stamp this player sent ({to, k, at})
 const myEntry = () => ({wk: typeof weekKey === 'function' ? weekKey(st.d) : '', wkms: typeof weekMs === 'function' ? Math.round(weekMs()) : 0, ch: myCheer,n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
   base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: (typeof allcN === 'function' ? allcN() : 0), a: bank.vsAwards || 0}),
   ac: (typeof allcN === 'function' ? allcN() : 0),
-  allc: !!st.allAt && st.base + Math.floor(trueT()/STAGE) >= NST, allcAt: st.allAt || 0, rv: 3,
+  allc: !!st.allAt, comp: !!st.compAt, allcAt: st.allAt || 0, rv: 3,
   rs0: (st.run && !st.ff && !st.night) ? (st.runT0 || st.t0 || 0) : 0});
 async function vsPush(leave){
   if (!fb.room) return;
@@ -4167,7 +4190,7 @@ function vsRender(){
     const ms = memberNow(e), today = ms.today;
     const done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
     const ac = me ? (typeof allcN === 'function' ? allcN() : 0) : (+e.ac || 0);
-    const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : done >= NST ? '全クリ！🏁' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
+    const status = !today ? '今日はまだ' : e.night ? 'おやすみ中' : done >= NST ? '16コンプ🏆' : done >= ALLC ? '全クリ🏁' : e.run ? (e.ft ? '早送り中' : '勉強中') : '休憩中';
     return {me, k, today, name: e.n, done, ac, all: done >= NST, txt: `${stageName(Math.min(NST - 1, ms.si))}${today ? ' ' + VAR[ms.v] : 'から'} · ${today ? '今日 ' + fmtHM(ms.T*1000) : (ms.yReach != null ? '前回は' + stageName(ms.yReach) + 'まで' : 'まだ始めていません')}`, status, run: today && e.run};
   }).sort((a, b) => b.done - a.done);
   $('vsRound').textContent = `今日のレース · ${rows.length}人　いちばん進んだ人が1位`;
@@ -4175,7 +4198,7 @@ function vsRender(){
   // public / private: only the host can switch it
   const ri = roomInfo, hostName = ri && ri.host ? (ri.host === mine ? (fb.name || '自分') : ((room || {})[ri.host] || {}).n || '？') : '';
   $('vsHost').innerHTML = !ri ? '' : ri.host === mine
-    ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small><div style="margin-top:10px"><button class="pill" data-restart="1">⟲ レースをやり直す</button><small style="display:block;margin-top:4px">つけっぱなしや不具合で順位がおかしいとき、今のレースを全員ステージ1-1・0から仕切り直します（コイン・見た目は残ります）。</small></div>`
+    ? `<b>この部屋のホストはあなたです</b><div class="seg"><button data-pub="1" class="${ri.public ? 'on' : ''}">公開部屋</button><button data-pub="0" class="${ri.public ? '' : 'on'}">プライベート</button></div><small>${ri.public ? '「部屋を探す」に出て、だれでも入れます。' : '「部屋を探す」には出ません。部屋コードを知っている人だけ入れます。'}</small>`
     : `${ri.public ? '公開部屋（だれでも入れます）' : 'プライベート部屋（コードを知っている人だけ）'}<br><small>ホスト：${esc(hostName)}</small>`;
   $('vsList').innerHTML = rows.map((r, i) => `<div class="vsr${r.me ? ' me' : ''}"><div class="vst"><b>${i + 1}. ${r.me || !r.today ? esc(r.name) : `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.name)} 👀</button>`}${r.me ? '（自分）' : ''}${r.ac ? ` <span class="cup">🏁${r.ac}</span>` : ''}</b><span class="${r.run ? 'on' : ''}">${r.status}</span></div><div class="bar"><i style="width:${(r.done/NST*100).toFixed(1)}%"></i></div><small>${esc(r.txt)}</small></div>`).join('');
   $('vsStat').textContent = vsErr || '毎日みんなステージ1-1からスタート。その日いちばん進んだ人が1位です。72ステージ全クリ（12時間）するとスキンがもらえ、全クリ回数で色が変わります。名前をタップするとその人の画面を見られます。';
@@ -4582,6 +4605,7 @@ function statsOnFinish(sm){
   }
   bank.best = Math.max(bank.best || 0, sm.ms);
   if (sm.all) bank.allcN = (bank.allcN || 0) + 1;
+  if (sm.comp) bank.comp = (bank.comp || 0) + 1;
   try { // courses cleared and enemies defeated today (st is still today's day here)
     const cv = {...(bank.cv || {})}; for (let i = 0; i < sm.stages; i++) { const v = vIn(st, st.base + i); if (v >= 3) cv[v] = (cv[v] || 0) + 1; }
     bank.cv = cv; bank.foes = (bank.foes || 0) + stompsToday();
@@ -4663,6 +4687,7 @@ const dayBest = () => Math.max(bank.best || 0, todayMs())/3600e3;
 const cvN = v => ((bank.cv || {})[v] || 0) + courseClears(v);
 const foesN = () => (bank.foes || 0) + stompsToday();
 function allcN(){ return (bank.allcN || 0) + (st.allAt ? 1 : 0); }
+function compN(){ return (bank.comp || 0) + (st.compAt ? 1 : 0); }
 const daysN = () => (bank.days || 0) + (todayMs() >= 60000 && bank.lastDay !== st.d ? 1 : 0);
 const mis3N = () => Object.values(bank.misLog || {}).filter(l => l.length >= 3).length;
 const coinsN = () => (bank.earned || 0) + dayCoins(st);
@@ -4700,6 +4725,7 @@ const ACH = [
   A('allc', '🏁', '全クリ', '1日で72ステージ', () => [allcN(), 1], 2000, 'g'),
   A('allc5', '🌟', '全クリ5回', '全クリを5回', () => [allcN(), 5], 6000, 'p'),
   A('allc20', '💫', '全クリ20回', '全クリを20回', () => [allcN(), 20], 20000, 'l'),
+  A('comp16', '🏆', '16コンプリート', '1日で96ステージ全部', () => [compN(), 1], 30000, 'l'),
   A('d10c', '👟', 'てき使い', 'Dコースを10回クリア', () => [cvN(3), 10], 800, 'b'),
   A('d50', '🐉', 'てき使いの達人', 'Dコースを50回クリア', () => [cvN(3), 50], 4000, 'g'),
   A('e10c', '🧗', 'トレーサー', 'Eコースを10回クリア', () => [cvN(4), 10], 800, 'b'),
@@ -4781,7 +4807,7 @@ function raceRows(){
     if (me) e = {n: fb.name || '自分', acc: st.acc, t0: st.t0, run: st.run, mult: st.mult, ft: st.ff ? st.ff.target : 0, base: st.base, dr: (st.draw || []).join(''), d: st.d, night: !!st.night};
     const ms = memberNow(e), done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
     const ac = me ? (typeof allcN === 'function' ? allcN() : 0) : (+e.ac || 0);
-    const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : done >= NST ? '全クリ🏁' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
+    const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : done >= NST ? '16コンプ🏆' : done >= ALLC ? '全クリ🏁' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
     return {k, me, today: ms.today, n: e.n, done, ac, all: done >= NST, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
   }).sort((a, b) => b.done - a.done);
 }
@@ -5094,10 +5120,10 @@ let lotTimer = null;
 function showLottery(){
   st.drawSeen = true; save();
   const g = $('lotg');
-  g.innerHTML = THEMES.map((th, w) => `<div><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-k="${w*6+i}">?</i>`).join('')}<em>${w+1}</em></div>`).join('');
+  g.innerHTML = THEMES.slice(0, 12).map((th, w) => `<div><s style="background:${th.key}"></s>${Array.from({length: 6}, (_, i) => `<i data-k="${w*6+i}">?</i>`).join('')}<em>${w+1}</em></div>`).join('');
   const cellsL = [...g.querySelectorAll('i')], t0 = performance.now(), cols = ['#ff7a3d', '#3fbf72', '#4aa3f5', '#c56bff', '#ff4f7a', '#8a6a3a'];
   const colOf = v => cols[v] || `hsl(${(v*47) % 360} 68% 55%)`;
-  $('lotok').disabled = true; $('lotp').textContent = `全${NST*NVAR()}ステージの中から、今日の72ステージを選んでいます…`;
+  $('lotok').disabled = true; $('lotp').textContent = `今日のステージを選んでいます…`;
   $('lot').hidden = false;
   clearInterval(lotTimer);
   lotTimer = setInterval(() => {
@@ -5107,7 +5133,7 @@ function showLottery(){
       if (e < at) { done = false; el.textContent = VAR[Math.floor(Math.random()*NVAR())]; el.className = ''; el.style.background = ''; }
       else if (!el.classList.contains('set')) { const v = vIn(st, k); el.textContent = VAR[v]; el.className = 'set'; el.style.background = colOf(v); if (k % 6 === 5) sfx('coin'); }
     });
-    if (done) { clearInterval(lotTimer); $('lotok').disabled = false; $('lotp').textContent = '今日のステージが決まりました！ この72ステージをクリアしていこう。'; sfx('clear'); }
+    if (done) { clearInterval(lotTimer); $('lotok').disabled = false; $('lotp').textContent = '今日のステージが決まりました！ 72で全クリ、96で完全制覇！'; sfx('clear'); }
   }, 60);
 }
 $('lotok').onclick = () => { $('lot').hidden = true; clearInterval(lotTimer); ui(); };
@@ -5150,7 +5176,10 @@ function frameBody(){
     return;
   }
   const Tt = trueT();
-  if (Tt >= dayLen(st) && !st.allAt) { st.allAt = Date.now(); if (st.run) stop(); st.acc = dayLen(st)*1000; st.ff = null; save(); ui(); try { const n = (typeof allcN==='function'?allcN():1), t = tierOf(Math.max(1,n)); toast(`🏁 全クリ！ 72ステージ制覇！ 全クリスキン（${t[1]}・${n}回目）が使えます。ショップの「全クリ」から装備できます`, 10000); sfx('world'); try { vsPushNow(); } catch (e) {} } catch (e) {} }
+  // 72ステージ（全クリ）に到達：全クリスキンを獲得（止まらずボーナス24へ続く）
+  if (Tt >= (ALLC - st.base)*STAGE && !st.allAt) { st.allAt = Date.now(); save(); ui(); try { const n = (typeof allcN==='function'?allcN():1), t = tierOf(Math.max(1,n)); toast(`🏁 全クリ！ 72ステージ制覇！ 全クリスキン（${t[1]}・${n}回目）獲得！このあとボーナスのワールド13〜16（ぜんぶで96）に続きます`, 10000); sfx('world'); try { vsPushNow(); } catch (e) {} } catch (e) {} }
+  // 96ステージ（16ワールド完全制覇）に到達：ここで一日が終わる＋コンプリート特典
+  if (Tt >= dayLen(st) && !st.compAt) { st.compAt = Date.now(); if (st.run) stop(); st.acc = dayLen(st)*1000; st.ff = null; save(); ui(); try { toast(`🏆 16ワールド完全制覇！ 96ステージ（16時間）やりきりました！ 特別色「コンプリートカラー」解放！（ショップの「色」から）`, 12000); sfx('clear'); try { vsPushNow(); } catch (e) {} } catch (e) {} }
   const before = st.done; syncDone(st); if (st.done !== before) { save(); ui(); }
   const rest = restMode();
   let Td = rest ? safeTotal(Tt) : dispT(Tt);
@@ -5224,7 +5253,7 @@ function frameBody(){
   $('ban').classList.toggle('on', winT >= 0);
   if (winT >= 0) {
     $('banb').textContent = all ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
-    $('bans').textContent = all ? `72ステージ制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageLabel(st, si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
+    $('bans').textContent = all ? `96ステージ完全制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageLabel(st, si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
   }
   if (!$('shop').hidden) drawPreview();
   if (!$('sleep').hidden) drawNight();
