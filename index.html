@@ -4533,6 +4533,10 @@ function mergeSave(R){
     totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
     ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
     wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
+    wd: (() => { const o = {...(Rb.wd || {})}; for (const [d, ms] of Object.entries(Lb.wd || {})) o[d] = Math.max(o[d] || 0, ms);
+      // this device's unfinished day is about to be replaced by a newer day from another device: keep its time
+      try { if (Rs && dayNum(Rs.d) > dayNum(Ls.d) && msOf(Ls) > 0) o[Ls.d] = Math.max(o[Ls.d] || 0, (Lb.wd && Lb.wd[Ls.d] || 0) + Math.round(Math.min(dayLen(Ls)*1000, msOf(Ls)))); } catch (e) {}
+      return o; })(),
     eq: {...(newerBank.eq || Lb.eq)}};
   let s = Ls;
   if (Rs) {
@@ -4763,11 +4767,17 @@ function statsOnFinish(sm){
     const w0 = bank.wkc && bank.wkc.k === wk ? bank.wkc : {k: wk, cv: {}, foes: 0};
     bank.wkc = {k: wk, cv: {3: (w0.cv[3] || 0) + (add.cv[3] || 0), 4: (w0.cv[4] || 0) + (add.cv[4] || 0), 5: (w0.cv[5] || 0) + (add.cv[5] || 0)}, foes: w0.foes + add.foes};
   } catch (e) {}
-  bank.wk = bank.wk && bank.wk.k === wk ? {k: wk, ms: bank.wk.ms + sm.ms} : {k: wk, ms: sm.ms};
+  // per-day study time (merged by max per day across devices, so a sync can never drop it)
+  bank.wd = bank.wd || {}; bank.wd[sm.d] = (bank.wd[sm.d] || 0) + sm.ms;
+  { const lim = new Date(); lim.setDate(lim.getDate() - 21); for (const k of Object.keys(bank.wd)) { const [y, m, dd] = k.split('-').map(Number); if (new Date(y, m - 1, dd) < lim) delete bank.wd[k]; } }
 }
 const todayMs = () => Math.min(dayLen(st), studyMs()/1000)*1000;
 const curStreak = () => { const s = bank.streak || 0; if (bank.lastDay === st.d || bank.lastDay === prevDay(st.d)) return s + (bank.lastDay === prevDay(st.d) && todayMs() >= 60000 ? 1 : 0); return todayMs() >= 60000 ? 1 : 0; };
-const weekMs = () => (bank.wk && bank.wk.k === weekKey(st.d) ? bank.wk.ms : 0) + todayMs();
+const weekMs = () => {
+  const wk = weekKey(st.d); let t = bank.wk && bank.wk.k === wk ? bank.wk.ms : 0;   // bank.wk: older saves (frozen)
+  for (const [d, ms] of Object.entries(bank.wd || {})) if (weekKey(d) === wk) t += ms;
+  return t + todayMs();
+};
 
 /* ---------- daily missions ---------- */
 const STOMP_KEY = 'quest-foes-v1';
