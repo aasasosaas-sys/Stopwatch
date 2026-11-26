@@ -367,6 +367,8 @@ body.theater .specb{position:fixed;top:8px;left:8px;right:8px;z-index:61;margin:
     <div class="tabp" data-tab="set" hidden>
       <section class="card2"><h3>設定</h3>
         <div class="setr"><span>自動で停止<br><small style="color:var(--sub)">設定した時間つけっぱなしだと自動で止まります（タップで時間を変更・止め忘れ防止）</small></span><button class="pill" id="autob">自動停止：オン</button></div>
+        <div class="setr"><span>掛け声<br><small style="color:var(--sub)">「ひゃっほー！」などの画面の文字</small></span><button class="pill" id="callb">掛け声：オフ</button></div>
+        <div class="setr"><span>友だちの名前<br><small style="color:var(--sub)">ゴーストの名前と「うしろ・前方」の表示</small></span><button class="pill" id="nameb">名前：表示</button></div>
         <div class="setr"><span>効果音</span><button class="pill" id="sndb">音：オン</button></div>
         <div class="setr"><span>BGM</span><button class="pill" id="bgmb">BGM：オン</button></div>
         <div class="setr"><span>見え方</span><button class="pill" id="fpv2">横から見る</button></div>
@@ -2529,6 +2531,7 @@ function drawXObjs(TH, cam){
 
 /* ---------- call-outs ("3段ジャンプ！") and screen shake ---------- */
 function drawCalls(cam){
+  if (!UI.calls) return;   // call-outs are off unless the player turns them on in settings
   const s = curS;
   for (const k of L.calls) {
     const age = s - k.t; if (age < 0) break; if (age > 1.2) continue;
@@ -2663,9 +2666,9 @@ function drawFP(TH, s, look){
     const lane = (hash(mk.charCodeAt(0)*7.31 + mk.charCodeAt(mk.length - 1)*3.17 + mk.length) - .5)*(L.cart ? .35 : .9);
     add(q.x, (k, sx) => { const y = HZ + (eye - q.y)*k, side = sx + FP_HALF*lane*k, fade = Math.min(1, (z - 16)/26), kt = Math.min(k, 1.7);
       c.save(); c.globalAlpha = .62*fade; c.translate(side, y); c.scale(k*.9, k*.9); drawHeroBack(0, 0, {...q, t: now}, {...glook, pet: 'none', trail: 'none'}); c.restore();
-      c.globalAlpha = fade;
-      c.font = `bold ${Math.max(5, 6*kt)}px -apple-system,"Hiragino Sans",sans-serif`; c.textAlign = 'center'; const tw = c.measureText(tag).width + 6*kt, ty = y - 30*k*.9 - 14*kt;
-      c.fillStyle = 'rgba(20,16,40,.6)'; rr(side - tw/2, ty, tw, 9*kt, 3*kt); c.fill(); c.fillStyle = '#fff'; c.fillText(tag, side, ty + 7*kt); c.textAlign = 'left'; c.globalAlpha = 1; });
+      if (UI.names) { c.globalAlpha = fade;
+        c.font = `bold ${Math.max(5, 6*kt)}px -apple-system,"Hiragino Sans",sans-serif`; c.textAlign = 'center'; const tw = c.measureText(tag).width + 6*kt, ty = y - 30*k*.9 - 14*kt;
+        c.fillStyle = 'rgba(20,16,40,.6)'; rr(side - tw/2, ty, tw, 9*kt, 3*kt); c.fill(); c.fillStyle = '#fff'; c.fillText(tag, side, ty + 7*kt); c.textAlign = 'left'; c.globalAlpha = 1; } });
   }
   for (const bb of L.bars2) {
     if (bb.x < hx - 4 || bb.x > hx + FP_FAR) continue;
@@ -2775,7 +2778,7 @@ function drawFP(TH, s, look){
     const dy = VH - 30; c.fillStyle = rg.j === 3 ? '#ffd23f' : '#ffb020'; rr(VW*.12, dy, VW*.76, 40, 6); c.fill(); c.strokeStyle = OL; c.lineWidth = 1.2; c.stroke();
     c.fillStyle = '#2a2a33'; for (let q = 0; q < 8; q++) { c.save(); c.beginPath(); c.rect(VW*.12, dy, VW*.76, 8); c.clip(); c.fillRect(VW*.12 + q*VW*.1, dy, VW*.05, 8); c.restore(); }
   }
-  if (fpMarks.length) { // friends you can't see: behind you (bottom-left) or far ahead (top)
+  if (UI.names && fpMarks.length) { // friends you can't see: behind you (bottom-left) or far ahead (top)
     c.font = 'bold 7px -apple-system,"Hiragino Sans",sans-serif';
     let yb = VH - 40, yt = 26;
     for (const m of fpMarks) {
@@ -4096,6 +4099,10 @@ setTimeout(() => welcome(seenBefore), 600);
 const SND = {on: true, bgm: true};
 try { Object.assign(SND, JSON.parse(localStorage.getItem('quest-sound') || '{}')); } catch (e) {}
 const saveSnd = () => { try { localStorage.setItem('quest-sound', JSON.stringify(SND)); } catch (e) {} };
+/* on-screen text settings: call-outs ("ひゃっほー！" etc.) and friends' name tags */
+const UI = {calls: false, names: true};
+try { Object.assign(UI, JSON.parse(localStorage.getItem('quest-ui') || '{}')); } catch (e) {}
+const saveUI = () => { try { localStorage.setItem('quest-ui', JSON.stringify(UI)); } catch (e) {} };
 let AC = null, master = null, sfxBus = null, bgmBus = null, noiseBuf = null;
 function audio(){
   if (!AC) {
@@ -4357,15 +4364,17 @@ function drawGhosts(si, cam){
     if (x < 8 || x > VW - 8) {  // off screen: show an arrow at the edge so friends are always visible
       const left = x < 8, ex = left ? 4 : VW - 4, ey = Math.max(30, Math.min(VH - 30, Y(o.y) - 16)), lbl = (left ? '◀ ' : '') + tag + (left ? '' : ' ▶');
       c.font = 'bold 6px -apple-system,"Hiragino Sans",sans-serif';
-      const tw = c.measureText(lbl).width + 8, bx = left ? ex : ex - tw;
+      const lbl2 = UI.names ? lbl : (left ? '◀' : '▶'), tw = c.measureText(lbl2).width + 8, bx = left ? ex : ex - tw;   // names hidden: just an arrow
       c.fillStyle = 'rgba(20,16,40,.62)'; rr(bx, ey - 6, tw, 11, 4); c.fill(); ghostHits.push({k, x: bx, y: ey - 6, w: tw, h: 11});
-      c.fillStyle = '#fff'; c.textAlign = left ? 'left' : 'right'; c.fillText(lbl, left ? ex + 4 : ex - 4, ey + 2); c.textAlign = 'left';
+      c.fillStyle = '#fff'; c.textAlign = left ? 'left' : 'right'; c.fillText(lbl2, left ? ex + 4 : ex - 4, ey + 2); c.textAlign = 'left';
       continue;
     }
     c.globalAlpha = .5; drawHero(x, Y(o.y), o, {...look, pet: 'none', trail: 'none'}); c.globalAlpha = 1;
     c.font = 'bold 5.5px -apple-system,"Hiragino Sans",sans-serif'; c.textAlign = 'center';
-    const tw = c.measureText(tag).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill(); ghostHits.push({k, x: x - 14, y: Y(o.y) - 42, w: 28, h: 44});
-    c.fillStyle = '#fff'; c.fillText(tag, x, Y(o.y) - 34.3); c.textAlign = 'left';
+    ghostHits.push({k, x: x - 14, y: Y(o.y) - 42, w: 28, h: 44});
+    if (UI.names) { const tw = c.measureText(tag).width + 6; c.fillStyle = 'rgba(20,16,40,.6)'; rr(x - tw/2, Y(o.y) - 40, tw, 8, 3); c.fill();
+      c.fillStyle = '#fff'; c.fillText(tag, x, Y(o.y) - 34.3); }
+    c.textAlign = 'left';
     if (e.ch && Date.now() - e.ch.at < 8000 && typeof STAMPS !== 'undefined') { // a cheer this friend just sent floats over their head
       const k = (Date.now() - e.ch.at)/8000, by = Y(o.y) - 50 - k*6; c.globalAlpha = k > .8 ? (1 - k)/.2 : 1;
       c.fillStyle = '#fff'; rr(x - 8, by - 8, 16, 13, 5); c.fill(); c.strokeStyle = OL; c.lineWidth = .6; c.stroke();
@@ -4710,6 +4719,10 @@ addEventListener('resize', () => { if (thUser === false && !landShort()) thUser 
 autoTheater();
 function fpLabel(){ $('fpv2').textContent = fpOn ? '一人称（自分の目線）' : '横から見る'; }
 $('fpv2').onclick = () => { $('fpv').click(); fpLabel(); };
+function uiLabels(){ $('callb').textContent = '掛け声：' + (UI.calls ? 'オン' : 'オフ'); $('nameb').textContent = '名前：' + (UI.names ? '表示' : '非表示'); }
+$('callb').onclick = () => { UI.calls = !UI.calls; saveUI(); uiLabels(); };
+$('nameb').onclick = () => { UI.names = !UI.names; saveUI(); uiLabels(); };
+uiLabels();
 $('fpv').addEventListener('click', () => { fpLabel(); if (fpOn && !bank.fpUsed) { bank.fpUsed = 1; saveBank(); } }); fpLabel();
 setInterval(() => {
   if (!document.body.classList.contains('theater')) return;
