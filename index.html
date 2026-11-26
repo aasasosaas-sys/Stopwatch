@@ -1091,10 +1091,28 @@ function build(si, v = 0){
   let goalX, houseX;
   if (course === 'F') {
     /* ===== F course: minecart on rails ===== */
-    const cartRun = x => { if (x > px + .01) { const x0 = px; push({j:0, k:'cart', x0:px, x1:x, h0:hp, h1:hp, d:(x - px)/RS}); rails.push({k:'f', x0, x1:x, y0:hp, y1:hp}); px = x; } };
-    const slope = (len, dy, o = {}) => { const x0 = px, sg = push({j:7, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp + dy, d: len/RS, lin: o.lin, chain: o.chain}); if (o.d) { sg.d = o.d; sg.fx = 1; } rails.push({k:'s', x0, x1: px + len, y0: hp, y1: hp + dy, lin: o.lin, chain: o.chain}); px += len; hp += dy; return sg; };
+    /* roller-coaster physics: height is traded for speed. rv is the cart's speed relative to the
+       cruise pace (1 = cruise): going down speeds it up, climbing slows it, flat track bleeds it off. */
+    const RMIN = .42, RMAX = 2.7, GK = .0588;
+    let rv = 1;
+    const flatSeg = (len, extra = {}) => { const x0 = px, r1 = 1 + (rv - 1)*Math.exp(-len/380); const sg = push({j:0, k:'cart', x0, x1: x0 + len, h0:hp, h1:hp, d: 2*len/(rv + r1)/RS, sp: [rv, r1], ...extra}); rv = r1; px = x0 + len; return sg; };
+    const cartRun = x => { if (x > px + .01) { const x0 = px; flatSeg(x - px); rails.push({k:'f', x0, x1:x, y0:hp, y1:hp}); } };
+    const slope = (len, dy, o = {}) => {
+      const x0 = px, r0 = rv, r1 = o.chain ? 1 : Math.sqrt(Math.max(RMIN*RMIN, Math.min(RMAX*RMAX, r0*r0 - GK*dy)));
+      const sg = push({j:7, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp + dy, d: 2*len/(r0 + r1)/RS, sp: o.chain ? null : [r0, r1], lin: o.lin, chain: o.chain});
+      if (o.d) { est += o.d - sg.d; sg.d = o.d; sg.fx = 1; }   // the chain lift ticks up at a fixed slow pace
+      if (!o.chain) rv = r1;
+      rails.push({k:'s', x0, x1: px + len, y0: hp, y1: hp + dy, lin: o.lin, chain: o.chain}); px += len; hp += dy; return sg;
+    };
+    const eas = u => u*u*(3 - 2*u);
     const clampDy = dy => (hp + dy > 7*T || hp + dy < 2*T) ? -dy : dy;
     const railCoins = (x0, n, gap = 22) => { for (let i = 0; i < n; i++) coins.push({x: x0 + i*gap, y: hp + 16}); };
+    const doLoop = Rr => {
+      const W2 = 2*T, s = special({j:8, k:'loop', x0: px, x1: px + W2, h1: hp, R: Rr, d: (2*Math.PI*Rr + W2)/190});
+      rails.push({k:'loop', x0: s.x0, W: W2, y0: s.h0, R: Rr});
+      for (const th of [Math.PI*.5, Math.PI, Math.PI*1.5]) coins.push({x: s.x0 + Rr*Math.sin(th) + W2*th/(2*Math.PI), y: s.h0 + Rr*(1 - Math.cos(th)) + 14, seg: s, th});
+      rv = Math.max(rv, 1.15);
+    };
     const C = {
       straight(){ const n = ri(3, 6); railCoins(px + 20, ri(2, 4)); cartRun(px + n*T); },
       // sharp up-and-down zigzag
@@ -1120,7 +1138,7 @@ function build(si, v = 0){
       boost(){
         cartRun(px + 2*T);
         const len = 8*T, x0 = px; push({j:0, k:'cart', x0, x1: x0 + len, h0: hp, h1: hp, d: len/(RS*2.2), fx: 1, boost: 1});
-        rails.push({k:'f', x0, x1: x0 + len, y0: hp, y1: hp, boost: 1}); px += len;
+        rails.push({k:'f', x0, x1: x0 + len, y0: hp, y1: hp, boost: 1}); px += len; rv = 2.2;
         railCoins(x0 + 16, 5, 24);
         cartRun(px + 2*T);
       },
@@ -1136,21 +1154,46 @@ function build(si, v = 0){
       // the rails fall away right behind you
       collapse(){
         cartRun(px + T);
-        const len = ri(8, 11)*T, x0 = px; push({j:0, k:'cart', x0, x1: x0 + len, h0: hp, h1: hp, d: len/RS});
-        rails.push({k:'f', x0, x1: x0 + len, y0: hp, y1: hp, fall: 1}); px += len;
+        const len = ri(8, 11)*T, x0 = px; flatSeg(len);
+        rails.push({k:'f', x0, x1: x0 + len, y0: hp, y1: hp, fall: 1});
         railCoins(x0 + 20, 4, 30);
         cartRun(px + T);
       },
-      // roller-coaster: clank up a chain lift slowly, then plunge
+      // roller-coaster: clank up the chain lift, creep over the crest, then one long plunge that turns height into speed
       lifthill(){
         if (hp > 3*T) slope(5*T, 2*T - hp);
         cartRun(px + T);
         const dy = 7*T - hp, len = 8*T;
         slope(len, dy, {lin: 1, chain: 1, d: len/42});
+        rv = .3;                                   // hanging over the top
         cartRun(px + T);
-        railCoins(px + 30, 5, 24);
-        slope(6*T, 2*T - hp);
+        const xd = px, yd = hp, ld = 13*T;
+        slope(ld, 2*T - hp);                       // ~80px down over ~200px: the speed builds all the way
+        for (let i = 1; i <= 6; i++) { const u = i/7; coins.push({x: xd + ld*u, y: yd + (hp - yd)*eas(u) + 16}); }
         cartRun(px + 3*T);
+      },
+      // airtime hills: speed carries the cart over each crest and it pops off the rails for a moment
+      camel(){
+        if (hp > 2*T) slope(5*T, 2*T - hp);
+        cartRun(px + 2*T);
+        const n = ri(2, 3);
+        for (let i = 0; i < n; i++) {
+          slope(6*T, 2*T);                         // up to the crest
+          const len = 4*T; gaps.push([px, px + len]);
+          arcCoins(jump(px, px + len, hp - T, 15 + i*3, 'cjump'), 3);   // the hop
+          slope(5*T, 2*T - hp);                    // and down into the next valley
+        }
+        cartRun(px + 2*T);
+      },
+      // rolling waves: height and speed trade places over and over
+      waves(){
+        const n = ri(3, 4);
+        for (let i = 0; i < n; i++) {
+          const dy = clampDy((hp < 5*T ? 1 : -1)*ri(2, 3)*T), len = ri(6, 8)*T, x0 = px, y0 = hp;
+          slope(len, dy);
+          coins.push({x: x0 + len*.5, y: y0 + dy*.5 + 18});
+        }
+        cartRun(px + 2*T);
       },
       hill(){
         const up = hp < 5*T ? ri(2, 3)*T : -ri(2, 3)*T;
@@ -1170,9 +1213,14 @@ function build(si, v = 0){
       loop(){
         if (hp > 4*T) { slope(5*T, 2*T - hp); }
         cartRun(px + 3*T);
-        const Rr = 34, W2 = 2*T, s = special({j:8, k:'loop', x0: px, x1: px + W2, h1: hp, R: Rr, d: (2*Math.PI*Rr + W2)/190});
-        rails.push({k:'loop', x0: s.x0, W: W2, y0: s.h0, R: Rr});
-        for (const th of [Math.PI*.5, Math.PI, Math.PI*1.5]) coins.push({x: s.x0 + Rr*Math.sin(th) + W2*th/(2*Math.PI), y: s.h0 + Rr*(1 - Math.cos(th)) + 14, seg: s, th});
+        doLoop(34);
+        cartRun(px + 4*T);
+      },
+      // two loops back to back
+      twinloop(){
+        if (hp > 2*T) slope(5*T, 2*T - hp);
+        cartRun(px + 3*T);
+        doLoop(30); cartRun(px + 2*T); doLoop(36);
         cartRun(px + 4*T);
       },
       foe(){
@@ -1188,12 +1236,12 @@ function build(si, v = 0){
         const bt = {x: x0 - 6, y: by, y0: hp}, br = {x0, x1: x0 + len, y: hp};
         buttons.push(bt); stones.push({tgt: bt, xe: x0, kind: 'button', br});
         gaps.push([x0, x0 + len]);
-        const s0 = px; push({j:0, k:'cart', x0:px, x1:px + len, h0:hp, h1:hp, d: len/RS}); px += len;
+        const s0 = px; flatSeg(len);
         rails.push({k:'b', x0: s0, x1: px, y0: hp, y1: hp, br});
         cartRun(px + 3*T);
       }
     };
-    const CW = [['straight', .4], ['hill', 1.2], ['zigzag', 2.6], ['drop', .9], ['gap', 1.8], ['loop', 1.3], ['foe', 2], ['button', 1.2], ['fork', 1.3], ['boost', 1.1], ['ramp', 1.3], ['collapse', 1.1], ['lifthill', .9]];
+    const CW = [['straight', .2], ['hill', 1.1], ['zigzag', 1.5], ['drop', .9], ['gap', 1.5], ['loop', 1.3], ['twinloop', .7], ['foe', 1.6], ['button', .9], ['fork', 1.0], ['boost', 1.2], ['ramp', 1.2], ['collapse', .9], ['lifthill', 2.0], ['camel', 1.7], ['waves', 1.8]];
     const ctot = CW.reduce((a, b) => a + b[1], 0);
     cartRun(10*T);
     decos.push({x: 4*T, y: 2*T, k: 'start'});
@@ -1239,10 +1287,11 @@ function build(si, v = 0){
   // long straight runs become sprints (about 1.6x) so the pace has some rhythm
   for (const s of segs) if (s.j === 0 && !s.k && !s.fx && s.x1 - s.x0 >= 6*T) s.dash = 1;
   let runLen = 0, fixed = 0;
-  for (const s of segs) { if (s.fx) fixed += s.d; else runLen += (s.x1 - s.x0)*(s.dash ? .62 : 1); }
+  const cst = s => (s.x1 - s.x0)*(s.dash ? .62 : 1)*(s.sp ? 2/(s.sp[0] + s.sp[1]) : 1);   // time cost; coaster segments speed up / slow down
+  for (const s of segs) { if (s.fx) fixed += s.d; else runLen += cst(s); }
   const V = runLen / (RUNT - fixed);
   let t = INTRO;
-  for (const s of segs) { if (!s.fx) s.d = (s.x1 - s.x0)*(s.dash ? .62 : 1)/V; s.t0 = t; t += s.d; }
+  for (const s of segs) { if (!s.fx) s.d = cst(s)/V; s.t0 = t; t += s.d; }
 
   decos.sort((a, b) => a.x - b.x); coins.sort((a, b) => a.x - b.x); rails.sort((a, b) => a.x0 - b.x0); bridges.sort((a, b) => a.x - b.x); blocks.sort((a, b) => a.x - b.x);
   const L = {si, v, w, sn, TH, G, ICE, segs, coins, blocks, enemies, stumps, plats, decos, spikes, springs, bridges, movers, ropes, cannons, bullets, lifts, bars, gates, saws, lasers, crushers, rocks, walls, hell, goalX, houseX, V, endCol: col, course, cname: NEWCOURSE_NAME[v] || '', cart: course === 'F', carries, bwalls, redirs, bars2, rails, stones, cfoes, buttons, xcoins, levers};
@@ -1308,7 +1357,10 @@ function build(si, v = 0){
     if (g.k === 'spring') say(g.t0 + .1, 'ビヨーン！', '#9be15d');
     if (g.k === 'cjump' && g.A >= 40) { say(g.t0 + g.d*.4, 'ビッグジャンプ！', '#ff9f43', 1); shakes.push({t: g.t0 + g.d, a: 2.4}); }
     if (g.boost) say(g.t0 + .05, 'ダッシュ！', '#ffd23f');
-    if (g.j === 7 && g.h1 <= g.h0 - 3*T) { say(g.t0 + .15, 'ひゃっほー！', '#ff9f43'); shakes.push({t: g.t0 + g.d, a: 1.2}); }
+    if (g.chain) { say(g.t0 + .4, 'カタン…カタン…', '#c9ced8'); say(g.t0 + g.d + .1, 'いくよ…！', '#ffd23f', 1); }
+    if (g.j === 7 && g.h1 <= g.h0 - 5*T) { say(g.t0 + .1, 'きゃああーっ！！', '#ff6b6b', 1); shakes.push({t: g.t0 + g.d*.5, a: 1.5}, {t: g.t0 + g.d, a: 2.2}); }
+    else if (g.j === 7 && g.h1 <= g.h0 - 3*T) { say(g.t0 + .15, 'ひゃっほー！', '#ff9f43'); shakes.push({t: g.t0 + g.d, a: 1.2}); }
+    if (g.k === 'cjump' && L.cart && g.A < 40 && g.A >= 14) say(g.t0 + g.d*.4, 'ふわっ！', '#7fe7ff');
     if (g.j === 1 && g.h0 - g.h1 >= 3*T && !['e','air','kick','grab'].includes(g.k)) shakes.push({t: g.t0 + g.d, a: 1.6});
   });
   for (const o of carries) { say(o.tH, o.w ? 'ストライク！' : 'ふみ台キャッチ！', '#ff6b6b', 1); if (o.w) shakes.push({t: o.tH, a: 3}); }
@@ -1330,7 +1382,15 @@ function build(si, v = 0){
 
 function segAtX(L, x){ const S = L.segs; let lo = 0, hi = S.length - 1; while (lo < hi) { const m = (lo+hi+1) >> 1; if (S[m].x0 <= x) lo = m; else hi = m - 1; } return S[lo]; }
 function segAtT(L, s){ const S = L.segs; let lo = 0, hi = S.length - 1; while (lo < hi) { const m = (lo+hi+1) >> 1; if (S[m].t0 <= s) lo = m; else hi = m - 1; } return S[lo]; }
-function timeAtIn(L, x){ const g = segAtX(L, x); if (g.x1 === g.x0) return g.t0; return g.t0 + Math.max(0, Math.min(1, (x - g.x0)/(g.x1 - g.x0)))*g.d; }
+function timeAtIn(L, x){
+  const g = segAtX(L, x); if (g.x1 === g.x0) return g.t0;
+  const xf = Math.max(0, Math.min(1, (x - g.x0)/(g.x1 - g.x0)));
+  let u = xf;
+  if (g.sp) { const a = g.sp[0], k = g.sp[1] - a; u = Math.abs(k) < 1e-6 ? xf : (-a + Math.sqrt(a*a + k*xf*(a + g.sp[1])))/k; }   // invert the accelerating position curve
+  return g.t0 + u*g.d;
+}
+/* how far along a segment (0..1 of its width) the hero is at time fraction u: constant acceleration between the two speeds */
+const spX = (g, u) => g.sp ? (2*g.sp[0]*u + (g.sp[1] - g.sp[0])*u*u)/(g.sp[0] + g.sp[1]) : u;
 function heroAtIn(L, s){
   const S = L.segs;
   if (s < S[0].t0) s = S[0].t0;
@@ -1339,8 +1399,8 @@ function heroAtIn(L, s){
   if (g.j === 9) { const e = u*u*(3 - 2*u); return {x: g.ax, y: g.ay - HANG, air: true, g, u, ph: g.a0 + (g.a1 - g.a0)*e}; }
   if (g.j === 8) { const th = 2*Math.PI*u; return {x: g.x0 + g.R*Math.sin(th) + (g.x1 - g.x0)*u, cx: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + g.R*(1 - Math.cos(th)), air: false, g, u, tilt: th}; }
   if (g.j === 6) { const a = Math.min(1, u/.62), e = a*a*(3 - 2*a), b = Math.max(0, (u - .45)/.55); return {x: g.x0 + (g.x1 - g.x0)*b, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
-  if (g.j === 7) { const e = g.lin ? u : u*u*(3 - 2*u); return {x: g.x0 + (g.x1 - g.x0)*u, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u, tilt: Math.atan((g.h1 - g.h0)*(g.lin ? 1 : 6*u*(1 - u))/(g.x1 - g.x0))}; }
-  const x = g.x0 + (g.x1 - g.x0)*u;
+  if (g.j === 7) { const xf = spX(g, u), e = g.lin ? xf : xf*xf*(3 - 2*xf); return {x: g.x0 + (g.x1 - g.x0)*xf, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u, tilt: Math.atan((g.h1 - g.h0)*(g.lin ? 1 : 6*xf*(1 - xf))/(g.x1 - g.x0))}; }
+  const x = g.x0 + (g.x1 - g.x0)*(g.j === 0 ? spX(g, u) : u);
   if (g.j === 3 || g.j === 5) { const e = u*u*(3 - 2*u); return {x, y: g.h0 + (g.h1 - g.h0)*e, air: false, g, u}; }
   if (g.j === 0) return {x, y: g.h0, air: false, g, u};
   return {x, y: g.h0 + (g.h1 - g.h0)*u + 4*g.A*u*(1-u), air: true, g, u, vy: (g.h1 - g.h0) + 4*g.A*(1-2*u)};
@@ -1358,8 +1418,8 @@ const totals = {};
 let totalsLoaded = false;
 function stageTotal(si, v = 0){
   const key = si + ':' + v;
-  if (!totalsLoaded) { totalsLoaded = true; try { Object.assign(totals, JSON.parse(localStorage.getItem('quest-totals-v8') || '{}')); } catch (e) {} }
-  if (totals[key] == null) { totals[key] = getStage(si, v).total; try { localStorage.setItem('quest-totals-v8', JSON.stringify(totals)); } catch (e) {} }
+  if (!totalsLoaded) { totalsLoaded = true; try { Object.assign(totals, JSON.parse(localStorage.getItem('quest-totals-v9') || '{}')); } catch (e) {} }
+  if (totals[key] == null) { totals[key] = getStage(si, v).total; try { localStorage.setItem('quest-totals-v9', JSON.stringify(totals)); } catch (e) {} }
   return totals[key];
 }
 /* index of the first item with x >= x0 in an array sorted by x */
@@ -2496,6 +2556,7 @@ function shakeAt(s){
    in perspective, the camera rises and falls with the hero's jumps. */
 let fpOn = false; try { fpOn = localStorage.getItem('quest-fp') === '1'; } catch (e) {}
 const FP_F = 130, FP_HALF = 46, FP_FAR = 760;
+let fpPitch = 0, fpPT = 0;   // camera pitch on the coaster (smoothed)
 function drawFP(TH, s, look){
   const h = heroAtIn(L, s), o = airPose(L, s), hx = h.cx != null ? h.cx : h.x;
   // view bobbing like a first-person game: a small up-down and side sway in step with the feet
@@ -2503,7 +2564,12 @@ function drawFP(TH, s, look){
   // stomping: the view dips into the enemy and springs back up
   let dip = 0, stomp = null;
   for (const e of L.enemies) { const dt = s - e.t; if (dt > -.4 && dt < .55) { stomp = {e, dt}; if (dt >= 0) dip = Math.sin(Math.min(1, dt/.3)*Math.PI)*7; break; } }
-  const eye = h.y + (L.cart ? 30 : 26) + bob.y - dip, HZ = 92, CX = VW/2;
+  const eye = h.y + (L.cart ? 30 : 26) + bob.y - dip, CX = VW/2;
+  // coaster camera: it tips down over a drop and up on a climb. Smoothed, so it glides and never twitches.
+  let pitchT = 0; { const gj = h.g.j; if (L.cart && (gj === 7 || gj === 1)) pitchT = Math.max(-1, Math.min(1, (o.tilt || 0)*1.1))*26; }
+  { const dtp = Math.min(.1, Math.max(0, (now - fpPT)/1000)); fpPT = now; fpPitch += (pitchT - fpPitch)*(1 - Math.exp(-dtp*6)); }
+  const HZ = 92 + fpPitch;
+  const spd = L.cart ? Math.abs(heroAtIn(L, s + .06).x - h.x)/.06 : 0;   // how fast we are going (px/s)
   const P = (z, wy) => { const k = FP_F/Math.max(2, z); return {k, y: HZ + (eye - wy)*k}; };
   c.save(); c.translate(bob.x*.6, 0);
   const g = h.g; let spin = 0;
@@ -2592,11 +2658,14 @@ function drawFP(TH, s, look){
     const tag = ms.si === L.si && ms.v === L.v ? e.n : `${e.n}（${stageName(ms.si)}）`;
     if (z <= 16 || z >= FP_FAR) { fpMarks.push({tag, behind: z <= 16}); continue; }
     const glook = lookFromEntry(e);
-    if (!e.run && !q.air && q.g.j === 0) q.mode = 'idle';
-    add(q.x, (k, sx) => { const y = HZ + (eye - q.y)*k, side = sx + FP_HALF*.35*k;
-      c.save(); c.globalAlpha = .55; c.translate(side, y); c.scale(k*.9, k*.9); drawHero(0, 0, {...q, t: now, face: 1}, {...glook, pet: 'none', trail: 'none'}); c.restore();
-      c.font = `bold ${Math.max(5, 6*k)}px -apple-system,"Hiragino Sans",sans-serif`; c.textAlign = 'center'; const tw = c.measureText(tag).width + 6*k;
-      c.fillStyle = 'rgba(20,16,40,.6)'; rr(side - tw/2, y - 44*k, tw, 9*k, 3*k); c.fill(); c.fillStyle = '#fff'; c.fillText(tag, side, y - 37.5*k); c.textAlign = 'left'; });
+    { const qg = heroAtIn(L, s2).g; if (!e.run && qg && qg.j === 0 && !L.cart) q.mode = 'idle'; }   // (airPose has no .g: this used to throw and blank the whole frame whenever a friend was in range)
+    // each friend keeps to their own lane so they don't pile up on top of each other
+    const lane = (hash(mk.charCodeAt(0)*7.31 + mk.charCodeAt(mk.length - 1)*3.17 + mk.length) - .5)*(L.cart ? .35 : .9);
+    add(q.x, (k, sx) => { const y = HZ + (eye - q.y)*k, side = sx + FP_HALF*lane*k, fade = Math.min(1, (z - 16)/26), kt = Math.min(k, 1.7);
+      c.save(); c.globalAlpha = .62*fade; c.translate(side, y); c.scale(k*.9, k*.9); drawHeroBack(0, 0, {...q, t: now}, {...glook, pet: 'none', trail: 'none'}); c.restore();
+      c.globalAlpha = fade;
+      c.font = `bold ${Math.max(5, 6*kt)}px -apple-system,"Hiragino Sans",sans-serif`; c.textAlign = 'center'; const tw = c.measureText(tag).width + 6*kt, ty = y - 30*k*.9 - 14*kt;
+      c.fillStyle = 'rgba(20,16,40,.6)'; rr(side - tw/2, ty, tw, 9*kt, 3*kt); c.fill(); c.fillStyle = '#fff'; c.fillText(tag, side, ty + 7*kt); c.textAlign = 'left'; c.globalAlpha = 1; });
   }
   for (const bb of L.bars2) {
     if (bb.x < hx - 4 || bb.x > hx + FP_FAR) continue;
@@ -2635,23 +2704,32 @@ function drawFP(TH, s, look){
     const a = P(Math.max(z0, 2), wy), b = P(z1, wy);
     const wa = FP_HALF*a.k, wb = FP_HALF*b.k;
     if (L.cart) {
+      /* a continuous track: each tile is cut from the exact rail height at its near and far edge (so slopes are smooth,
+         not stair-steps), the nearer edge is stretched a hair toward you so neighbouring tiles overlap (no hairline seams),
+         and every tile is the same colour, so nothing strobes as the track rushes past at speed. */
+      const yn = railAt(hx + Math.max(z0, 2)), yf = railAt(hx + z1);
+      const na = P(Math.max(z0 - .9, 2), yn == null ? wy : yn), nb = P(z1, yf == null ? wy : yf);
+      const wa2 = FP_HALF*na.k, wb2 = FP_HALF*nb.k;
       const quad = (x0a, x1a, x0b, x1b, ya, yb, col) => { c.fillStyle = col; c.beginPath(); c.moveTo(CX + x0a, ya); c.lineTo(CX + x1a, ya); c.lineTo(CX + x1b, yb); c.lineTo(CX + x0b, yb); c.closePath(); c.fill(); };
       if (i % 4 === 0 && z0 < 260) { // trestle posts and a cross brace under the track (nearer ones only, so it doesn't turn into a lattice)
         const bot = VH + 30; c.fillStyle = '#6b4526';
-        for (const sd of [-1, 1]) { const x = CX + sd*wa*.8; c.fillRect(x - 1.6*a.k, a.y + 2*a.k, 3.2*a.k, bot - a.y); }
-        if (z0 < 140) { c.strokeStyle = '#5a3a1e'; c.lineWidth = 1.6*a.k; c.beginPath(); c.moveTo(CX - wa*.8, a.y + 8*a.k); c.lineTo(CX + wa*.8, a.y + 40*a.k); c.moveTo(CX + wa*.8, a.y + 8*a.k); c.lineTo(CX - wa*.8, a.y + 40*a.k); c.stroke(); }
+        for (const sd of [-1, 1]) { const x = CX + sd*wa2*.8; c.fillRect(x - 1.6*na.k, na.y + 2*na.k, 3.2*na.k, bot - na.y); }
+        if (z0 < 140) { c.strokeStyle = '#5a3a1e'; c.lineWidth = 1.6*na.k; c.beginPath(); c.moveTo(CX - wa2*.8, na.y + 8*na.k); c.lineTo(CX + wa2*.8, na.y + 40*na.k); c.moveTo(CX + wa2*.8, na.y + 8*na.k); c.lineTo(CX - wa2*.8, na.y + 40*na.k); c.stroke(); }
       }
-      quad(-wa*.95, wa*.95, -wb*.95, wb*.95, a.y + 2.4*a.k, b.y + 2.4*b.k, '#5d5a63');   // gravel bed
-      quad(-wa*.95, wa*.95, -wb*.95, wb*.95, a.y + .8*a.k, b.y + .8*b.k, i % 2 ? '#77737c' : '#6c6871');
-      for (const q of [0, 1/3, 2/3]) { // sleepers
-        const za = Math.max(2, z0 + q*T), zb = za + T*.16, pa = P(za, wy), pb = P(zb, wy);
+      quad(-wa2*.95, wa2*.95, -wb2*.95, wb2*.95, na.y + 2.4*na.k, nb.y + 2.4*nb.k, '#5d5a63');   // gravel bed
+      quad(-wa2*.95, wa2*.95, -wb2*.95, wb2*.95, na.y + .8*na.k, nb.y + .8*nb.k, '#6e6a74');
+      for (const q of [0, 1/3, 2/3]) { // sleepers, fixed in the world; faded out in the distance so they never shimmer
+        const sx = i*T + q*T/3, zs = sx - hx; if (zs < 2.5 || zs > 230) continue;
+        const ys = railAt(sx), ys2 = railAt(sx + 2.4), pa = P(zs, ys == null ? wy : ys), pb = P(zs + 2.4, ys2 == null ? (ys == null ? wy : ys) : ys2);
+        c.globalAlpha = Math.min(1, (230 - zs)/90);
         quad(-FP_HALF*.82*pa.k, FP_HALF*.82*pa.k, -FP_HALF*.82*pb.k, FP_HALF*.82*pb.k, pa.y, pb.y, '#8a5a2e');
         c.fillStyle = '#5a3a1e'; c.fillRect(CX - FP_HALF*.82*pa.k, pa.y, FP_HALF*1.64*pa.k, Math.max(.6, .9*pa.k));
+        c.globalAlpha = 1;
       }
       for (const sd of [-1, 1]) { // steel rails with a bright top
-        const xa = sd*wa*.46, xb = sd*wb*.46, ta = 1.6*a.k, tb = 1.6*b.k;
-        quad(xa - ta, xa + ta, xb - tb, xb + tb, a.y - 1.6*a.k, b.y - 1.6*b.k, '#3b3f4c');
-        quad(xa - ta*.6, xa + ta*.4, xb - tb*.6, xb + tb*.4, a.y - 2.1*a.k, b.y - 2.1*b.k, '#e6eaf2');
+        const xa = sd*wa2*.46, xb = sd*wb2*.46, ta = 1.6*na.k, tb = 1.6*nb.k;
+        quad(xa - ta, xa + ta, xb - tb, xb + tb, na.y - 1.6*na.k, nb.y - 1.6*nb.k, '#3b3f4c');
+        quad(xa - ta*.6, xa + ta*.4, xb - tb*.6, xb + tb*.4, na.y - 2.1*na.k, nb.y - 2.1*nb.k, '#e6eaf2');
       }
       continue;
     }
@@ -2677,11 +2755,16 @@ function drawFP(TH, s, look){
       c.stroke(); }
     c.globalAlpha = 1;
   }
-  if (L.cart && o.mode !== 'win') { // wind streaks at the edges sell the speed
+  if (L.cart && o.mode !== 'win') { // wind streaks at the edges sell the speed: the faster the cart, the more and the longer
+    const sk = Math.max(.3, Math.min(2.6, spd/165)), nS = Math.round(5 + sk*6), HZs = 92;
     c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineCap = 'round';
-    for (let q = 0; q < 10; q++) { const ph = ((now*.004) + q*.137) % 1, ang = q*.63 + 1.1, r0 = 40 + ph*140; c.lineWidth = .6 + ph*1.4; c.globalAlpha = ph*.8;
-      c.beginPath(); c.moveTo(CX + Math.cos(ang)*r0, HZ + Math.sin(ang)*r0*.6); c.lineTo(CX + Math.cos(ang)*(r0 + 18 + ph*20), HZ + Math.sin(ang)*(r0 + 18 + ph*20)*.6); c.stroke(); }
+    for (let q = 0; q < nS; q++) { const ph = ((now*.004*(.6 + sk*.5)) + q*.137) % 1, ang = q*.63 + 1.1, r0 = 40 + ph*140, ln = (18 + ph*20)*(.6 + sk*.6); c.lineWidth = .6 + ph*1.4; c.globalAlpha = ph*.8*Math.min(1, sk*.8);
+      c.beginPath(); c.moveTo(CX + Math.cos(ang)*r0, HZs + Math.sin(ang)*r0*.6); c.lineTo(CX + Math.cos(ang)*(r0 + ln), HZs + Math.sin(ang)*(r0 + ln)*.6); c.stroke(); }
     c.globalAlpha = 1;
+    if (spd > 250) { // g-force vignette: the edges darken as you scream down a drop
+      const va = Math.min(.42, (spd - 250)/380), vg = c.createRadialGradient(CX, VH*.5, VH*.35, CX, VH*.5, VW*.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(10,6,30,${va})`);
+      c.fillStyle = vg; c.fillRect(-20, -20, VW + 40, VH + 40);
+    }
   }
   c.restore();
   const rg = h.g;
@@ -2796,6 +2879,34 @@ function drawFPGrip(o, look, col, S){
 
 /* height of a floating platform at world x, or null */
 function platY(x){ for (const p of L.plats) if (x >= p.x && x <= p.x + p.w) return p.y; return null; }
+
+/* a friend seen from behind in first person: they run ahead of you, facing the same way you do.
+   The side-view pose gives the timing (which foot is up, how the arms swing); here it is redrawn
+   as a back view - legs side by side, arms hanging at the sides, no face. */
+function drawHeroBack(x, y, o, look){
+  c.save(); c.translate(x, y);
+  if (o.sq) c.scale(1 + o.sq*.18, 1 - o.sq*.18);
+  const lk = {...look, face: 'none', hand: 'none', back: 'none', ride: 'none'};
+  const capeCol = ({cape_r: '#e8202a', cape_b: '#2f7dff', cape_k: '#2a2a33', cape_g: '#ffcc1f', a_cape: '#b04bff'})[look.back];
+  if (o.cart) { // rear of the minecart with the rider's head and shoulders above the rim
+    const bs = bodyStyle(lk, o.t), hipY = -9.5, neckY = hipY - 8.4, headY = neckY - 5.2;
+    stick({hip: [0, hipY], neck: [0, neckY], head: [0, headY], legs: [[[0, hipY], [0, hipY]], [[0, hipY], [0, hipY]]], arms: [[[-3.4, neckY + 3.2], [-4.2, neckY + 6]], [[3.4, neckY + 3.2], [4.2, neckY + 6]]]}, lk, {t: o.t, mode: 'cart'});
+    c.fillStyle = '#7a7e8c'; rr(-9, -9, 18, 11, 2); c.fill(); c.strokeStyle = OL; c.lineWidth = .8; c.stroke();
+    c.fillStyle = '#a0a5b5'; c.fillRect(-9.8, -10.2, 19.6, 2.4); c.strokeRect(-9.8, -10.2, 19.6, 2.4);
+    c.fillStyle = '#2a2a33'; circ(-6.4, 2, 2.3); circ(6.4, 2, 2.3);
+    c.restore(); return;
+  }
+  const P0 = pose(o), hipY = P0.hip[1], neckY = P0.neck[1], headY = P0.head[1];
+  if (capeCol) { // a cape hangs straight down the middle of the back
+    const sw = Math.sin(o.t*.006 + (o.ph || 0))*1.2;
+    c.fillStyle = capeCol; c.beginPath(); c.moveTo(-3.4, neckY + 1); c.lineTo(3.4, neckY + 1); c.lineTo(5 + sw, hipY + 7); c.lineTo(-5 + sw, hipY + 7); c.closePath(); c.fill(); c.strokeStyle = OL; c.lineWidth = .6; c.stroke();
+  }
+  // legs side by side: the profile gives each knee/foot height (a lifted foot = the leg swinging through)
+  const legs = P0.legs.map((lg, i) => { const sx = (i ? 1 : -1)*2.1; return [[sx, lg[0][1]], [sx*1.12, lg[1][1]]]; });
+  const arms = P0.arms.map((am, i) => { const sx = (i ? 1 : -1); return [[sx*3.7, am[0][1]], [sx*4.6, am[1][1]]]; });
+  stick({hip: [0, hipY], neck: [0, neckY], head: [0, headY], legs, arms}, lk, {...o, face: 1});
+  c.restore();
+}
 
 /* ---------- tea party & inn ---------- */
 function bubble(x, y, text){
