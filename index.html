@@ -3811,10 +3811,15 @@ function logSession(start, how){
   try { localStorage.setItem('quest-sessions', JSON.stringify(sessLog)); } catch (er) {}
   try { renderSessions(); } catch (er) {}
 }
+/* the day's study time goes into the lifetime / weekly stats. On the first open of a new day the day ends
+   while the page is still loading (before the stats code is ready), so it is queued and added a moment later. */
+var statsReady = false;
+function statsQueue(sm){ bank.statsQ = (bank.statsQ || []).concat([sm]); if (statsReady) statsFlush(); }
+function statsFlush(){ const q = bank.statsQ || []; bank.statsQ = []; for (const sm of q) { try { statsOnFinish(sm); } catch (e) {} } saveBank(); }
 function finishDay(){
   if (st.run) { logSession(st.runT0, 'day'); commit(); st.run = false; }
   const sm = daySummary(st);
-  bank.last = sm; bank.earned += sm.coins; bank.base = 0; try { statsOnFinish(sm); } catch (e) {} saveBank();
+  bank.last = sm; bank.earned += sm.coins; bank.base = 0; statsQueue(sm); saveBank();
   st = fresh(0, {at: Date.now(), w: Math.floor(Math.min(NST - 1, st.base + sm.stages)/6)}); save();
   return sm;
 }
@@ -3824,7 +3829,7 @@ const inRoom = () => !!roomCodeLS();
 function raceReset(rn){
   if (st.run) commit();
   const sm = daySummary(st);
-  bank.last = sm; bank.earned += sm.coins; bank.base = 0; if (sm.ms > 0) { try { statsOnFinish(sm); } catch (e) {} } saveBank();
+  bank.last = sm; bank.earned += sm.coins; bank.base = 0; if (sm.ms > 0) statsQueue(sm); saveBank();
   const wasRun = st.run, wasNight = st.night;
   st = fresh(0, wasNight && !wasRun ? wasNight : null);
   try { st.draw = roomDraw(roomCodeLS(), dayKey() + ':' + rn); } catch (e) {}
@@ -4531,6 +4536,7 @@ function mergeSave(R){
     evLog: (() => { const o = {...(Rb.evLog || {})}; for (const [d, l] of Object.entries(Lb.evLog || {})) o[d] = [...new Set([...(o[d] || []), ...l])]; return o; })(),
     wkc: !Lb.wkc ? Rb.wkc : !Rb.wkc ? Lb.wkc : Lb.wkc.k === Rb.wkc.k ? {k: Lb.wkc.k, cv: {3: Math.max(Lb.wkc.cv[3] || 0, Rb.wkc.cv[3] || 0), 4: Math.max(Lb.wkc.cv[4] || 0, Rb.wkc.cv[4] || 0), 5: Math.max(Lb.wkc.cv[5] || 0, Rb.wkc.cv[5] || 0)}, foes: Math.max(Lb.wkc.foes || 0, Rb.wkc.foes || 0)} : dayNum(Rb.wkc.k) > dayNum(Lb.wkc.k) ? Rb.wkc : Lb.wkc,
     wrLog: {...(Rb.wrLog || {}), ...(Lb.wrLog || {})},
+    statsQ: Lb.statsQ || [],   // this device's own pending day ends only
     totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
     ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
     wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
@@ -4759,12 +4765,12 @@ function statsOnFinish(sm){
   if (sm.all) bank.allcN = (bank.allcN || 0) + 1;
   if (sm.comp) bank.comp = (bank.comp || 0) + 1;
   { const rn = sm.reachedN || 0; bank.wclr = bank.wclr || {}; if (rn >= 78) bank.wclr[13] = (bank.wclr[13] || 0) + 1; if (rn >= 84) bank.wclr[14] = (bank.wclr[14] || 0) + 1; if (rn >= 90) bank.wclr[15] = (bank.wclr[15] || 0) + 1; }
-  try { // courses cleared and enemies defeated today (st is still today's day here)
+  if (!sm.late) try { // courses cleared and enemies defeated today (st is still today's day here)
     const cv = {...(bank.cv || {})}; for (let i = 0; i < sm.stages; i++) { const v = vIn(st, st.base + i); if (v >= 3) cv[v] = (cv[v] || 0) + 1; }
     bank.cv = cv; bank.foes = (bank.foes || 0) + stompsToday();
   } catch (e) {}
   const wk = weekKey(sm.d);
-  try { const add = {cv: {}, foes: stompsToday()}; for (let i = 0; i < sm.stages; i++) { const v = vIn(st, st.base + i); if (v >= 3) add.cv[v] = (add.cv[v] || 0) + 1; }
+  if (!sm.late) try { const add = {cv: {}, foes: stompsToday()}; for (let i = 0; i < sm.stages; i++) { const v = vIn(st, st.base + i); if (v >= 3) add.cv[v] = (add.cv[v] || 0) + 1; }
     const w0 = bank.wkc && bank.wkc.k === wk ? bank.wkc : {k: wk, cv: {}, foes: 0};
     bank.wkc = {k: wk, cv: {3: (w0.cv[3] || 0) + (add.cv[3] || 0), 4: (w0.cv[4] || 0) + (add.cv[4] || 0), 5: (w0.cv[5] || 0) + (add.cv[5] || 0)}, foes: w0.foes + add.foes};
   } catch (e) {}
@@ -4779,6 +4785,17 @@ const weekMs = () => {
   for (const [d, ms] of Object.entries(bank.wd || {})) if (weekKey(d) === wk) t += ms;
   return t + todayMs();
 };
+statsReady = true;
+for (const sm of bank.statsQ || []) sm.late = sm.late || sm.d !== st.d;   // queued at startup: today's st is already the new day
+statsFlush();
+{ // repair: days that ended on opening the app were never added (the old bug). The last one is still in bank.last.
+  const l = bank.last;
+  if (l && l.d && l.ms >= 60000 && dayNum(l.d) > dayNum(bank.lastDay) && !(bank.wd && bank.wd[l.d]) && weekKey(l.d) === weekKey(st.d)) {
+    bank.wd = bank.wd || {}; bank.wd[l.d] = l.ms;   // its totalMs was already added before the old code failed
+    bank.days = (bank.days || 0) + 1; bank.streak = bank.lastDay === prevDay(l.d) ? (bank.streak || 0) + 1 : 1; bank.lastDay = l.d;
+    bank.best = Math.max(bank.best || 0, l.ms); saveBank();
+  }
+}
 
 /* ---------- daily missions ---------- */
 const STOMP_KEY = 'quest-foes-v1';
