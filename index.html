@@ -3781,7 +3781,8 @@ if (st) { st.done = st.done || 0; st.doneCoins = st.doneCoins || 0; st.base = st
 const save = () => { try { localStorage.setItem('quest-day', JSON.stringify(st)); } catch (e) {} onSaved(); };
 const dayLen = o => (NST - o.base)*STAGE;
 const msOf = o => { let v = o.acc + (o.run ? (Date.now() - o.t0)*o.mult : 0); if (o.ff) v = Math.min(v, o.ff.target); return v; };
-const studyMs = () => msOf(st);
+const studyMs = () => msOf(st);   // game progress (a 刺客 game-over rewinds this)
+const realMs = () => msOf(st) + (st.lost || 0);   // time really studied today (never rewinds)
 const commit = () => { if (st.run) { const n = Date.now(); st.acc = msOf(st); st.t0 = n; } };
 function syncDone(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
@@ -3800,7 +3801,7 @@ function daySummary(o){
   const Tt = Math.min(dayLen(o), msOf(o)/1000), cl = Math.floor(Tt/STAGE);
   const reachedNum = Math.min(NST, o.base + cl + 1);
   const next = 0;   // each new day / race starts again from 1-1
-  return {ms: Math.round(Tt*1000), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= ALLC, comp: o.base + cl >= NST, reachedN: o.base + cl, next, nextName: stageName(next), d: o.d};
+  return {ms: Math.round(Tt*1000) + (o.lost || 0), stages: cl, coins: dayCoins(o), from: stageLabel(o, o.base), reached: stageLabel(o, reachedNum - 1), all: o.base + cl >= ALLC, comp: o.base + cl >= NST, reachedN: o.base + cl, next, nextName: stageName(next), d: o.d};
 }
 /* ---------- study-session log: a record of every start→stop, kept on this device ---------- */
 let sessLog = []; try { sessLog = JSON.parse(localStorage.getItem('quest-sessions') || '[]'); } catch (e) {}
@@ -3921,7 +3922,7 @@ function stageOf(T){
   return {k, si: st.base + k, s: all ? STAGE : T - k*STAGE, all};
 }
 function ui(){
-  const ms = studyMs(), Tt = trueT(), {si, s, all} = stageOf(Tt), cleared = Math.floor(Tt/STAGE), Lx = stg(si), TH = THEMES[Math.floor(si/6)];
+  const ms = realMs(), Tt = trueT(), {si, s, all} = stageOf(Tt), cleared = Math.floor(Tt/STAGE), Lx = stg(si), TH = THEMES[Math.floor(si/6)];
   $('tt').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
   $('go').textContent = st.ff ? '早送り中' : st.run ? '停止' : all ? 'クリア' : '開始';
   $('go').className = 'cir' + (st.run && !st.ff ? ' stop' : '');
@@ -4253,7 +4254,7 @@ let spec = null, specTxt = '';   // the friend being watched (declared early: vs
 const myKey = () => fb.uid;
 let myCheer = null;   // the last cheer stamp this player sent ({to, k, at})
 const myEntry = () => ({wk: typeof weekKey === 'function' ? weekKey(st.d) : '', wkms: typeof weekMs === 'function' ? Math.round(weekMs()) : 0, ch: myCheer,n: (fb.name || 'ななし').slice(0, 10), acc: Math.round(st.acc), t0: Math.round(st.t0), run: !!st.run, mult: st.mult || 1, ft: st.ff ? Math.round(st.ff.target) : 0,
-  base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs())), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: (typeof allcN === 'function' ? allcN() : 0), a: bank.vsAwards || 0}),
+  base: st.base, dr: (st.draw || []).join(''), d: st.d, tot: Math.round(Math.min(dayLen(st)*1000, studyMs()) + (st.lost || 0)), lost: st.lost || 0, ak: (typeof myAtks !== 'undefined' && myAtks.length ? myAtks.filter(x => Date.now() - x.at < 30*60e3) : undefined), ar: (typeof myAtkRes !== 'undefined' ? myAtkRes : undefined), coins: dayCoins(st), night: !!st.night, up: Date.now(), lk: JSON.stringify({eq: bank.eq, w: (typeof allcN === 'function' ? allcN() : 0), a: bank.vsAwards || 0}),
   ac: (typeof allcN === 'function' ? allcN() : 0),
   allc: !!st.allAt, comp: !!st.compAt, allcAt: st.allAt || 0, rv: 3,
   rs0: (st.run && !st.ff && !st.night) ? (st.runT0 || st.t0 || 0) : 0});
@@ -4533,6 +4534,10 @@ function mergeSave(R){
     totalMs: Math.max(Lb.totalMs || 0, Rb.totalMs || 0), days: Math.max(Lb.days || 0, Rb.days || 0), best: Math.max(Lb.best || 0, Rb.best || 0), allcN: Math.max(Lb.allcN || 0, Rb.allcN || 0),
     ...(dayNum(Rb.lastDay) > dayNum(Lb.lastDay) ? {streak: Rb.streak, lastDay: Rb.lastDay} : {streak: Lb.streak, lastDay: Lb.lastDay}),
     wk: !Lb.wk ? Rb.wk : !Rb.wk ? Lb.wk : Lb.wk.k === Rb.wk.k ? {k: Lb.wk.k, ms: Math.max(Lb.wk.ms, Rb.wk.ms)} : dayNum(Rb.wk.k) > dayNum(Lb.wk.k) ? Rb.wk : Lb.wk,
+    wd: (() => { const o = {...(Rb.wd || {})}; for (const [d, ms] of Object.entries(Lb.wd || {})) o[d] = Math.max(o[d] || 0, ms);
+      // this device's unfinished day is about to be replaced by a newer day from another device: keep its time
+      try { if (Rs && dayNum(Rs.d) > dayNum(Ls.d) && msOf(Ls) > 0) o[Ls.d] = Math.max(o[Ls.d] || 0, (Lb.wd && Lb.wd[Ls.d] || 0) + Math.round(Math.min(dayLen(Ls)*1000, msOf(Ls)) + (Ls.lost || 0))); } catch (e) {}
+      return o; })(),
     eq: {...(newerBank.eq || Lb.eq)}};
   let s = Ls;
   if (Rs) {
@@ -4726,7 +4731,7 @@ uiLabels();
 $('fpv').addEventListener('click', () => { fpLabel(); if (fpOn && !bank.fpUsed) { bank.fpUsed = 1; saveBank(); } }); fpLabel();
 setInterval(() => {
   if (!document.body.classList.contains('theater')) return;
-  const ms = studyMs(); $('tt2').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
+  const ms = realMs(); $('tt2').textContent = ms < 3600000 ? fmt(ms).slice(2) : fmt(ms);
   $('go2').textContent = $('go').textContent; $('go2').className = st.run && !st.ff ? 'stop' : ''; $('go2').disabled = $('go').disabled;
 }, 250);
 
@@ -4763,11 +4768,17 @@ function statsOnFinish(sm){
     const w0 = bank.wkc && bank.wkc.k === wk ? bank.wkc : {k: wk, cv: {}, foes: 0};
     bank.wkc = {k: wk, cv: {3: (w0.cv[3] || 0) + (add.cv[3] || 0), 4: (w0.cv[4] || 0) + (add.cv[4] || 0), 5: (w0.cv[5] || 0) + (add.cv[5] || 0)}, foes: w0.foes + add.foes};
   } catch (e) {}
-  bank.wk = bank.wk && bank.wk.k === wk ? {k: wk, ms: bank.wk.ms + sm.ms} : {k: wk, ms: sm.ms};
+  // per-day study time (merged by max per day across devices, so a sync can never drop it)
+  bank.wd = bank.wd || {}; bank.wd[sm.d] = (bank.wd[sm.d] || 0) + sm.ms;
+  { const lim = new Date(); lim.setDate(lim.getDate() - 21); for (const k of Object.keys(bank.wd)) { const [y, m, dd] = k.split('-').map(Number); if (new Date(y, m - 1, dd) < lim) delete bank.wd[k]; } }
 }
-const todayMs = () => Math.min(dayLen(st), studyMs()/1000)*1000;
+const todayMs = () => Math.min(dayLen(st), studyMs()/1000)*1000 + (st.lost || 0);
 const curStreak = () => { const s = bank.streak || 0; if (bank.lastDay === st.d || bank.lastDay === prevDay(st.d)) return s + (bank.lastDay === prevDay(st.d) && todayMs() >= 60000 ? 1 : 0); return todayMs() >= 60000 ? 1 : 0; };
-const weekMs = () => (bank.wk && bank.wk.k === weekKey(st.d) ? bank.wk.ms : 0) + todayMs();
+const weekMs = () => {
+  const wk = weekKey(st.d); let t = bank.wk && bank.wk.k === wk ? bank.wk.ms : 0;   // bank.wk: older saves (frozen)
+  for (const [d, ms] of Object.entries(bank.wd || {})) if (weekKey(d) === wk) t += ms;
+  return t + todayMs();
+};
 
 /* ---------- daily missions ---------- */
 const STOMP_KEY = 'quest-foes-v1';
@@ -4959,10 +4970,10 @@ function raceRows(){
     const ms = memberNow(e), done = Math.min(NST, ms.si + (ms.s >= STAGE ? 1 : ms.s/STAGE));
     const ac = me ? (typeof allcN === 'function' ? allcN() : 0) : (+e.ac || 0);
     const status = !ms.today ? 'まだ' : e.night ? 'おやすみ' : done >= NST ? '16コンプ🏆' : done >= ALLC ? '全クリ🏁' : e.run ? (e.ft ? '早送り' : '勉強中') : '休憩中';
-    return {k, me, today: ms.today, n: e.n, done, ac, all: done >= NST, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
+    return {k, me, today: ms.today, night: !!e.night, n: e.n, done, ac, all: done >= NST, si: Math.min(NST - 1, ms.si), v: ms.v, status, run: ms.today && e.run && !e.night};
   }).sort((a, b) => b.done - a.done);
 }
-const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}${r.ac ? ` <span class="cup">🏁${r.ac}</span>` : ''}<span>${r.today ? `今日 ${Math.floor(r.done)}/${NST}` : 'まだ'}${r.today ? ` · ${stageName(r.si)} ${VAR[r.v]}` : ''} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
+const raceRow = (r, i, stamps) => `<div class="rc${r.me ? ' me' : ''}"><span class="n">${['🥇', '🥈', '🥉'][i] || i + 1}</span><div class="rb"><div class="rt">${!r.me && r.today ? `<button class="specn${spec === r.k ? ' on' : ''}" data-spec="${esc(r.k)}">${esc(r.n)} 👀</button>` : `<b>${esc(r.n)}${r.me ? '（自分）' : ''}</b>`}${r.ac ? ` <span class="cup">🏁${r.ac}</span>` : ''}<span>${r.today ? `今日 ${Math.floor(r.done)}/${NST}` : 'まだ'}${r.today ? ` · ${stageName(r.si)} ${VAR[r.v]}` : ''} · <em class="${r.run ? 'on' : ''}">${r.status}</em></span></div><div class="trk"><i style="width:${r.done/NST*100}%"></i><u style="left:${r.done/NST*100}%"></u></div></div>${stamps && !r.me ? `<button class="sto" data-sto="${esc(r.k)}" aria-label="${esc(r.n)}を応援">📣</button>` : ''}${stamps && !r.me && r.today && !r.night ? `<button class="sto" data-atk="${esc(r.k)}" data-an="${esc(r.n)}" aria-label="${esc(r.n)}に刺客を送る">⚔️</button>` : ''}</div>${stamps && stampOpen === r.k ? `<div class="stp">${STAMPS.map((s2, j) => `<button data-to="${esc(r.k)}" data-st="${j}" ${Date.now() > cheerCool ? '' : 'disabled'}>${s2}</button>`).join('')}</div>` : ''}`;
 function raceRender(){
   const box = $('racebox'); box.hidden = !fb.room; if (!fb.room) return;
   const rows = raceRows();
@@ -4973,13 +4984,13 @@ function rankRender(){
   const box = $('rkbox'); box.hidden = !fb.room; if (!fb.room) return;
   document.querySelectorAll('#rkseg button').forEach(b => b.classList.toggle('on', b.dataset.rk === rkMode));
   if (rkMode === 'race') {
-    $('rkl').innerHTML = raceRows().map((r, i) => raceRow(r, i, true)).join('') + `<p class="vsn" style="margin:8px 0 0">📣で応援スタンプを送れます（15秒に1回まで）。名前をタップするとその人の画面を見られます。</p>`;
+    $('rkl').innerHTML = raceRows().map((r, i) => raceRow(r, i, true)).join('') + `<p class="vsn" style="margin:8px 0 0">📣で応援スタンプを送れます（15秒に1回まで）。名前をタップするとその人の画面を見られます。</p><p class="vsn" style="margin:6px 0 0">⚔️は ${num(ATK_COST)} コインで「刺客」を送ります。相手の次のコースに、いま走っているコースの敵が1体あらわれ、10%の確率でふみつけられず相手はゲームオーバー（そのコースの最初からやり直し）。ふまれたら失敗です。</p>`;
     return;
   }
   const mine = myKey(), wk = weekKey(st.d), rows = [];
   for (const [k, e] of Object.entries(room || {})) {
     if (k === mine) continue;
-    const live = e.d === st.d ? memberT(e)*1000 : 0;
+    const live = e.d === st.d ? memberT(e)*1000 + (e.lost || 0) : 0;
     const base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0;
     rows.push({k, n: e.n, ms: Math.max(0, base) + live, me: false, today: e.d === st.d});
   }
@@ -4990,6 +5001,7 @@ function rankRender(){
 }
 $('rkseg').onclick = e => { const b = e.target.closest('[data-rk]'); if (b) { rkMode = b.dataset.rk; rankRender(); } };
 $('rkl').onclick = e => {
+  const ak = e.target.closest('[data-atk]'); if (ak) { atkSend(ak.dataset.atk, ak.dataset.an); return; }
   const o = e.target.closest('[data-sto]'); if (o) { stampOpen = stampOpen === o.dataset.sto ? null : o.dataset.sto; rankRender(); return; }
   const b = e.target.closest('[data-st]'); if (!b || Date.now() < cheerCool) return;
   myCheer = {to: b.dataset.to, k: +b.dataset.st, at: Date.now()}; cheerCool = Date.now() + 15000; bank.cheers = (bank.cheers || 0) + 1; saveBank();
@@ -5005,6 +5017,153 @@ function cheerCheck(){
   }
 }
 setInterval(cheerCheck, 2000);
+
+/* ---------- 刺客（しかく）: pay coins to drop a character from your current course onto a rival's NEXT course.
+   It is an overlay on top of the planned course (the course itself is never changed), so it works on every
+   course, including ones added later. 90%: the hero stomps it. 10%: it can't be stomped -> game over, and the
+   rival restarts that course from its beginning (study time is kept: only the game progress rewinds). ---------- */
+const ATK_COST = 10000, ATK_FAIL = .10, ATK_TTL = 30*60e3, ATK_OVER = 2.8;
+var myAtks = [], myAtkRes = null;   // sent attacks / last result report (both travel inside my room entry)
+let atkSeen = {}; try { atkSeen = JSON.parse(localStorage.getItem('quest-atk-seen') || '{}'); } catch (e) {}
+let atkCool = 0;
+const atkSaveSeen = () => { const lim = Date.now() - 864e5; for (const k of Object.keys(atkSeen)) if (atkSeen[k] < lim) delete atkSeen[k]; try { localStorage.setItem('quest-atk-seen', JSON.stringify(atkSeen)); } catch (e) {} };
+const atkRand = id => { let h = 2166136261; for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 10000)/10000; };
+function atkSend(toKey, toName){
+  if (!fb.room || !toKey) return;
+  const t = Date.now();
+  if (t < atkCool) { toast('すこし待ってから、また送れます', 2500); return; }
+  if (wallet() < ATK_COST) { toast(`コインが足りません（${num(ATK_COST)}コイン必要・いま ${num(wallet())}）`, 4000); return; }
+  if (!confirm(`${toName} に「刺客」を送りますか？\n\n${num(ATK_COST)} コインがかかります。\n相手の次のコースに、いま走っているコースの敵が1体あらわれます。\n10%の確率でふみつけられず、相手はゲームオーバー（そのコースの最初からやり直し）。ふまれたら失敗です。`)) return;
+  const {si} = stageOf(trueT()), Lx = stg(si), TH = Lx.TH;
+  const en = Lx.enemies.length ? Lx.enemies[Math.floor(Math.random()*Lx.enemies.length)].type : (TH.foes && TH.foes[Math.floor(Math.random()*TH.foes.length)]) || 'blob';
+  bank.spent += ATK_COST; saveBank();
+  myAtks = myAtks.filter(x => t - x.at < ATK_TTL).concat([{to: toKey, id: myKey() + '-' + t, en, w: Math.floor(si/6), at: t}]).slice(-3);
+  atkCool = t + 20000;
+  vsPushNow(); sfx('boom'); ui();
+  toast(`⚔️ ${toName} に刺客を送りました！ 相手の次のコースにあらわれます`, 5000);
+}
+const ATK_TYPES = (() => { const s = new Set(['blob']); for (const th of THEMES) for (const f of th.foes || []) s.add(f); return s; })();
+function atkCheck(){
+  if (!fb.room || !room) return;
+  const mine = myKey();
+  for (const [k, e] of Object.entries(room)) {
+    if (k === mine || !e) continue;
+    for (const a of Array.isArray(e.ak) ? e.ak : []) {   // attacks aimed at me
+      if (!a || a.to !== mine || !a.id || atkSeen[a.id] || !(Date.now() - a.at < ATK_TTL)) continue;
+      atkSeen[a.id] = a.at; atkSaveSeen();
+      st.atkQ = st.atkQ || []; if (st.atkQ.length >= 5) continue;
+      st.atkQ.push({id: String(a.id).slice(0, 60), from: k, fn: String(e.n || 'ななし').slice(0, 10), en: ATK_TYPES.has(a.en) ? a.en : 'blob', w: Math.max(0, Math.min(THEMES.length - 1, +a.w || 0)), at: a.at}); save();
+      toast(`⚔️ ${e.n} から刺客が送られました！ 次のコースにあらわれます`, 7000); sfx('boom');
+    }
+    const r = e.ar;   // how my attack went
+    if (r && r.to === mine && r.id && !atkSeen['r' + r.id] && Date.now() - r.at < ATK_TTL) {
+      atkSeen['r' + r.id] = r.at; atkSaveSeen();
+      toast(r.r ? `💀 ${e.n} に刺客がめいちゅう！ ゲームオーバーにしました！` : `😵 ${e.n} に刺客をふまれてしまいました…`, 7000); sfx(r.r ? 'clear' : 'stomp');
+    }
+  }
+}
+setInterval(atkCheck, 2000);
+/* when the hero meets the 刺客: a stretch of plain ground in the planned course, late enough to see it coming */
+function atkSpot(Lx, id, minT){
+  const END = INTRO + RUNT, c = [];
+  for (const g of Lx.segs) {
+    if (g.j !== 0 || ['ride', 'place', 'grab', 'wait'].includes(g.k)) continue;
+    const a = Math.max(g.t0, minT, INTRO + 4), b = Math.min(g.t0 + g.d, END - 6);
+    if (b - a >= .5) c.push({a, b, x1: g.x1});
+  }
+  if (!c.length) { const sH = safeS(Lx, Math.max(minT, STAGE/2)); return {sH, xe1: 1e9}; }
+  c.sort((p, q) => (q.b - q.a) - (p.b - p.a));
+  const p = c[Math.floor(atkRand(id + 's')*Math.min(4, c.length))];
+  return {sH: p.a + (p.b - p.a)*.55, xe1: p.x1};
+}
+/* game over: the game progress goes back to the start of the course; the study time stays */
+function atkRewind(k){
+  commit();
+  const to = Math.max(0, k)*STAGE*1000;
+  if (st.acc > to) { st.lost = (st.lost || 0) + (st.acc - to); st.acc = to; if (st.run) st.t0 = Date.now(); }
+  st.resume = null; save();
+}
+function atkReport(a, dead){ myAtkRes = {to: a.from, id: a.id, r: dead ? 1 : 0, at: Date.now()}; try { vsPushNow(); } catch (e) {} }
+/* per frame: start / advance / finish the attack on the current course. Returns what to draw, or null. */
+function atkStep(Td, si, s, all){
+  const k = si - st.base; let a = st.atk;
+  if (a && a.k !== k) {   // the course changed under it (time added / sync): a missed game-over still counts
+    if (a.k < k && a.fail && !a.done) { atkRewind(a.k); toast(`💀 ${a.fn} の刺客にやられました…`, 5000); atkReport(a, true); }
+    st.atk = a = null; save();
+  }
+  if (!a && st.atkQ && st.atkQ.length && !st.ff && !all && !st.night && s >= 0 && s <= 25) {
+    const q = st.atkQ.shift(), sp = atkSpot(L, q.id, s + 6);
+    a = st.atk = {id: q.id, from: q.from, fn: q.fn, en: q.en, w: q.w, k, fail: atkRand(q.id) < ATK_FAIL, done: 0, dead: 0, sH: sp.sH, xe1: sp.xe1}; save();
+    sfx('boom'); toast(`⚠️ ${a.fn} の刺客があらわれる！`, 3500);
+  }
+  if (!a) return null;
+  const hh = heroAtIn(L, a.sH), dt = a.sH - s;
+  const K = {a, xH: hh.x, yH: hh.y, dt, dy: 0, dx: 0, pose: null, flip: 0, vis: false, ex: hh.x, mode: 'walk', age: 0, txt: ''};
+  if (!a.done && dt <= 0) {
+    a.done = 1;
+    if (a.fail) { a.dead = Date.now(); a.dT = k*STAGE + a.sH; sfx('boom'); }
+    else { a.at2 = Date.now(); sfx('stomp'); atkReport(a, false); }
+    save();
+  }
+  if (!a.done) {
+    K.ex = hh.x + 22*dt; K.vis = K.ex <= a.xe1 && dt < 9; K.mode = 'walk';
+    if (dt < .32 && dt > -.2) { const u = (.32 - dt)/.52; K.dy = 16*Math.sin(Math.PI*Math.max(0, Math.min(1, u))); K.pose = 'jump'; }
+    if (dt < 1.3) K.txt = '!';
+    return K;
+  }
+  if (a.fail) {
+    const ta = (Date.now() - a.dead)/1000; K.age = ta; K.vis = true; K.ex = hh.x + 6; K.mode = ta < .5 ? 'walk' : 'idle';
+    K.dy = ta < .6 ? 20*Math.sin(Math.PI*Math.min(1, ta/.6)) : 0; K.dx = -Math.min(ta, .6)*30; K.flip = ta < .6 ? -ta*18 : 0; K.pose = ta < .6 ? 'tuck' : 'sit';
+    if (ta >= ATK_OVER) { atkRewind(k); toast(`💀 ${a.fn} の刺客にやられた！ ${stageName(si)} の最初からやり直し`, 6000); atkReport(a, true); st.atk = null; save(); try { ui(); } catch (e) {} return null; }
+    return K;
+  }
+  const age = s - a.sH; K.age = age; K.vis = age < .9; K.ex = hh.x; K.mode = 'flat';
+  if (age < .18) { K.dy = 16*Math.sin(Math.PI*(.32 + age)/.52); K.pose = 'jump'; }
+  if (age < 1.6) K.txt = 'ふみつけ！'; else if (age > 2.5) { st.atk = null; save(); return null; }
+  return K;
+}
+function drawAtkFoe(K, TH, cam){
+  if (!K.vis) return;
+  const a = K.a, x = K.ex - cam; if (x > VW + 24 || x < -30) return;
+  const y = Y(K.yH), pal = (THEMES[a.w] || TH).enemy, fly = FLYERS.includes(a.en), flat = K.mode === 'flat';
+  c.save();
+  if (flat) {
+    c.globalAlpha = K.age < .5 ? 1 : 1 - (K.age - .5)/.4;
+    if (fly) { c.translate(x, y - 14 + K.age*K.age*120); c.rotate(K.age*8); drawFoe(a.en, 0, 14, 'flat', 0, pal, now); }
+    else drawFoe(a.en, x, y, 'flat', 0, pal, now);
+    for (let i = 0; i < 6; i++) { const q = -Math.PI*(.12 + i*.15), r = 4 + K.age*30; star(x + Math.cos(q)*r, y - (fly ? 20 : 4) + Math.sin(q)*r, 2.6*(1 - K.age), '#fff27a'); }
+  } else {
+    c.translate(x, y); c.scale(1.25, 1.25);   // a little bigger and angrier than the course's own enemies
+    c.shadowColor = '#ff2d55'; c.shadowBlur = 6;
+    drawFoe(a.en, 0, 0, K.mode, now*.012, pal, now);
+    c.shadowBlur = 0;
+    c.font = 'bold 6.5px sans-serif'; c.textAlign = 'center'; c.lineWidth = 1.8; c.strokeStyle = OL; c.fillStyle = '#ffd6dd';
+    const ty = fly ? -34 : -22; c.strokeText(`${a.fn}の刺客`, 0, ty); c.fillText(`${a.fn}の刺客`, 0, ty);
+    if (K.txt === '!' && Math.floor(now/160) % 2 === 0) { c.font = 'bold 9px sans-serif'; c.fillStyle = '#ff3b3b'; c.strokeText('!', 0, ty - 7); c.fillText('!', 0, ty - 7); }
+  }
+  c.restore();
+}
+function drawAtkOverlay(K, hx, hy){
+  const a = K.a;
+  if (a.fail && a.done) {
+    const ta = K.age;
+    if (ta < .35) { c.fillStyle = `rgba(255,255,255,${.7*(1 - ta/.35)})`; c.fillRect(0, 0, VW, VH); }
+    const k = Math.min(1, Math.max(0, (ta - .35)/.5)), out = ta > ATK_OVER - .5 ? Math.max(0, (ATK_OVER - ta)/.5) : 1;
+    c.fillStyle = `rgba(10,5,20,${.62*k*out})`; c.fillRect(0, 0, VW, VH);
+    c.save(); c.globalAlpha = k*out; c.textAlign = 'center';
+    c.translate(VW/2, VH*.42 - (1 - k)*10); c.scale(.8 + k*.2, .8 + k*.2);
+    c.font = 'bold 30px sans-serif'; c.lineWidth = 4; c.strokeStyle = '#2a0710'; c.fillStyle = '#ff4b5c';
+    c.strokeText('GAME OVER', 0, 0); c.fillText('GAME OVER', 0, 0);
+    c.font = 'bold 9px sans-serif'; c.lineWidth = 2.4; c.fillStyle = '#fff';
+    const l1 = `${a.fn} の刺客をふめなかった…`, l2 = `${stageName(st.base + a.k)} の最初からやり直し`;
+    c.strokeText(l1, 0, 18); c.fillText(l1, 0, 18); c.strokeText(l2, 0, 32); c.fillText(l2, 0, 32);
+    c.restore();
+  } else if (K.txt && K.txt !== '!') {
+    c.save(); c.textAlign = 'center'; c.font = 'bold 12px sans-serif'; c.lineWidth = 3; c.strokeStyle = OL; c.fillStyle = '#ffd23f';
+    const yy = hy - 44 - K.age*8; c.globalAlpha = Math.max(0, 1 - K.age/1.6);
+    c.strokeText(K.txt, hx, yy); c.fillText(K.txt, hx, yy); c.restore();
+  }
+}
 showTab('home');
 
 /* ---------- weekly event (Monday to Sunday, a different theme every week) ---------- */
@@ -5025,7 +5184,7 @@ function roomWeekMs(){   // average over the members who studied this week (you 
   const mine = myKey(), wk = weekKey(st.d);
   for (const [k, e] of Object.entries(room)) {
     if (k === mine) continue;
-    const live = e.d === st.d ? memberT(e)*1000 : 0, base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0, ms = Math.max(0, base) + live;
+    const live = e.d === st.d ? memberT(e)*1000 + (e.lost || 0) : 0, base = e.wk === wk ? (e.wkms || 0) - (e.d === st.d ? (e.tot || 0) : 0) : 0, ms = Math.max(0, base) + live;
     if (ms > 0) { t += ms; n++; }
   }
   return t/n;
@@ -5334,8 +5493,10 @@ function frameBody(){
   const before = st.done; syncDone(st); if (st.done !== before) { save(); ui(); }
   const rest = restMode();
   let Td = rest ? safeTotal(Tt) : dispT(Tt);
+  if (st.atk && st.atk.dead && st.atk.dT != null) Td = Math.min(Td, st.atk.dT);   // game over: the picture holds still
   const {si, s, all} = stageOf(Td);
   L = stg(si); curS = s;
+  const AK = rest || st.night ? null : atkStep(Td, si, s, all);
   const TH = L.TH, END = INTRO + RUNT;
   const winT = s >= END ? s - END : -1;
   const hero = heroAtIn(L, s);
@@ -5367,6 +5528,7 @@ function frameBody(){
   drawBlocks(cam);
   drawCoins(cam);
   drawEnemies(TH, cam, rest === 'sleep', (tea || cleaning) ? (x => x > hx - 12 && x < hx + 110) : null);
+  if (AK) drawAtkFoe(AK, TH, cam);
   drawDust(cam, hero);
   drawGhosts(si, cam);
   if (tea || cleaning) drawTea(cam, hx, gy, look, TH, cleaning, cleaning ? wakeE/r.F : 0);
@@ -5381,14 +5543,16 @@ function frameBody(){
     if (st.run && o.mode === 'run') { for (const l of L.landings) { const a = s - l.t; if (a >= 0 && a < .12) { o.sq = 1 - a/.12; break; } if (a < 0) break; } }
     if (hero.air && hero.g.k === 'b' && Math.abs(hero.u - .5) < .06) o.sq = -.4;
     o.t = now;
-    const moving = st.run && !stretching && winT < 0 && s > INTRO + .3;
+    let hxx = hx;
+    if (AK && winT < 0) { hy += AK.dy; hxx += AK.dx; if (AK.pose) o.mode = AK.pose; if (AK.flip) o.flip = AK.flip; }
+    const moving = st.run && !stretching && winT < 0 && s > INTRO + .3 && !(AK && AK.a.fail && AK.a.done);
     if (moving && hero.g.dash && o.mode === 'run') o.dash = 1;   // sprint: just a harder running form
     if (look.trail !== 'none' && moving) drawTrail(look.trail, (k, dt) => { const q = airPose(L, Math.max(INTRO, s - k*dt)); return {x: q.x - cam, y: Y(q.y), o: q}; }, look);
     if (look.pet !== 'none') {
       if (rest === 'sleep') { drawPet(look, hx - 14, gy - 6, 0); zzz(hx - 10, gy - 12, now + 900); }
       else { const pp = heroAtIn(L, Math.max(INTRO, s - (moving ? .35 : 0))); drawPet(look, pp.x - 14 - cam, Y(pp.y) - 30, now); }
     }
-    drawHero(hx, Y(hy), o, look);
+    drawHero(hxx, Y(hy), o, look);
   }
   for (let i = d0; i < d1; i++) drawDeco(L.decos[i], cam, false);
   }
@@ -5406,6 +5570,7 @@ function frameBody(){
     $('banb').textContent = all ? 'ALL CLEAR!' : L.sn === 5 ? 'WORLD CLEAR!' : 'STAGE CLEAR!';
     $('bans').textContent = all ? `96ステージ完全制覇！ コイン ${coinsAtIn(L, s)} / ${L.total}` : `コイン ${coinsAtIn(L, s)} / ${L.total} · つぎは ${stageLabel(st, si + 1)} ${THEMES[Math.floor((si + 1)/6)].name}`;
   }
+  if (AK && !fpOn) drawAtkOverlay(AK, hx, Y(hero.y));
   if (!$('shop').hidden) drawPreview();
   if (!$('sleep').hidden) drawNight();
 }
